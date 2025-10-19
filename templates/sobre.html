@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="sobre">
+  <h2>Sobre a EJM Santos</h2>
+  <p>Produzimos mel puro e natural, direto das colmeias do interior. Nosso trabalho respeita as abelhas e a natureza.</p>
+  <div class="galeria">
+    <img src="{{ url_for('static', filename='imagens/1760708557479.jpg') }}" alt="colmeia">
+    <img src="{{ url_for('static', filename='imagens/1760708557485.jpg') }}" alt="extração">
+  </div>
+  <p>Nossa missão: levar até você um produto saudável, saboroso e sustentável.</p>
+</section>
+{% endblock %}

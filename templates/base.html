@@ -1,0 +1,96 @@
+
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EJM Santos</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <style>
+    /* ======== MENU MOBILE ======== */
+    .menu-toggle {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+      gap: 4px;
+    }
+
+    .menu-toggle span {
+      width: 25px;
+      height: 3px;
+      background: #333;
+      border-radius: 2px;
+    }
+
+    @media (max-width: 768px) {
+      nav.menu {
+        display: none;
+        position: absolute;
+        top: 60px;
+        right: 0;
+        background: #f8f8f8;
+        flex-direction: column;
+        width: 200px;
+        border-left: 1px solid #ddd;
+        box-shadow: -2px 4px 10px rgba(0,0,0,0.1);
+      }
+
+      nav.menu a {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+      }
+
+      nav.menu.ativo {
+        display: flex;
+      }
+
+      .menu-toggle {
+        display: flex;
+      }
+
+      .botao-topo {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topo">
+    <a class="logo" href="/">EJM SANTOS</a>
+
+    <div class="menu-toggle" id="menu-toggle">
+      <span></span><span></span><span></span>
+    </div>
+
+    <nav class="menu" id="menu">
+      <a href="/produtos">Produtos</a>
+      <a href="/sobre">Sobre Nós</a>
+      <a href="/perfil" id="link-perfil">Perfil</a>
+      <a href="/login" id="link-login">Entrar / Cadastrar</a>
+    </nav>
+
+    <a href="#produtos" class="botao-topo">PEÇA AGORA</a>
+  </header>
+
+  <main id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <a href="https://wa.me/55XXXXXXXXXXX" class="whats-flutuante" target="_blank">💬</a>
+
+  <footer>
+    <p>© 2025 EJM Santos - Mel puro e natural. Todos os direitos reservados.</p>
+  </footer>
+
+  <script>
+    const toggle = document.getElementById('menu-toggle');
+    const menu = document.getElementById('menu');
+    toggle.addEventListener('click', () => {
+      menu.classList.toggle('ativo');
+    });
+  </script>
+</body>
+</html>
+
+

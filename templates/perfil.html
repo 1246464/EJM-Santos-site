@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="perfil">
+  <h2>Meu Perfil</h2>
+  <div id="perfil-info"></div>
+  <h3>Minhas Compras</h3>
+  <ul id="minhas-compras"></ul>
+  <button id="btn-logout">Sair</button>
+</section>
+
+<script>
+const token = localStorage.getItem('token');
+if(!token){
+  document.getElementById('perfil-info').innerHTML = '<p>Você não está logado. <a href="/login">Entrar</a></p>';
+} else {
+  fetch('/api/me',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).then(u=>{
+    document.getElementById('perfil-info').innerHTML = `<p><strong>${u.nome}</strong> — ${u.email}</p>`;
+    const ul = document.getElementById('minhas-compras');
+    if(u.compras.length === 0) ul.innerHTML = '<li>Nenhuma compra simulada</li>';
+    u.compras.forEach(c=>{
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="/produto/${c.product_id}">${c.titulo}</a>`;
+      ul.appendChild(li);
+    });
+  });
+}
+document.getElementById('btn-logout').onclick = ()=>{
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  location.reload();
+};
+</script>
+{% endblock %}

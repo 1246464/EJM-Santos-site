@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="produtos">
+  <h2>Produtos</h2>
+  <div id="produtos-grid" class="produtos-grid"></div>
+</section>
+<script>
+fetch('/api/products').then(r=>r.json()).then(data=>{
+  const grid = document.getElementById('produtos-grid');
+  data.forEach(p=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <img src="/static/imagens/${p.imagem}" alt="${p.titulo}">
+      <h3>${p.titulo}</h3>
+      <p>${p.descricao}</p>
+      <span class="preco">R$ ${p.preco.toFixed(2)}</span>
+      <div class="produto-actions">
+        <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar</a>
+        <a class="botao-comprar" href="/produto/${p.id}">Detalhes</a>
+      </div>
+      <div class="meta">Avaliação: ${p.media || 0} ⭐ (${p.n_reviews})</div>
+    `;
+    grid.appendChild(card);
+  });
+});
+</script>
+{% endblock %}

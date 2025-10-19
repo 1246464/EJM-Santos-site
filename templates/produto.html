@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<section id="produto-detalhe" class="produto-detalhe">
+  <div id="produto-info"></div>
+  <div id="produto-reviews"></div>
+  <div id="avaliar-area"></div>
+</section>
+
+<script>
+const productId = {{ product_id }};
+function showProduct(p){
+  const container = document.getElementById('produto-info');
+  container.innerHTML = `
+    <div class="card-detalhe">
+      <img src="/static/imagens/${p.imagem}" alt="${p.titulo}">
+      <div class="detalhes">
+        <h2>${p.titulo}</h2>
+        <p>${p.descricao}</p>
+        <div class="preco">R$ ${p.preco.toFixed(2)}</div>
+        <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar no Mercado Pago</a>
+        <button id="btn-simular-compra" class="botao-comprar">Simular Compra (para avaliar)</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('btn-simular-compra').onclick = async ()=>{
+    const token = localStorage.getItem('token');
+    if(!token){ alert('Faça login para simular a compra e avaliar.'); return; }
+    const res = await fetch('/api/purchase',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({product_id: productId})});
+    const j = await res.json();
+    alert(j.message || 'OK');
+  }
+}
+
+function showReviews(list){
+  const c = document.getElementById('produto-reviews');
+  c.innerHTML = '<h3>Avaliações</h3>';
+  if(list.length === 0) c.innerHTML += '<p>Nenhuma avaliação ainda.</p>';
+  list.forEach(r=>{
+    const div = document.createElement('div');
+    div.className = 'comentario';
+    div.innerHTML = `<strong>${r.nome}</strong> • ${r.nota} ⭐ <br/> <em>${r.comentario || ''}</em>`;
+    c.appendChild(div);
+  });
+}
+
+function showAvaliacaoArea(){
+  const token = localStorage.getItem('token');
+  const area = document.getElementById('avaliar-area');
+  area.innerHTML = '';
+  if(!token){
+    area.innerHTML = '<p>Faça login para avaliar após comprar.</p>';
+    return;
+  }
+  area.innerHTML = `
+    <h3>Deixe sua avaliação</h3>
+    <label>Nota:
+      <select id="nota">
+        <option>5</option><option>4</option><option>3</option><option>2</option><option>1</option>
+      </select>
+    </label>
+    <textarea id="comentario" placeholder="Comentário (opcional)"></textarea>
+    <button id="btn-avaliar" class="botao-comprar">Enviar Avaliação</button>
+  `;
+  document.getElementById('btn-avaliar').onclick = async ()=>{
+    const nota = document.getElementById('nota').value;
+    const comentario = document.getElementById('comentario').value;
+    const res = await fetch('/api/review', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token')},
+      body: JSON.stringify({product_id: productId, nota, comentario})
+    });
+    const j = await res.json();
+    alert(j.message || JSON.stringify(j));
+    if(res.ok) location.reload();
+  }
+}
+
+fetch(`/api/product/${productId}`).then(r=>r.json()).then(data=>{
+  showProduct(data);
+  showReviews(data.reviews || []);
+  showAvaliacaoArea();
+});
+</script>
+{% endblock %}

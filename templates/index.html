@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="hero-left">
+    <h1>Mel puro, direto da colmeia</h1>
+    <p>Produzido com cuidado, sem conservantes — perfeito para seu dia a dia.</p>
+    <a class="botao-topo" href="/produtos">Ver Produtos</a>
+  </div>
+  <div class="hero-right">
+    <img src="{{ url_for('static', filename='imagens/1760708557479.jpg') }}" alt="colmeia">
+  </div>
+</section>
+
+<section class="intro">
+  <h2>Por que nosso mel é especial?</h2>
+  <div class="qualidades">
+    <div><span>🍃</span> Natural</div>
+    <div><span>🍯</span> Puro</div>
+    <div><span>🚫</span> Sem conservantes</div>
+  </div>
+</section>
+
+<section id="produtos" class="produtos-preview">
+  <h2>Nossos Produtos</h2>
+  <div id="produtos-list"></div>
+</section>
+<script>
+  // carrega produtos principais via API
+  fetch('/api/products').then(r=>r.json()).then(data=>{
+    const wrap = document.getElementById('produtos-list');
+    data.slice(0,4).forEach(p=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <img src="/static/imagens/${p.imagem}" alt="${p.titulo}">
+        <h3>${p.titulo}</h3>
+        <p class="desc">${p.descricao}</p>
+        <span class="preco">R$ ${p.preco.toFixed(2)}</span>
+        <div class="produto-actions">
+          <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar</a>
+          <a class="botao-comprar" href="/produto/${p.id}">Detalhes</a>
+        </div>
+      `;
+      wrap.appendChild(card);
+    });
+  });
+</script>
+{% endblock %}
