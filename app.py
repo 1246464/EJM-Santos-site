@@ -62,6 +62,7 @@ def token_required(f):
             token = auth_header.split(" ")[1]
         if not token:
             return jsonify({"message": "Token ausente"}), 401
+
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user = User.query.get(data['user_id'])
@@ -69,12 +70,32 @@ def token_required(f):
                 return jsonify({"message": "Usuário não encontrado"}), 401
         except Exception as e:
             return jsonify({"message": "Token inválido", "error": str(e)}), 401
+
         return f(current_user, *args, **kwargs)
     return decorated
+
 
 # -----------------------
 # API Endpoints
 # -----------------------
+@app.route("/api/reviews/me", methods=["GET"])
+@token_required
+def api_reviews_me(current_user):
+    reviews = (
+        db.session.query(Review, Product.titulo)
+        .join(Product, Review.product_id == Product.id)
+        .filter(Review.user_id == current_user.id)
+        .all()
+    )
+    return jsonify([
+        {
+            "titulo": titulo,
+            "nota": r.nota,
+            "comentario": r.comentario
+        }
+        for r, titulo in reviews
+    ])
+
 @app.route("/api/register", methods=["POST"])
 def api_register():
     data = request.json or {}
@@ -97,12 +118,26 @@ def api_login():
     senha = data.get("senha")
     if not (email and senha):
         return jsonify({"message": "Email e senha necessários"}), 400
+
     user = User.query.filter_by(email=email).first()
     if not user or not check_password_hash(user.senha_hash, senha):
         return jsonify({"message": "Credenciais inválidas"}), 401
-    payload = {"user_id": user.id, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)}
+
+    payload = {
+        "user_id": user.id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)
+    }
+
+    # ✅ novo jeito com PyJWT 2.10.1
+    #jwt_instance = jwt.JWT()
+    #token = jwt_instance.encode(payload, app.config['SECRET_KEY'], alg='HS256')
     token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm="HS256")
-    return jsonify({"token": token, "user": {"id": user.id, "nome": user.nome, "email": user.email}})
+
+    return jsonify({
+        "token": token,
+        "user": {"id": user.id, "nome": user.nome, "email": user.email}
+    })
+
 
 @app.route("/api/products", methods=["GET"])
 def api_products():
@@ -186,12 +221,14 @@ def api_review(current_user):
 @app.route("/api/me", methods=["GET"])
 @token_required
 def api_me(current_user):
-    purchases = Purchase.query.filter_by(user_id=current_user.id).join(Product, Purchase.product_id==Product.id).add_columns(Product.titulo, Product.id).all()
-    purchases_list = [{"product_id": p.id, "titulo": p.titulo} for _, p in [(None, None)] if False]  # fallback
-    purchases_list = []
-    for p in purchases:
-        # p[1] is Product model due to add_columns
-        purchases_list.append({"product_id": p[1].id, "titulo": p[1].titulo})
+    purchases = (
+        db.session.query(Product.id, Product.titulo)
+        .join(Purchase, Purchase.product_id == Product.id)
+        .filter(Purchase.user_id == current_user.id)
+        .all()
+    )
+    purchases_list = [{"product_id": pid, "titulo": titulo} for pid, titulo in purchases]
+
     return jsonify({
         "id": current_user.id,
         "nome": current_user.nome,
@@ -234,6 +271,5 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
     with app.app_context():
        db.create_all()
-    #app.run(debug=True, port=5000)
     app.run(host="0.0.0.0", port=5000, debug=True)
 
