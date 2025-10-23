@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="painel-admin">
+  <div class="painel-wrap">
+    <h2>📦 Painel Administrativo</h2>
+    <p>Bem-vindo, {{ session['user_name'] }}!</p>
+
+    <div class="top-bar">
+      <a href="/admin/novo" class="botao-topo">➕ Novo Produto</a>
+      <a href="/logout" class="botao-topo" style="background:#e53935;color:white;">Sair</a>
+    </div>
+
+    <table class="tabela-admin">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Título</th>
+          <th>Preço</th>
+          <th>Imagem</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in produtos %}
+        <tr>
+          <td>{{ p.id }}</td>
+          <td>{{ p.titulo }}</td>
+          <td>R$ {{ "%.2f"|format(p.preco) }}</td>
+          <td>
+            {% if p.imagem %}
+              <img src="/static/{{ p.imagem }}" alt="{{ p.titulo }}" width="60">
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>
+            <a href="/admin/editar/{{ p.id }}">✏️ Editar</a> |
+            <a href="/admin/remover/{{ p.id }}" onclick="return confirm('Deseja remover este produto?')">🗑️ Excluir</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .painel-wrap { padding: 30px; background: #fff; border-radius: 16px; max-width: 1000px; margin: 40px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+  .painel-wrap h2 { margin-bottom: 10px; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
+  .tabela-admin { width: 100%; border-collapse: collapse; }
+  .tabela-admin th, .tabela-admin td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  .tabela-admin th { background: #f4b400; color: #000; }
+  .tabela-admin img { border-radius: 8px; }
+</style>
+{% endblock %}

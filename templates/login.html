@@ -3,45 +3,68 @@
 <section class="auth">
   <div class="auth-wrap">
     <h2>Entrar</h2>
-    <input id="email" placeholder="Email" />
-    <input id="senha" type="password" placeholder="Senha" />
-    <button id="btn-login">Entrar</button>
+
+    {% if erro %}
+      <div class="erro-msg">{{ erro }}</div>
+    {% endif %}
+
+    <!-- FORMULÁRIO DE LOGIN VIA FLASK -->
+    <form action="/login" method="POST" id="form-login">
+      <input name="email" id="email" placeholder="Email" required />
+      <input name="senha" id="senha" type="password" placeholder="Senha" required />
+      <button type="submit" id="btn-login">Entrar</button>
+    </form>
+
     <p>Ou</p>
+
     <h3>Cadastrar</h3>
     <input id="nome-cad" placeholder="Nome" />
     <input id="email-cad" placeholder="Email" />
     <input id="senha-cad" type="password" placeholder="Senha" />
     <button id="btn-cad">Cadastrar</button>
+
+    <div id="msg" class="msg"></div>
   </div>
 </section>
 
-<script>
-document.getElementById('btn-login').onclick = async ()=>{
-  const email = document.getElementById('email').value;
-  const senha = document.getElementById('senha').value;
-  const res = await fetch('/api/login',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, senha})});
-  const j = await res.json();
-  if(res.ok){
-    localStorage.setItem('token', j.token);
-    localStorage.setItem('user', JSON.stringify(j.user));
-    alert('Login efetuado!');
-    window.location = '/perfil';
-  } else {
-    alert(j.message || JSON.stringify(j));
-  }
-};
+<style>
+  .auth { display: flex; justify-content: center; align-items: center; min-height: 70vh; padding: 30px; }
+  .auth-wrap { background: #fff; border-radius: 16px; padding: 30px 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; width: 100%; text-align: center; }
+  .auth-wrap input { display: block; width: 100%; margin: 8px 0; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+  .auth-wrap button { background: #f4b400; border: none; color: #000; font-weight: bold; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; margin-top: 8px; transition: background 0.3s; }
+  .auth-wrap button:hover { background: #e2a600; }
+  .erro-msg { background: #ffe6e6; color: #b30000; border: 1px solid #ff9999; padding: 8px; border-radius: 6px; margin-bottom: 10px; }
+  .msg { margin-top: 10px; font-size: 14px; color: #333; }
+</style>
 
-document.getElementById('btn-cad').onclick = async ()=>{
-  const nome = document.getElementById('nome-cad').value;
-  const email = document.getElementById('email-cad').value;
-  const senha = document.getElementById('senha-cad').value;
-  const res = await fetch('/api/register',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nome, email, senha})});
-  const j = await res.json();
-  if(res.ok){
-    alert('Cadastro efetuado! Agora faça login.');
-  } else {
-    alert(j.message || JSON.stringify(j));
-  }
-};
+<script>
+  // CADASTRO PELO /api/register
+  document.getElementById('btn-cad').onclick = async () => {
+    const nome = document.getElementById('nome-cad').value.trim();
+    const email = document.getElementById('email-cad').value.trim();
+    const senha = document.getElementById('senha-cad').value.trim();
+    const msg = document.getElementById('msg');
+
+    if (!nome || !email || !senha) {
+      msg.textContent = 'Preencha todos os campos para cadastrar.';
+      msg.style.color = 'red';
+      return;
+    }
+
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ nome, email, senha })
+    });
+
+    const j = await res.json();
+    if (res.ok) {
+      msg.textContent = '✅ Cadastro realizado com sucesso! Agora faça login.';
+      msg.style.color = 'green';
+    } else {
+      msg.textContent = j.message || 'Erro ao cadastrar.';
+      msg.style.color = 'red';
+    }
+  };
 </script>
 {% endblock %}

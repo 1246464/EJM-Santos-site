@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-form">
+  <div class="admin-form-box">
+    <h2>➕ Novo Produto</h2>
+    <form method="POST" enctype="multipart/form-data">
+      <label>Título:</label>
+      <input type="text" name="titulo" required>
+
+      <label>Descrição:</label>
+      <textarea name="descricao" rows="4"></textarea>
+
+      <label>Preço:</label>
+      <input type="number" name="preco" step="0.01" required>
+
+      <label>Imagem:</label>
+      <input type="file" name="imagem">
+
+      <label>Link Mercado Pago:</label>
+      <input type="url" name="mercado_pago_link">
+
+      <button type="submit" class="botao-topo">Salvar Produto</button>
+    </form>
+  </div>
+</section>
+
+<style>
+  .admin-form-box { background: #fff; padding: 30px; border-radius: 16px; max-width: 600px; margin: 40px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+  form { display: flex; flex-direction: column; }
+  label { margin-top: 10px; font-weight: bold; }
+  input, textarea { padding: 10px; border-radius: 6px; border: 1px solid #ccc; margin-top: 4px; }
+  button { margin-top: 20px; }
+</style>
+{% endblock %}

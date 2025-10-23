@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -66,8 +65,13 @@
     <nav class="menu" id="menu">
       <a href="/produtos">Produtos</a>
       <a href="/sobre">Sobre Nós</a>
-      <a href="/perfil" id="link-perfil">Perfil</a>
-      <a href="/login" id="link-login">Entrar / Cadastrar</a>
+
+      {% if session.get('user_id') %}
+        <a href="/perfil" id="link-perfil">Perfil</a>
+        <a href="/logout" id="link-sair">Sair</a>
+      {% else %}
+        <a href="/login" id="link-login">Entrar / Cadastrar</a>
+      {% endif %}
     </nav>
 
     <a href="#produtos" class="botao-topo">PEÇA AGORA</a>
@@ -92,5 +96,6 @@
   </script>
 </body>
 </html>
+
 
 

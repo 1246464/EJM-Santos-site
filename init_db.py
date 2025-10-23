@@ -7,7 +7,7 @@ produtos = [
         "titulo": "Mel Silvestre",
         "descricao": "Do sabor das flores do campo, direto da natureza.",
         "preco": 49.9,
-        "imagem": "mel_silvestre.webp",  # apenas o nome do arquivo dentro de static/imagens
+        "imagem": "mel_silvestre.webp", 
         "mercado_pago_link": "https://mpago.la/1fvNNDL"
     },
     {

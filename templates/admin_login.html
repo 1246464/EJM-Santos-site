@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="auth">
+  <div class="auth-wrap">
+    <h2>Login de Administrador</h2>
+    {% if erro %}
+      <div class="erro-msg">{{ erro }}</div>
+    {% endif %}
+    <form method="POST">
+      <input name="email" placeholder="Email" required />
+      <input name="senha" type="password" placeholder="Senha" required />
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

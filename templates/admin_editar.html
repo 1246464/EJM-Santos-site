@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-form">
+  <div class="admin-form-box">
+    <h2>✏️ Editar Produto</h2>
+    <form method="POST" enctype="multipart/form-data">
+      <label>Título:</label>
+      <input type="text" name="titulo" value="{{ produto.titulo }}" required>
+
+      <label>Descrição:</label>
+      <textarea name="descricao" rows="4">{{ produto.descricao }}</textarea>
+
+      <label>Preço:</label>
+      <input type="number" name="preco" step="0.01" value="{{ produto.preco }}" required>
+
+      <label>Imagem:</label>
+      {% if produto.imagem %}
+        <p>Atual: <img src="/static/{{ produto.imagem }}" alt="{{ produto.titulo }}" width="80"></p>
+      {% endif %}
+      <input type="file" name="imagem">
+
+      <label>Link Mercado Pago:</label>
+      <input type="url" name="mercado_pago_link" value="{{ produto.mercado_pago_link }}">
+
+      <button type="submit" class="botao-topo">Salvar Alterações</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

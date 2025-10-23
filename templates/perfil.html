@@ -8,9 +8,15 @@
     </div>
 
     <div class="perfil-info" id="perfil-info">
-      <p>Carregando suas informações...</p>
+      {% if session.get('user_id') %}
+        <p><strong>Nome:</strong> {{ session['user_name'] }}</p>
+        <p><strong>Status:</strong> Logado ✅</p>
+      {% else %}
+        <p>Você não está logado. <a href="/login">Entrar</a></p>
+      {% endif %}
     </div>
 
+    {% if session.get('user_id') %}
     <div class="perfil-section">
       <h3>🛒 Minhas Compras</h3>
       <ul id="minhas-compras" class="lista-compras"></ul>
@@ -20,6 +26,7 @@
       <h3>⭐ Minhas Avaliações</h3>
       <ul id="minhas-avaliacoes" class="lista-avaliacoes"></ul>
     </div>
+    {% endif %}
   </div>
 </section>
 
@@ -39,63 +46,56 @@
 </style>
 
 <script>
-const token = localStorage.getItem('token');
+  // botão de logout (limpa token e redireciona)
+  document.getElementById('btn-logout').onclick = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/logout';
+  };
 
-if (!token) {
-  document.getElementById('perfil-info').innerHTML = '<p>Você não está logado. <a href="/login">Entrar</a></p>';
-} else {
-  fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + token }})
-    .then(r => r.json())
-    .then(u => {
-      if(u.message){
-        document.getElementById('perfil-info').innerHTML = '<p>Erro: ' + u.message + '</p>';
-        return;
-      }
+  // se existir token (compatível com API), puxa dados extras
+  const token = localStorage.getItem('token');
+  if (token) {
+    fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + token }})
+      .then(r => r.json())
+      .then(u => {
+        if (u.nome) {
+          document.getElementById('perfil-info').innerHTML = `
+            <p><strong>Nome:</strong> ${u.nome}</p>
+            <p><strong>Email:</strong> ${u.email}</p>
+          `;
+        }
 
-      // Dados do usuário
-      document.getElementById('perfil-info').innerHTML = `
-        <p><strong>Nome:</strong> ${u.nome}</p>
-        <p><strong>Email:</strong> ${u.email}</p>
-      `;
+        const comprasUl = document.getElementById('minhas-compras');
+        if (u.compras && u.compras.length > 0) {
+          comprasUl.innerHTML = '';
+          u.compras.forEach(c => {
+            const li = document.createElement('li');
+            li.innerHTML = `<a href="/produto/${c.product_id}">${c.titulo}</a>`;
+            comprasUl.appendChild(li);
+          });
+        } else {
+          comprasUl.innerHTML = '<li>Nenhuma compra registrada.</li>';
+        }
 
-      // Compras
-      const ulCompras = document.getElementById('minhas-compras');
-      if (!u.compras || u.compras.length === 0) {
-        ulCompras.innerHTML = '<li>Nenhuma compra registrada.</li>';
-      } else {
-        u.compras.forEach(c => {
-          const li = document.createElement('li');
-          li.innerHTML = `<a href="/produto/${c.product_id}">${c.titulo}</a>`;
-          ulCompras.appendChild(li);
-        });
-      }
-
-      // Avaliações (opcional: puxa de /api/review/me)
-      fetch('/api/reviews/me', { headers: { 'Authorization': 'Bearer ' + token }})
-        .then(r => r.ok ? r.json() : [])
-        .then(revs => {
-          const ul = document.getElementById('minhas-avaliacoes');
-          if (!revs || revs.length === 0) {
-            ul.innerHTML = '<li>Você ainda não avaliou nenhum produto.</li>';
-          } else {
-            revs.forEach(r => {
-              const li = document.createElement('li');
-              li.innerHTML = `<strong>${r.titulo}</strong> — ${r.nota}⭐<br>${r.comentario}`;
-              ul.appendChild(li);
-            });
-          }
-        });
-    })
-    .catch(err => {
-      console.error(err);
-      document.getElementById('perfil-info').innerHTML = '<p>Erro ao carregar informações.</p>';
-    });
-}
-
-document.getElementById('btn-logout').onclick = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  window.location = '/login';
-};
+        fetch('/api/reviews/me', { headers: { 'Authorization': 'Bearer ' + token }})
+          .then(r => r.ok ? r.json() : [])
+          .then(revs => {
+            const ul = document.getElementById('minhas-avaliacoes');
+            if (!revs || revs.length === 0) {
+              ul.innerHTML = '<li>Você ainda não avaliou nenhum produto.</li>';
+            } else {
+              ul.innerHTML = '';
+              revs.forEach(r => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${r.titulo}</strong> — ${r.nota}⭐<br>${r.comentario}`;
+                ul.appendChild(li);
+              });
+            }
+          });
+      })
+      .catch(err => console.error(err));
+  }
 </script>
 {% endblock %}
+
