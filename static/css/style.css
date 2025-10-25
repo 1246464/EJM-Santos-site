@@ -7,6 +7,14 @@ a{text-decoration:none}
 .menu a{margin:0 10px;color:#333}
 .botao-topo{background:#f6b800;color:#000;padding:10px 14px;border-radius:8px;font-weight:700}
 
+.auth { display: flex; justify-content: center; align-items: center; min-height: 70vh; padding: 30px; }
+.auth-wrap { background: #fff; border-radius: 16px; padding: 30px 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; width: 100%; text-align: center; }
+.auth-wrap input { display: block; width: 100%; margin: 8px 0; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+.auth-wrap button { background: #f4b400; border: none; color: #000; font-weight: bold; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; margin-top: 8px; transition: background 0.3s; }
+.auth-wrap button:hover { background: #e2a600; }
+.erro-msg { background: #ffe6e6; color: #b30000; border: 1px solid #ff9999; padding: 8px; border-radius: 6px; margin-bottom: 10px; }
+.msg { margin-top: 10px; font-size: 14px; color: #333; }
+
 /* hero */
 .hero{display:flex;gap:20px;padding:36px;align-items:center;max-width:1200px;margin:24px auto;width:95%}
 .hero-left h1{font-size:2rem;color:#92400e;margin-bottom:8px}
@@ -589,5 +597,100 @@ footer{margin-top:auto;background:#fff;padding:14px;text-align:center;border-top
   .botao-topo {
     margin: 10px 20px;
     text-align: center;
+  }
+}
+
+/* =========================================================
+    📌 LISTAGEM PRODUTOS – MOBILE SHOPEE ONLY 🎯
+========================================================= */
+@media (max-width: 768px) {
+  .produtos-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .produtos-grid .card img {
+    height: 150px;
+  }
+
+  .produtos-grid .card p,
+  .produtos-grid .produto-actions,
+  .produtos-grid .meta {
+    display: none !important;
+  }
+
+  .produtos-grid .card {
+    position: relative;
+    cursor: pointer;
+    padding-bottom: 6px;
+  }
+
+  /* SHOPEE-STYLE link invisível cobrindo o card */
+  .produtos-grid .card a.fullcard-link {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+  }
+
+  .produtos-grid .card h3 {
+    font-size: 0.82rem;
+    margin: 6px 6px 0;
+    height: 2.2rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .produtos-grid .preco {
+    font-size: 1rem;
+    margin: 4px 6px;
+  }
+}
+
+/* HOME – MOBILE-STYLE SHOPEE */
+@media (max-width: 768px) {
+
+  #produtos-list {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  #produtos-list .card {
+    display: block;
+    position: relative;
+    padding-bottom: 6px;
+    cursor: pointer;
+  }
+
+  #produtos-list .card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+  }
+
+  #produtos-list .card p.desc,
+  #produtos-list .card .produto-actions {
+    display: none !important;
+  }
+
+  #produtos-list .card h3 {
+    font-size: 0.82rem;
+    margin: 6px 6px 0;
+    height: 2.2rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #produtos-list .card .preco {
+    font-size: 1rem;
+    margin: 4px 6px;
+    font-weight: 600;
+  }
+
+  #produtos-list .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 10;
   }
 }
