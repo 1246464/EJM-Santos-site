@@ -44,6 +44,27 @@
   </div>
 </section>
 
+<div class="cards-admin">
+  <div class="cardDM">
+    <h3>Produtos</h3>
+    <p>{{ total_produtos }}</p>
+  </div>
+  <div class="cardDM">
+    <h3>Usuários</h3>
+    <p>{{ total_usuarios }}</p>
+  </div>
+  <div class="cardDM">
+    <h3>Pedidos</h3>
+    <p>{{ total_pedidos }}</p>
+  </div>
+</div>
+
+<div class="grafico-box">
+  <h3>Vendas por Produto</h3>
+  <canvas id="graficoProdutos"></canvas>
+</div>
+
+
 <style>
   .painel-wrap { padding: 30px; background: #fff; border-radius: 16px; max-width: 1000px; margin: 40px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
   .painel-wrap h2 { margin-bottom: 10px; }
@@ -53,4 +74,19 @@
   .tabela-admin th { background: #f4b400; color: #000; }
   .tabela-admin img { border-radius: 8px; }
 </style>
+<script>
+  const ctx = document.getElementById('graficoProdutos');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ nomes|tojson }},
+      datasets: [{
+        label: 'Preço (R$)',
+        data: {{ precos|tojson }},
+        borderWidth: 1
+      }]
+    }
+  });
+</script>
+
 {% endblock %}

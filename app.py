@@ -3,7 +3,7 @@
 # ============================================
 
 import os
-import datetime
+from datetime import datetime
 from functools import wraps
 from flask import (
     Flask, request, jsonify, render_template,
@@ -29,6 +29,24 @@ db = SQLAlchemy(app)
 # -------------------------------------------------------
 # MODELOS DE BANCO DE DADOS
 # -------------------------------------------------------
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    status = db.Column(db.String(20), default="Pendente")
+    total = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+    items = db.relationship("OrderItem", backref="order", cascade="all, delete")
+
+class OrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("order.id"))
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
+    quantidade = db.Column(db.Integer, default=1)
+    preco_unitario = db.Column(db.Float, nullable=False)
+
+
 class User(db.Model):
     """Usuário do sistema"""
     id = db.Column(db.Integer, primary_key=True)
@@ -36,7 +54,7 @@ class User(db.Model):
     email = db.Column(db.String(150), unique=True, nullable=False)
     senha_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)  # 🧩 novo campo
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Product(db.Model):
     """Produto à venda"""
@@ -52,7 +70,8 @@ class Purchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Review(db.Model):
     """Avaliações dos produtos"""
@@ -61,7 +80,8 @@ class Review(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
     nota = db.Column(db.Integer, nullable=False)  # de 1 a 5
     comentario = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 # -------------------------------------------------------
 # DECORATOR - Verificação de token JWT
@@ -120,6 +140,7 @@ def login_page():
         if user and check_password_hash(user.senha_hash, senha):
             session["user_id"] = user.id
             session["user_name"] = user.nome
+            session["is_admin"] = user.is_admin
             print("Sessão iniciada:", session)  # debug opcional
             return redirect("/")
         else:
@@ -143,7 +164,7 @@ def admin_login():
         if user and check_password_hash(user.senha_hash, senha) and user.is_admin:
             session["user_id"] = user.id
             session["user_name"] = user.nome
-            session["is_admin"] = True
+            session["is_admin"] = user.is_admin
             return redirect("/admin")
         else:
             return render_template("admin_login.html", erro="Credenciais inválidas ou sem permissão.")
@@ -152,9 +173,33 @@ def admin_login():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    """Painel de controle do administrador"""
     produtos = Product.query.all()
-    return render_template("admin_dashboard.html", produtos=produtos)
+    total_produtos = Product.query.count()
+    total_usuarios = User.query.count()
+
+    # por enquanto sem pedidos, então 0
+    total_pedidos = 0
+
+    # Dados para gráfico (nomes e preços como exemplo)
+    nomes = [p.titulo for p in produtos]
+    precos = [float(p.preco) for p in produtos]
+
+    return render_template(
+        "admin_dashboard.html",
+        produtos=produtos,
+        total_produtos=total_produtos,
+        total_usuarios=total_usuarios,
+        total_pedidos=total_pedidos,
+        nomes=nomes,
+        precos=precos
+    )
+
+# @app.route("/admin")
+# @admin_required
+# def admin_dashboard():
+#     """Painel de controle do administrador"""
+#     produtos = Product.query.all()
+#     return render_template("admin_dashboard.html", produtos=produtos)
 
 
 # -------------------------------------------------------
@@ -435,6 +480,132 @@ def admin_remover_produto(pid):
     db.session.delete(p)
     db.session.commit()
     return redirect("/admin")
+@app.route('/carrinho/add/<int:id>', methods=['POST'])
+def carrinho_add(id):
+    produto = Product.query.get(id)
+    if not produto:
+        return "Produto não encontrado", 404
+
+    carrinho = session.get('cart', {})
+
+    if str(id) in carrinho:
+        carrinho[str(id)] += 1
+    else:
+        carrinho[str(id)] = 1
+
+    session['cart'] = carrinho
+    session.modified = True
+
+    return "Item adicionado", 200
+
+@app.route("/carrinho")
+def ver_carrinho():
+    carrinho = session.get('cart', {})
+    produtos = []
+    total = 0
+
+    for id, qtd in carrinho.items():
+        p = Product.query.get(int(id))
+        if p:
+            subtotal = p.preco * qtd
+            total += subtotal
+            produtos.append({
+                "id": p.id,
+                "titulo": p.titulo,
+                "preco": p.preco,
+                "quantidade": qtd,
+                "subtotal": subtotal,
+                "imagem": p.imagem
+            })
+
+    return render_template("carrinho.html", produtos=produtos, total=total)
+
+@app.route('/carrinho/update/<int:id>/<string:acao>', methods=['POST'])
+def carrinho_update(id, acao):
+    carrinho = session.get('cart', {})
+    id = str(id)
+
+    if id in carrinho:
+        if acao == 'add':
+            carrinho[id] += 1
+        elif acao == 'sub':
+            carrinho[id] -= 1
+            if carrinho[id] <= 0:
+                del carrinho[id]
+
+    session['cart'] = carrinho
+    session.modified = True
+    return "OK", 200
+
+
+@app.route('/carrinho/remove/<int:id>', methods=['POST'])
+def carrinho_remove(id):
+    carrinho = session.get('cart', {})
+    id = str(id)
+    if id in carrinho:
+        del carrinho[id]
+    session['cart'] = carrinho
+    session.modified = True
+    return "OK", 200
+
+@app.route("/finalizar-compra")
+def finalizar_compra():
+    if not session.get('user_id'):
+        session['redirect_after_login'] = "/finalizar-compra"
+        return redirect("/login")
+
+    carrinho = session.get('cart', {})
+    if not carrinho:
+        return redirect("/carrinho")
+
+    total = 0
+    items = []
+
+    for pid, qtd in carrinho.items():
+        p = Product.query.get(int(pid))
+        if p:
+            subtotal = p.preco * qtd
+            total += subtotal
+            items.append((p, qtd, p.preco))
+
+    # Criar o pedido
+    pedido = Order(
+        user_id=session['user_id'],
+        total=total,
+        status="Pendente"
+    )
+    db.session.add(pedido)
+    db.session.commit()  # ✅ gera id do pedido
+
+    # Criar os itens do pedido
+    for p, qtd, preco in items:
+        item = OrderItem(
+            order_id=pedido.id,
+            product_id=p.id,
+            quantidade=qtd,
+            preco_unitario=preco
+        )
+        db.session.add(item)
+
+    db.session.commit()
+
+    # Esvaziar o carrinho
+    session.pop('cart', None)
+
+    return redirect(f"/pedido/{pedido.id}")
+
+@app.route("/pedido/<int:id>")
+def ver_pedido(id):
+    if not session.get('user_id'):
+        return redirect("/login")
+
+    pedido = Order.query.get_or_404(id)
+    if pedido.user_id != session.get('user_id') and not session.get('is_admin'):
+        return "Acesso não autorizado", 403
+
+    items = OrderItem.query.filter_by(order_id=id).all()
+
+    return render_template("pedido_detalhe.html", pedido=pedido, items=items)
 
 
 # -------------------------------------------------------

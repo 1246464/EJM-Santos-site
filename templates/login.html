@@ -2,41 +2,75 @@
 {% block content %}
 <section class="auth">
   <div class="auth-wrap">
-    <h2>Entrar</h2>
 
-    {% if erro %}
-      <div class="erro-msg">{{ erro }}</div>
-    {% endif %}
+    <!-- LOGIN -->
+    <div id="login-container">
+      <h2>Entrar</h2>
 
-    <!-- FORMULÁRIO DE LOGIN VIA FLASK -->
-    <form action="/login" method="POST" id="form-login">
-      <input name="email" id="email" placeholder="Email" required />
-      <input name="senha" id="senha" type="password" placeholder="Senha" required />
-      <button type="submit" id="btn-login">Entrar</button>
-    </form>
+      {% if erro %}
+        <div class="erro-msg">{{ erro }}</div>
+      {% endif %}
 
-    <p>Ou</p>
+      <form action="/login" method="POST" id="form-login">
+        <input name="email" id="email" placeholder="Email" required />
+        <input name="senha" id="senha" type="password" placeholder="Senha" required />
+        <button type="submit">Entrar</button>
+      </form>
 
-    <h3>Cadastrar</h3>
-    <input id="nome-cad" placeholder="Nome" />
-    <input id="email-cad" placeholder="Email" />
-    <input id="senha-cad" type="password" placeholder="Senha" />
-    <button id="btn-cad">Cadastrar</button>
+      <p class="alternar">
+        Não tem conta?
+        <a href="#" id="mostrar-cadastro">Cadastre-se</a>
+      </p>
+    </div>
 
-    <div id="msg" class="msg"></div>
+    <!-- CADASTRO (INICIALMENTE ESCONDIDO) -->
+    <div id="cadastro-container" style="display:none;">
+      <h2>Cadastrar</h2>
+
+      <input id="nome-cad" placeholder="Nome" />
+      <input id="email-cad" placeholder="Email" />
+      <input id="senha-cad" type="password" placeholder="Senha" />
+      <button id="btn-cad">Criar conta</button>
+
+      <p class="alternar">
+        Já tem conta?
+        <a href="#" id="mostrar-login">Entrar</a>
+      </p>
+
+      <div id="msg" class="msg"></div>
+    </div>
+
   </div>
 </section>
 
 <script>
-  // CADASTRO PELO /api/register
+  const loginC = document.getElementById('login-container');
+  const cadC = document.getElementById('cadastro-container');
+  const msg = document.getElementById('msg');
+
+  // Alternar para CADASTRO
+  document.getElementById('mostrar-cadastro').onclick = (e) => {
+    e.preventDefault();
+    loginC.style.display = "none";
+    cadC.style.display = "block";
+  };
+
+  // Alternar para LOGIN
+  document.getElementById('mostrar-login').onclick = (e) => {
+    e.preventDefault();
+    cadC.style.display = "none";
+    loginC.style.display = "block";
+    msg.textContent = "";
+  };
+
+  // CADASTRO VIA /api/register
   document.getElementById('btn-cad').onclick = async () => {
     const nome = document.getElementById('nome-cad').value.trim();
     const email = document.getElementById('email-cad').value.trim();
     const senha = document.getElementById('senha-cad').value.trim();
-    const msg = document.getElementById('msg');
 
     if (!nome || !email || !senha) {
-      msg.textContent = 'Preencha todos os campos para cadastrar.';
+      msg.textContent = 'Preencha todos os campos.';
       msg.style.color = 'red';
       return;
     }
@@ -49,8 +83,12 @@
 
     const j = await res.json();
     if (res.ok) {
-      msg.textContent = '✅ Cadastro realizado com sucesso! Agora faça login.';
+      msg.textContent = '✅ Cadastro realizado! Faça login agora.';
       msg.style.color = 'green';
+      setTimeout(() => {
+        cadC.style.display = "none";
+        loginC.style.display = "block";
+      }, 2000);
     } else {
       msg.textContent = j.message || 'Erro ao cadastrar.';
       msg.style.color = 'red';

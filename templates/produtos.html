@@ -11,16 +11,17 @@ function renderDesktop(p, card) {
     <h3>${p.titulo}</h3>
     <p>${p.descricao}</p>
     <span class="preco">R$ ${p.preco.toFixed(2)}</span>
+    
     <div class="produto-actions">
-      <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar</a>
+      <button class="btn-carrinho" onclick="addToCart(${p.id})">🛒 Carrinho</button>
       <a class="botao-comprar" href="/produto/${p.id}">Detalhes</a>
+      <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar MP</a>
     </div>
-    <div class="meta">Avaliação: ${p.media || 0} ⭐ (${p.n_reviews})</div>
 
-    <!-- 🔥 Link invisível só para desktop cobrar o card -->
-    <a href="/produto/${p.id}" class="fullcard-link"></a>
+    <div class="meta">Avaliação: ${p.media || 0} ⭐ (${p.n_reviews})</div>
   `;
 }
+
 
 function renderMobile(p, card) {
   card.innerHTML = `
@@ -53,6 +54,15 @@ fetch('/api/products')
       grid.appendChild(card);
     });
   });
+
+async function addToCart(id) {
+  const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
+  if (response.ok) {
+    alert('✅ Produto adicionado ao carrinho!');
+  } else {
+    alert('❌ Erro ao adicionar ao carrinho!');
+  }
+}
 
 </script>
 {% endblock %}

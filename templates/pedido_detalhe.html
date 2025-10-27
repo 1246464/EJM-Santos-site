@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="pedido">
+  <h2>Pedido #{{ pedido.id }}</h2>
+  <p><strong>Status:</strong> {{ pedido.status }}</p>
+  <p><strong>Total:</strong> R$ {{ "%.2f"|format(pedido.total) }}</p>
+
+  <h3>Itens:</h3>
+  <ul>
+    {% for item in items %}
+    <li>
+      {{ item.quantidade }}x
+      {{ item.order.product.titulo if item.order else '' }}
+      — R$ {{ "%.2f"|format(item.preco_unitario * item.quantidade) }}
+    </li>
+    {% endfor %}
+  </ul>
+
+  <a href="/perfil" class="btn-voltar">Voltar ao perfil</a>
+</section>
+{% endblock %}

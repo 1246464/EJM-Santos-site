@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="carrinho-page">
+
+  <div class="lista-produtos">
+    <h2>🛒 Meu Carrinho</h2>
+
+    {% if produtos %}
+      {% for p in produtos %}
+      <div class="item-carrinho">
+        
+        <div class="item-img">
+          <img src="/static/imagens/{{ p.imagem }}" alt="{{ p.titulo }}">
+        </div>
+
+        <div class="item-info">
+          <h3>{{ p.titulo }}</h3>
+          <p class="preco">R$ {{ "%.2f"|format(p.preco) }}</p>
+
+          <div class="quantidade-controls">
+            <button class="btn-qtd" onclick="updateQty('{{ p.id }}', 'sub')">-</button>
+            <span class="qtd">{{ p.quantidade }}</span>
+            <button class="btn-qtd" onclick="updateQty('{{ p.id }}', 'add')">+</button>
+          </div>
+
+          <a class="remover" onclick="removeItem('{{ p.id }}')">Excluir</a>
+        </div>
+
+        <div class="item-preco">
+          R$ {{ "%.2f"|format(p.subtotal) }}
+        </div>
+
+      </div>
+      {% endfor %}
+    {% else %}
+      <p>Seu carrinho está vazio.</p>
+    {% endif %}
+  </div>
+
+  {% if produtos %}
+  <div class="resumo-compra">
+    <h3>Resumo da compra</h3>
+    <p class="linha">
+      Produtos ({{ produtos|length }})
+      <span>R$ {{ "%.2f"|format(total) }}</span>
+    </p>
+    
+    <div class="total">
+      Total
+      <strong>R$ {{ "%.2f"|format(total) }}</strong>
+    </div>
+
+    <a href="/finalizar-compra" class="btn-comprar">Continuar a compra</a>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+async function updateQty(id, acao) {
+  await fetch(`/carrinho/update/${id}/${acao}`, { method: "POST" });
+  location.reload();
+}
+
+async function removeItem(id) {
+  await fetch(`/carrinho/remove/${id}`, { method: "POST" });
+  location.reload();
+}
+</script>
+{% endblock %}

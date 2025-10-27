@@ -6,10 +6,17 @@
       <h2>👤 Meu Perfil</h2>
       <button id="btn-logout" class="btn-logout">Sair</button>
     </div>
+    {% if session.get('is_admin') %}
+    <div class="perfil-section">
+       <a href="/admin" class="btn-admin">📊 Acessar Dashboard Administrativo</a>
+    </div>
+    {% endif %}
+
 
     <div class="perfil-info" id="perfil-info">
       {% if session.get('user_id') %}
         <p><strong>Nome:</strong> {{ session['user_name'] }}</p>
+        <a href="/carrinho" class="btn-admin">Carrinho</a>
         <p><strong>Status:</strong> Logado ✅</p>
       {% else %}
         <p>Você não está logado. <a href="/login">Entrar</a></p>
@@ -28,22 +35,9 @@
     </div>
     {% endif %}
   </div>
-</section>
 
-<style>
-  .perfil { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
-  .perfil-container { background: #fff; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 24px; }
-  .perfil-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-  .perfil-header h2 { margin: 0; font-size: 1.6rem; color: #333; }
-  .btn-logout { background: #e53935; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
-  .btn-logout:hover { background: #d32f2f; }
-  .perfil-info p { margin: 6px 0; font-size: 1rem; color: #444; }
-  .perfil-section h3 { margin-top: 24px; color: #222; }
-  ul { list-style: none; padding: 0; margin: 0; }
-  li { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin: 8px 0; }
-  a { color: #0077cc; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-</style>
+
+</section>
 
 <script>
   // botão de logout (limpa token e redireciona)
