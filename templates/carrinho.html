@@ -50,12 +50,24 @@
       <strong>R$ {{ "%.2f"|format(total) }}</strong>
     </div>
 
+    <button class="btn-comprar" onclick="finalizarCompra()">💳 Finalizar com Mercado Pago</button>
     <a href="/finalizar-compra" class="btn-comprar">Continuar a compra</a>
   </div>
   {% endif %}
 
 </div>
+<script>
+async function finalizarCompra() {
+  const res = await fetch('/checkout', { method: 'POST' });
+  const j = await res.json();
 
+  if (j.checkout_url) {
+    window.location.href = j.checkout_url;
+  } else {
+    alert('Erro ao iniciar pagamento!');
+  }
+}
+</script>
 <script>
 async function updateQty(id, acao) {
   await fetch(`/carrinho/update/${id}/${acao}`, { method: "POST" });

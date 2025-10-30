@@ -2,8 +2,9 @@
 # app.py — EJM SANTOS - Loja de Mel Natural 🍯
 # ============================================
 
+import mercadopago as mp
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import (
     Flask, request, jsonify, render_template,
@@ -12,6 +13,7 @@ from flask import (
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
+from sqlalchemy import extract
 
 # -------------------------------------------------------
 # CONFIGURAÇÃO INICIAL
@@ -81,6 +83,15 @@ class Review(db.Model):
     nota = db.Column(db.Integer, nullable=False)  # de 1 a 5
     comentario = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class CartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Integer, default=1)
+
+    user = db.relationship('User', backref='cart_items')
+    product = db.relationship('Product')
 
 
 # -------------------------------------------------------
@@ -173,34 +184,54 @@ def admin_login():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
+    pedidos = Order.query.all()
+
+    total_pedidos = len(pedidos)
+    total_pago = sum(1 for p in pedidos if p.status == "Pago")
+    enviados = sum(1 for p in pedidos if p.status == "Enviado")
+    entregues = sum(1 for p in pedidos if p.status == "Entregue")
+    cancelados = sum(1 for p in pedidos if p.status == "Cancelado")
+
+    faturamento = sum(p.total for p in pedidos if p.status in ["Pago", "Enviado", "Entregue"])
+    ticket_medio = (faturamento / total_pago) if total_pago > 0 else 0
+
+    # Pegando produtos para a tabela ✅
     produtos = Product.query.all()
-    total_produtos = Product.query.count()
-    total_usuarios = User.query.count()
 
-    # por enquanto sem pedidos, então 0
-    total_pedidos = 0
+    # Gráfico dos últimos 6 meses
+    hoje = datetime.utcnow()
+    meses_labels = []
+    meses_valores = []
 
-    # Dados para gráfico (nomes e preços como exemplo)
-    nomes = [p.titulo for p in produtos]
-    precos = [float(p.preco) for p in produtos]
+    for i in range(5, -1, -1):
+        mes_ref = hoje - timedelta(days=30 * i)
+        ano = mes_ref.year
+        mes = mes_ref.month
+
+        pedidos_mes = Order.query.filter(
+            extract('year', Order.created_at) == ano,
+            extract('month', Order.created_at) == mes,
+            Order.status.in_(["Pago", "Enviado", "Entregue"])
+        ).all()
+
+        total_mes = sum(p.total for p in pedidos_mes)
+
+        meses_labels.append(mes_ref.strftime("%b/%Y"))
+        meses_valores.append(total_mes)
 
     return render_template(
         "admin_dashboard.html",
-        produtos=produtos,
-        total_produtos=total_produtos,
-        total_usuarios=total_usuarios,
+        produtos=produtos,  # ✅ enviado para o template!
         total_pedidos=total_pedidos,
-        nomes=nomes,
-        precos=precos
+        total_pago=total_pago,
+        enviados=enviados,
+        entregues=entregues,
+        cancelados=cancelados,
+        faturamento=faturamento,
+        ticket_medio=ticket_medio,
+        meses_labels=meses_labels,
+        meses_valores=meses_valores
     )
-
-# @app.route("/admin")
-# @admin_required
-# def admin_dashboard():
-#     """Painel de controle do administrador"""
-#     produtos = Product.query.all()
-#     return render_template("admin_dashboard.html", produtos=produtos)
-
 
 # -------------------------------------------------------
 # ROTAS DE API (JSON)
@@ -480,58 +511,117 @@ def admin_remover_produto(pid):
     db.session.delete(p)
     db.session.commit()
     return redirect("/admin")
+
 @app.route('/carrinho/add/<int:id>', methods=['POST'])
 def carrinho_add(id):
     produto = Product.query.get(id)
     if not produto:
         return "Produto não encontrado", 404
 
-    carrinho = session.get('cart', {})
+    # Se o usuário estiver logado → salva no banco
+    if 'user_id' in session:
+        user_id = session['user_id']
+        item = CartItem.query.filter_by(user_id=user_id, product_id=id).first()
 
-    if str(id) in carrinho:
-        carrinho[str(id)] += 1
+        if item:
+            item.quantity += 1
+        else:
+            novo = CartItem(user_id=user_id, product_id=id, quantity=1)
+            db.session.add(novo)
+
+        db.session.commit()
+        return "Item adicionado ao carrinho (banco)", 200
+
+    # Se o usuário NÃO estiver logado → salva na sessão
+    carrinho = session.get('cart', {})
+    id_str = str(id)
+
+    if id_str in carrinho:
+        carrinho[id_str] += 1
     else:
-        carrinho[str(id)] = 1
+        carrinho[id_str] = 1
 
     session['cart'] = carrinho
     session.modified = True
 
-    return "Item adicionado", 200
+    return "Item adicionado ao carrinho (sessão)", 200
+
 
 @app.route("/carrinho")
 def ver_carrinho():
-    carrinho = session.get('cart', {})
     produtos = []
     total = 0
 
-    for id, qtd in carrinho.items():
-        p = Product.query.get(int(id))
-        if p:
-            subtotal = p.preco * qtd
+    if 'user_id' in session:
+        user_id = session['user_id']
+        itens = CartItem.query.filter_by(user_id=user_id).all()
+        for item in itens:
+            p = item.product
+            subtotal = p.preco * item.quantity
             total += subtotal
             produtos.append({
                 "id": p.id,
                 "titulo": p.titulo,
                 "preco": p.preco,
-                "quantidade": qtd,
+                "quantidade": item.quantity,
                 "subtotal": subtotal,
                 "imagem": p.imagem
             })
+    else:
+        carrinho = session.get('cart', {})
+        for id, qtd in carrinho.items():
+            p = Product.query.get(int(id))
+            if p:
+                subtotal = p.preco * qtd
+                total += subtotal
+                produtos.append({
+                    "id": p.id,
+                    "titulo": p.titulo,
+                    "preco": p.preco,
+                    "quantidade": qtd,
+                    "subtotal": subtotal,
+                    "imagem": p.imagem
+                })
 
     return render_template("carrinho.html", produtos=produtos, total=total)
 
+
 @app.route('/carrinho/update/<int:id>/<string:acao>', methods=['POST'])
 def carrinho_update(id, acao):
-    carrinho = session.get('cart', {})
-    id = str(id)
+    id = int(id)
 
-    if id in carrinho:
+    # 🧩 Se o usuário estiver logado → salva no banco
+    if 'user_id' in session:
+        user_id = session['user_id']
+        item = CartItem.query.filter_by(user_id=user_id, product_id=id).first()
+
         if acao == 'add':
-            carrinho[id] += 1
+            if item:
+                item.quantity += 1
+            else:
+                novo = CartItem(user_id=user_id, product_id=id, quantity=1)
+                db.session.add(novo)
+
         elif acao == 'sub':
-            carrinho[id] -= 1
-            if carrinho[id] <= 0:
-                del carrinho[id]
+            if item:
+                item.quantity -= 1
+                if item.quantity <= 0:
+                    db.session.delete(item)
+
+        db.session.commit()
+        return "OK", 200
+
+    # 🧩 Se o usuário NÃO estiver logado → salva na sessão
+    carrinho = session.get('cart', {})
+    id_str = str(id)
+
+    if acao == 'add':
+        carrinho[id_str] = carrinho.get(id_str, 0) + 1
+    elif acao == 'sub':
+        if id_str in carrinho:
+            carrinho[id_str] -= 1
+            if carrinho[id_str] <= 0:
+                del carrinho[id_str]
 
     session['cart'] = carrinho
     session.modified = True
@@ -607,6 +697,107 @@ def ver_pedido(id):
 
     return render_template("pedido_detalhe.html", pedido=pedido, items=items)
 
+@app.route("/checkout", methods=["POST"])
+def checkout():
+    carrinho = session.get("carrinho", {})
+
+    if not carrinho:
+        return jsonify({"error": "Carrinho vazio"}), 400
+
+    items = []
+    total = 0
+
+    for product_id, qtd in carrinho.items():
+        product = Product.query.get(product_id)
+        if not product:
+            continue
+
+        subtotal = product.preco * qtd
+        total += subtotal
+
+        items.append({
+            "title": product.titulo,
+            "quantity": qtd,
+            "unit_price": float(product.preco),
+            "currency_id": "BRL"
+        })
+
+    preference_data = {
+        "items": items,
+        "back_urls": {
+            "success": "http://localhost:5000/pedido/sucesso",
+            "failure": "http://localhost:5000/pedido/erro",
+            "pending": "http://localhost:5000/pedido/pendente"
+        },
+        "auto_return": "approved"
+    }
+
+    preference = mp.preference().create(preference_data)
+    link_pagamento = preference["response"]["init_point"]
+
+    return jsonify({"checkout_url": link_pagamento})
+
+
+# ---------------------------
+# ADMIN: PEDIDOS
+# ---------------------------
+@app.route("/admin/pedidos")
+@admin_required
+def admin_pedidos():
+    # Ordena mais recentes primeiro
+    pedidos = Order.query.order_by(Order.created_at.desc()).all()
+    # Mapeia itens por pedido para mostrar contagem rápida
+    itens_por_pedido = {
+        p.id: OrderItem.query.filter_by(order_id=p.id).count() for p in pedidos
+    }
+    return render_template("admin_pedidos.html", pedidos=pedidos, itens_por_pedido=itens_por_pedido)
+
+
+@app.route("/admin/pedidos/<int:pedido_id>")
+@admin_required
+def admin_pedido_detalhe(pedido_id):
+    pedido = Order.query.get_or_404(pedido_id)
+    itens = OrderItem.query.filter_by(order_id=pedido_id).all()
+
+    # Dados do usuário (se quiser mostrar nome/email)
+    user = User.query.get(pedido.user_id)
+
+    # Monta itens com produto associado
+    detalhe_itens = []
+    for it in itens:
+        prod = Product.query.get(it.product_id)
+        detalhe_itens.append({
+            "id": it.id,
+            "produto_id": it.product_id,
+            "titulo": prod.titulo if prod else f"#{it.product_id}",
+            "preco_unit": it.preco_unitario,
+            "quantidade": it.quantidade,
+            "subtotal": it.preco_unitario * it.quantidade,
+            "imagem": prod.imagem if prod else ""
+        })
+
+    return render_template(
+        "admin_pedido_detalhe.html",
+        pedido=pedido,
+        itens=detalhe_itens,
+        user=user
+    )
+
+
+@app.route("/admin/pedidos/<int:pedido_id>/status", methods=["POST"])
+@admin_required
+def admin_pedido_status(pedido_id):
+    pedido = Order.query.get_or_404(pedido_id)
+    novo_status = request.form.get("status")
+
+    # Opcional: validar fluxo (Pendente -> Pago -> Enviado -> Entregue)
+    status_validos = ["Pendente", "Pago", "Enviado", "Entregue", "Cancelado"]
+    if novo_status not in status_validos:
+        return "Status inválido", 400
+
+    pedido.status = novo_status
+    db.session.commit()
+    return redirect(f"/admin/pedidos/{pedido_id}")
 
 # -------------------------------------------------------
 # EXECUÇÃO DO APP

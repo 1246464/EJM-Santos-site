@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="painel-admin">
+  <div class="painel-wrap">
+    <h2>📦 Pedidos</h2>
+
+    <div class="top-bar" style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin:15px 0;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label for="filtro-status"><strong>Filtrar:</strong></label>
+        <select id="filtro-status" onchange="filtrarTabela()">
+          <option value="">Todos</option>
+          <option>Pendente</option>
+          <option>Pago</option>
+          <option>Enviado</option>
+          <option>Entregue</option>
+          <option>Cancelado</option>
+        </select>
+      </div>
+      <a href="/admin" class="botao-topo">⬅ Voltar ao Dashboard</a>
+    </div>
+
+    <table class="tabela-admin">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th>Itens</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Data</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-pedidos">
+        {% for p in pedidos %}
+        <tr data-status="{{ p.status }}">
+          <td>#{{ p.id }}</td>
+          <td>{{ p.user_id }}</td>
+          <td>{{ itens_por_pedido[p.id] }}</td>
+          <td>R$ {{ "%.2f"|format(p.total) }}</td>
+          <td><span class="badge-status">{{ p.status }}</span></td>
+          <td>{{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at }}</td>
+          <td><a href="/admin/pedidos/{{ p.id }}">🔎 Detalhes</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  </div>
+</section>
+
+<script>
+function filtrarTabela() {
+  const val = document.getElementById('filtro-status').value;
+  document.querySelectorAll('#tbody-pedidos tr').forEach(tr => {
+    const st = tr.getAttribute('data-status');
+    tr.style.display = (!val || st === val) ? '' : 'none';
+  });
+}
+</script>
+
+<style>
+.badge-status{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:8px;
+  font-weight:600;
+  background:#ffef9e;
+}
+</style>
+
+{% endblock %}

@@ -49,6 +49,13 @@ li { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 
 a { color: #0077cc; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* badges por status */
+tr[data-status="Pendente"] .badge-status { background:#fff3cd; color:#795548; }
+tr[data-status="Pago"] .badge-status { background:#d1f7c4; color:#1b5e20; }
+tr[data-status="Enviado"] .badge-status { background:#cfe8ff; color:#0d47a1; }
+tr[data-status="Entregue"] .badge-status { background:#e4f8e8; color:#2e7d32; }
+tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
+
 /* =========================================================
    📦 05 - PÁGINA DO PRODUTO (Detalhe)
 ========================================================= */
@@ -807,7 +814,7 @@ footer{margin-top:auto;background:#fff;padding:14px;text-align:center;border-top
 .cardDM {
   flex: 1;
   background: #ffef9e;
-  padding: 18px;
+  padding: 15px;
   border-radius: 10px;
   text-align: center;
   font-size: 18px;
