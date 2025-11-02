@@ -35,6 +35,24 @@
     </div>
     {% endif %}
   </div>
+<section class="perfil-historico">
+  <h3>🛍️ Histórico de Compras</h3>
+  <table>
+    <tr><th>Data</th><th>Produtos</th><th>Total</th><th>Status</th></tr>
+    {% for pedido in pedidos %}
+      <tr>
+        <td>{{ pedido.data_criacao.strftime('%d/%m/%Y') }}</td>
+        <td>
+          {% for item in pedido.itens %}
+            {{ item.produto.titulo }} ({{ item.quantidade }})<br>
+          {% endfor %}
+        </td>
+        <td>R$ {{ "%.2f"|format(pedido.total) }}</td>
+        <td>{{ pedido.status }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</section>
 
 
 </section>
