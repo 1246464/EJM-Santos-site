@@ -1,0 +1,7 @@
+envVars:
+  - key: MP_ACCESS_TOKEN
+    sync: false
+  - key: PUBLIC_BASE_URL
+    value: https://ejm-santos-site-1.onrender.com
+  - key: EJM_SECRET
+    sync: false
