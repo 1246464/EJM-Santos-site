@@ -13,9 +13,8 @@ function renderDesktop(p, card) {
     <span class="preco">R$ ${p.preco.toFixed(2)}</span>
     
     <div class="produto-actions">
-      <button class="btn-carrinho" onclick="addToCart(${p.id})">🛒 Carrinho</button>
       <a class="botao-comprar" href="/produto/${p.id}">Detalhes</a>
-      <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar MP</a>
+      <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar</a>
     </div>
 
     <div class="meta">Avaliação: ${p.media || 0} ⭐ (${p.n_reviews})</div>

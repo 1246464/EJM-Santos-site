@@ -388,6 +388,27 @@ def api_reviews_me(current_user):
     )
     return jsonify([{"titulo": titulo, "nota": r.nota, "comentario": r.comentario} for r, titulo in reviews])
 
+from flask import session, jsonify
+
+@app.route("/api/carrinho")
+def api_carrinho():
+    """Retorna o conteúdo atual do carrinho (sessão ou banco)"""
+    if 'user_id' in session:
+        # Se o usuário estiver logado, puxa do banco
+        user_id = session['user_id']
+        itens = CartItem.query.filter_by(user_id=user_id).all()
+        return jsonify({
+            "itens": [
+                {"produto_id": i.product_id, "quantidade": i.quantity}
+                for i in itens
+            ]
+        })
+
+    # Caso contrário, usa o carrinho salvo na sessão
+    carrinho = session.get("cart", {})
+    itens = [{"produto_id": int(k), "quantidade": v} for k, v in carrinho.items()]
+    return jsonify({"itens": itens})
+
 # -----------------------------
 # Páginas (HTML)
 # -----------------------------

@@ -47,7 +47,6 @@ section{padding:20px 0}
 ul { list-style: none; padding: 0; margin: 0; }
 li { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 12px; margin: 8px 0; }
 a { color: #0077cc; text-decoration: none; }
-a:hover { text-decoration: underline; }
 
 /* badges por status */
 tr[data-status="Pendente"] .badge-status { background:#fff3cd; color:#795548; }
@@ -445,9 +444,9 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
   font-weight: 600;
 }
 
-#minhas-compras li a:hover {
+/* #minhas-compras li a:hover {
   text-decoration: underline;
-}
+} */
 
 /* botão sair */
 #btn-logout {
@@ -490,7 +489,7 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
 
   #minhas-compras li { font-size: 0.95rem; padding: 10px; }
 
-  #btn-logout { width: 100%; padding: 12px; }
+  #btn-logout { width: 50%; padding: 12px; }
 }
 
 
@@ -966,14 +965,66 @@ footer{margin-top:auto;background:#fff;padding:14px;text-align:center;border-top
   }
 }
 
-/* .produto-mobile {
-  background: #fff;
-  max-width: 600px;
-  margin: auto;
-  padding-bottom: 80px;
-} */
-
 .produto-imagem img {
   width: 100%;
   height: auto;
+}
+
+.admin-form {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4rem 1rem;
+  background: #FFF8E1;
+  min-height: 90vh;
+}
+
+.admin-form-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0e6c3;
+}
+
+.admin-form-box h2 {
+  text-align: center;
+  color: #6B3A0B;
+  margin-bottom: 1.8rem;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.admin-form-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.admin-form-box label {
+  font-weight: 600;
+  color: #6B3A0B;
+  margin-bottom: 0.3rem;
+}
+
+.admin-form-box input[type="text"],
+.admin-form-box input[type="number"],
+.admin-form-box input[type="url"],
+.admin-form-box input[type="file"],
+.admin-form-box textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+.admin-form-box input:focus,
+.admin-form-box textarea:focus {
+  border-color: #F6B800;
+  box-shadow: 0 0 0 3px rgba(246, 184, 0, 0.2);
+  outline: none;
 }

@@ -16,7 +16,9 @@
     <div class="perfil-info" id="perfil-info">
       {% if session.get('user_id') %}
         <p><strong>Nome:</strong> {{ session['user_name'] }}</p>
-        <a href="/carrinho" class="btn-admin">Carrinho</a>
+        <a href="/carrinho" class="btn-admin">
+           🛒 Carrinho <span id="carrinho-count">(0)</span>
+        </a>
         <p><strong>Status:</strong> Logado ✅</p>
       {% else %}
         <p>Você não está logado. <a href="/login">Entrar</a></p>
@@ -108,6 +110,23 @@
       })
       .catch(err => console.error(err));
   }
+  // Atualiza quantidade do carrinho sem mexer no resto
+function atualizarCarrinho() {
+  fetch('/api/carrinho')
+    .then(r => r.ok ? r.json() : [])
+    .then(data => {
+      const countEl = document.getElementById('carrinho-count');
+      if (countEl && data.itens) {
+        const total = data.itens.reduce((s, item) => s + (item.quantidade || 1), 0);
+        countEl.textContent = `(${total})`;
+      }
+    })
+    .catch(err => console.error('Erro ao carregar carrinho:', err));
+}
+
+atualizarCarrinho();
+setInterval(atualizarCarrinho, 30000);
+
 </script>
 {% endblock %}
 
