@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 
 from dotenv import load_dotenv
-import mercadopago
+import stripe
 from flask import (
     Flask, request, jsonify, render_template,
     session, redirect, url_for
@@ -17,6 +17,9 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from sqlalchemy import extract
+
+# Importar serviço de email
+from email_service import email_service
 
 # -----------------------------
 # Config / Bootstrap
@@ -37,44 +40,26 @@ app.config["SECRET_KEY"] = os.getenv("EJM_SECRET", "chave_fallback")
 
 db = SQLAlchemy(app)
 
-# Helper: SDK Mercado Pago
-def mp_sdk():
-    token = os.getenv("MP_ACCESS_TOKEN")
-    if not token:
-        raise RuntimeError("MP_ACCESS_TOKEN não definido no .env")
-    return mercadopago.SDK(token)
+# Configuração do Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
 
 # -----------------------------
 # MODELOS
 # -----------------------------
-class Order(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    total = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), default="Pendente")  # Pendente, Pago, Enviado...
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-    # Relacionamento
-    itens = db.relationship('OrderItem', backref='pedido', lazy=True)
-
-
-class OrderItem(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    pedido_id = db.Column(db.Integer, db.ForeignKey('order.id'))
-    produto_id = db.Column(db.Integer, db.ForeignKey('product.id'))
-    quantidade = db.Column(db.Integer)
-    preco_unitario = db.Column(db.Float)
-
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(120), nullable=False)
-    email = db.Column(db.String(150), unique=True, nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False, index=True)
     senha_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relacionamentos
+    orders = db.relationship('Order', backref='user', lazy=True)
+    reviews = db.relationship('Review', backref='user', lazy=True)
+    cart_items = db.relationship('CartItem', backref='user', lazy=True)
+
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -82,32 +67,57 @@ class Product(db.Model):
     descricao = db.Column(db.Text)
     preco = db.Column(db.Float, nullable=False)
     imagem = db.Column(db.String(256))
-    mercado_pago_link = db.Column(db.String(400))
-
-class Purchase(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    estoque = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relacionamentos
+    order_items = db.relationship('OrderItem', backref='product', lazy=True)
+    reviews = db.relationship('Review', backref='product', lazy=True)
+    cart_items = db.relationship('CartItem', backref='product', lazy=True)
+
+
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    total = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(50), default="Pendente", index=True)  # Pendente, Pago, Enviado, Entregue, Cancelado
+    
+    # Endereço de entrega (entrega local)
+    endereco_rua = db.Column(db.String(200))
+    endereco_numero = db.Column(db.String(20))
+    endereco_complemento = db.Column(db.String(100))
+    endereco_bairro = db.Column(db.String(100))
+    endereco_cidade = db.Column(db.String(100))
+    telefone = db.Column(db.String(20))
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relacionamento
+    items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
+
+
+class OrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False, index=True)
+    quantidade = db.Column(db.Integer, nullable=False)
+    preco_unitario = db.Column(db.Float, nullable=False)
+
 
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False, index=True)
     comentario = db.Column(db.Text)
-    nota = db.Column(db.Integer)
-    data = db.Column(db.DateTime, default=datetime.utcnow)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    nota = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    quantity = db.Column(db.Integer, default=1)
-    user = db.relationship('User', backref='cart_items')
-    product = db.relationship('Product')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False, index=True)
+    quantity = db.Column(db.Integer, default=1, nullable=False)
 
 # -----------------------------
 # Helpers de Autenticação
@@ -198,6 +208,30 @@ def create_order_from_items(user_id, itens):
             preco_unitario=it["preco"]
         ))
     db.session.commit()
+    
+    # Enviar email de confirmação de pedido
+    try:
+        user = User.query.get(user_id)
+        if user:
+            # Preparar dados dos itens para o email
+            order_items_data = []
+            for it in itens:
+                order_items_data.append({
+                    'titulo': it.get('titulo', 'Produto'),
+                    'quantidade': it['quantidade'],
+                    'preco': it['preco'] * it['quantidade']
+                })
+            
+            email_service.send_order_confirmation(
+                user_name=user.nome,
+                user_email=user.email,
+                order_id=pedido.id,
+                order_items=order_items_data,
+                total=total
+            )
+    except Exception as e:
+        print(f"⚠️ Erro ao enviar email de confirmação: {e}")
+    
     return pedido
 
 # -----------------------------
@@ -292,6 +326,13 @@ def api_register():
         return jsonify({"message": "Email já cadastrado"}), 400
     user = User(nome=nome, email=email, senha_hash=generate_password_hash(senha))
     db.session.add(user); db.session.commit()
+    
+    # Enviar email de boas-vindas
+    try:
+        email_service.send_welcome_email(nome, email)
+    except Exception as e:
+        print(f"⚠️ Erro ao enviar email de boas-vindas: {e}")
+    
     return jsonify({"message": "Cadastro realizado com sucesso"}), 201
 
 @app.route("/api/login", methods=["POST"])
@@ -314,9 +355,11 @@ def api_products():
     for p in prods:
         avg = db.session.query(db.func.avg(Review.nota)).filter(Review.product_id == p.id).scalar() or 0
         count = Review.query.filter_by(product_id=p.id).count()
+        # Remove 'imagens/' do início se existir
+        imagem = p.imagem.replace('imagens/', '') if p.imagem and p.imagem.startswith('imagens/') else p.imagem
         data.append({
             "id": p.id, "titulo": p.titulo, "descricao": p.descricao, "preco": p.preco,
-            "imagem": p.imagem, "mercado_pago_link": p.mercado_pago_link,
+            "imagem": imagem, "estoque": p.estoque,
             "media": round(float(avg), 2), "n_reviews": count
         })
     return jsonify(data)
@@ -342,7 +385,18 @@ def api_purchase(current_user):
     p = Product.query.get(product_id)
     if not p:
         return jsonify({"message": "Produto não encontrado"}), 404
-    db.session.add(Purchase(user_id=current_user.id, product_id=product_id))
+    # Verificar se já comprou este produto
+    existing_order = OrderItem.query.join(Order).filter(
+        Order.user_id == current_user.id,
+        OrderItem.product_id == product_id
+    ).first()
+    if existing_order:
+        return jsonify({"message": "Compra já registrada."})
+    # Criar novo pedido
+    order = Order(user_id=current_user.id, status="Pendente")
+    db.session.add(order)
+    db.session.flush()
+    db.session.add(OrderItem(order_id=order.id, product_id=product_id, quantidade=1, preco_unitario=p.preco))
     db.session.commit()
     return jsonify({"message": "Compra registrada com sucesso."})
 
@@ -353,7 +407,12 @@ def api_review(current_user):
     product_id, nota, comentario = data.get("product_id"), data.get("nota"), data.get("comentario", "")
     if not (product_id and nota):
         return jsonify({"message": "product_id e nota são obrigatórios"}), 400
-    if not Purchase.query.filter_by(user_id=current_user.id, product_id=product_id).first():
+    # Verificar se o usuário comprou este produto
+    purchased = OrderItem.query.join(Order).filter(
+        Order.user_id == current_user.id,
+        OrderItem.product_id == product_id
+    ).first()
+    if not purchased:
         return jsonify({"message": "Você só pode avaliar produtos que comprou."}), 403
     try:
         nota_int = int(nota)
@@ -370,8 +429,10 @@ def api_review(current_user):
 def api_me(current_user):
     purchases = (
         db.session.query(Product.id, Product.titulo)
-        .join(Purchase, Purchase.product_id == Product.id)
-        .filter(Purchase.user_id == current_user.id)
+        .join(OrderItem, OrderItem.product_id == Product.id)
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(Order.user_id == current_user.id)
+        .distinct()
         .all()
     )
     return jsonify({"id": current_user.id, "nome": current_user.nome, "email": current_user.email,
@@ -387,6 +448,57 @@ def api_reviews_me(current_user):
         .all()
     )
     return jsonify([{"titulo": titulo, "nota": r.nota, "comentario": r.comentario} for r, titulo in reviews])
+
+@app.route("/api/products/search")
+def api_products_search():
+    """Busca e filtra produtos com parâmetros de query"""
+    query = request.args.get('q', '').strip()
+    preco_min = request.args.get('preco_min', type=float)
+    preco_max = request.args.get('preco_max', type=float)
+    ordenar = request.args.get('ordenar', 'nome')  # nome, preco_asc, preco_desc, estoque
+    
+    # Query base
+    produtos = Product.query
+    
+    # Filtro de busca por título ou descrição
+    if query:
+        produtos = produtos.filter(
+            db.or_(
+                Product.titulo.ilike(f'%{query}%'),
+                Product.descricao.ilike(f'%{query}%')
+            )
+        )
+    
+    # Filtros de preço
+    if preco_min is not None:
+        produtos = produtos.filter(Product.preco >= preco_min)
+    if preco_max is not None:
+        produtos = produtos.filter(Product.preco <= preco_max)
+    
+    # Ordenação
+    if ordenar == 'preco_asc':
+        produtos = produtos.order_by(Product.preco.asc())
+    elif ordenar == 'preco_desc':
+        produtos = produtos.order_by(Product.preco.desc())
+    elif ordenar == 'estoque':
+        produtos = produtos.order_by(Product.estoque.desc())
+    else:  # nome
+        produtos = produtos.order_by(Product.titulo.asc())
+    
+    produtos = produtos.all()
+    data = []
+    for p in produtos:
+        avg = db.session.query(db.func.avg(Review.nota)).filter(Review.product_id == p.id).scalar() or 0
+        count = Review.query.filter_by(product_id=p.id).count()
+        # Remove 'imagens/' do início se existir
+        imagem = p.imagem.replace('imagens/', '') if p.imagem and p.imagem.startswith('imagens/') else (p.imagem or '')
+        data.append({
+            "id": p.id, "titulo": p.titulo, "descricao": p.descricao,
+            "preco": p.preco, "imagem": imagem,
+            "estoque": p.estoque,
+            "media": round(float(avg), 2), "n_reviews": count
+        })
+    return jsonify(data)
 
 from flask import session, jsonify
 
@@ -428,7 +540,14 @@ def produto_page(product_id):
 def perfil_page():
     if not session.get("user_id"):
         return redirect("/login")
-    return render_template("perfil.html")
+    
+    user_id = session['user_id']
+    user = User.query.get(user_id)
+    
+    # Buscar todos os pedidos do usuário
+    pedidos = Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all()
+    
+    return render_template("perfil.html", pedidos=pedidos, user=user)
 
 @app.route("/sobre")
 def sobre_page():
@@ -455,7 +574,7 @@ def admin_novo_produto():
         titulo = request.form.get("titulo")
         descricao = request.form.get("descricao")
         preco = request.form.get("preco")
-        link = request.form.get("mercado_pago_link")
+        estoque = request.form.get("estoque", 0)
         imagem_file = request.files.get("imagem")
         nome_arquivo = None
         if imagem_file and imagem_file.filename:
@@ -463,8 +582,8 @@ def admin_novo_produto():
             imagem_file.save(os.path.join(app.config["UPLOAD_FOLDER"], nome_arquivo))
         p = Product(
             titulo=titulo, descricao=descricao, preco=float(preco or 0),
-            imagem=f"imagens/{nome_arquivo}" if nome_arquivo else "",
-            mercado_pago_link=link
+            estoque=int(estoque),
+            imagem=f"imagens/{nome_arquivo}" if nome_arquivo else ""
         )
         db.session.add(p); db.session.commit()
         return redirect("/admin")
@@ -478,7 +597,7 @@ def admin_editar_produto(pid):
         p.titulo = request.form.get("titulo")
         p.descricao = request.form.get("descricao")
         p.preco = float(request.form.get("preco") or 0)
-        p.mercado_pago_link = request.form.get("mercado_pago_link")
+        p.estoque = int(request.form.get("estoque", 0))
         imagem_file = request.files.get("imagem")
         if imagem_file and imagem_file.filename:
             nome_arquivo = secure_filename(imagem_file.filename)
@@ -503,16 +622,32 @@ def carrinho_add(id):
     produto = Product.query.get(id)
     if not produto: return "Produto não encontrado", 404
 
+    # Verifica estoque disponível
+    if produto.estoque <= 0:
+        return "Produto esgotado", 400
+
     if 'user_id' in session:
         user_id = session['user_id']
         item = CartItem.query.filter_by(user_id=user_id, product_id=id).first()
+        
+        # Verifica se já tem no carrinho e valida estoque
+        quantidade_atual = item.quantity if item else 0
+        if quantidade_atual + 1 > produto.estoque:
+            return "Estoque insuficiente", 400
+        
         if item: item.quantity += 1
         else: db.session.add(CartItem(user_id=user_id, product_id=id, quantity=1))
         db.session.commit()
         return "OK (db)", 200
 
     carrinho = session.get('cart', {})
-    carrinho[str(id)] = carrinho.get(str(id), 0) + 1
+    quantidade_atual = carrinho.get(str(id), 0)
+    
+    # Valida estoque para carrinho de sessão
+    if quantidade_atual + 1 > produto.estoque:
+        return "Estoque insuficiente", 400
+    
+    carrinho[str(id)] = quantidade_atual + 1
     session['cart'] = carrinho; session.modified = True
     return "OK (sessão)", 200
 
@@ -602,185 +737,128 @@ def ver_pedido(id):
     return render_template("pedido_detalhe.html", pedido=pedido, items=items)
 
 # -----------------------------
-# CHECKOUT PRO — Mercado Pago
+# CHECKOUT — Stripe Payment
 # -----------------------------
-@app.route('/checkout', methods=['POST'])
+@app.route('/checkout')
 def checkout():
     """
-    Cria uma preferência de pagamento do Mercado Pago
-    com base no carrinho atual. Suporta ambiente local
-    e ambiente de produção (Render).
+    Exibe a página de checkout com formulário de cartão
     """
-
-    # 1️⃣ Verifica se o usuário está logado
     user_id = session.get('user_id')
     if not user_id:
-        return jsonify({"error": "Usuário não logado."}), 401
+        session['redirect_after_login'] = "/checkout"
+        return redirect("/login")
 
-    # 2️⃣ Captura itens do carrinho
     carrinho_itens = snapshot_cart_for_checkout()
     if not carrinho_itens:
-        return jsonify({"error": "Carrinho vazio."}), 400
+        return redirect("/carrinho")
 
-    # 3️⃣ Inicializa o SDK do Mercado Pago
-    import mercadopago
-    sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
+    total = sum(it["preco"] * it["quantidade"] for it in carrinho_itens)
+    
+    return render_template("checkout.html", 
+                         itens=carrinho_itens, 
+                         total=total,
+                         stripe_public_key=STRIPE_PUBLIC_KEY)
 
-    # 4️⃣ Prepara lista de itens para o pagamento
-    items = [{
-        "title": it["titulo"],
-        "quantity": it["quantidade"],
-        "currency_id": "BRL",
-        "unit_price": it["preco"]
-    } for it in carrinho_itens]
+@app.route('/processar-pagamento', methods=['POST'])
+def processar_pagamento():
+    """
+    Processa o pagamento com Stripe usando os dados do cartão
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Usuário não logado"}), 401
 
-    # 5️⃣ Detecta se está em ambiente local ou produção
-    base_url = request.host_url.rstrip("/")  # ex: http://127.0.0.1:5000
-    is_local = "127.0.0.1" in base_url or "localhost" in base_url
+    # Captura dados do formulário
+    data = request.get_json()
+    payment_method_id = data.get('payment_method_id')
+    endereco = data.get('endereco', {})
+    
+    if not payment_method_id:
+        return jsonify({"error": "Método de pagamento inválido"}), 400
+    
+    # Valida endereço
+    if not all([endereco.get('rua'), endereco.get('numero'), endereco.get('bairro'), 
+                endereco.get('cidade'), endereco.get('telefone')]):
+        return jsonify({"error": "Endereço de entrega incompleto"}), 400
 
-    # 🔹 URLs de retorno
-    success_url = url_for('pagamento_sucesso', _external=True)
-    failure_url = url_for('pagamento_falha', _external=True)
-    pending_url = url_for('pagamento_pendente', _external=True)
+    # Pega itens do carrinho
+    carrinho_itens = snapshot_cart_for_checkout()
+    if not carrinho_itens:
+        return jsonify({"error": "Carrinho vazio"}), 400
 
-    # 🔹 Monta o dicionário de preferência
-    preference_data = {
-        "items": items,
-        "payer": {"name": session.get('user_name', 'Cliente')},
-        "back_urls": {
-            "success": success_url,
-            "failure": failure_url,
-            "pending": pending_url
-        },
-        "external_reference": str(user_id)
-    }
+    # Calcula total (em centavos para Stripe)
+    total = sum(it["preco"] * it["quantidade"] for it in carrinho_itens)
+    total_centavos = int(total * 100)
 
-    # 6️⃣ Ambiente local → remover campos que causam erro (MP não aceita URLs locais)
-    if not is_local:
-        preference_data["auto_return"] = "approved"
-        preference_data["notification_url"] = f"{base_url}/webhooks/mercadopago"
-
-    # 7️⃣ Cria a preferência
     try:
-        pref_resp = sdk.preference().create(preference_data)
-        pref = pref_resp.get("response", {})
-        init_point = pref.get("init_point")
+        # Cria o PaymentIntent no Stripe
+        intent = stripe.PaymentIntent.create(
+            amount=total_centavos,
+            currency="brl",
+            payment_method=payment_method_id,
+            confirm=True,
+            description=f"Pedido EJM Santos - Usuario #{user_id}",
+            automatic_payment_methods={
+                'enabled': True,
+                'allow_redirects': 'never'
+            }
+        )
 
-        if not init_point:
-            print("❌ Falha MP:", pref_resp)
-            return jsonify({"error": "Falha ao criar preferência"}), 500
+        # Se o pagamento foi aprovado
+        if intent['status'] == 'succeeded':
+            # Desconta estoque dos produtos
+            for item in carrinho_itens:
+                produto = Product.query.get(item["product_id"])
+                if produto:
+                    produto.estoque -= item["quantidade"]
+                    if produto.estoque < 0:
+                        produto.estoque = 0
+            
+            # Cria o pedido no banco com endereço
+            pedido = create_order_from_items(user_id, carrinho_itens)
+            pedido.status = "Pago"
+            pedido.endereco_rua = endereco.get('rua')
+            pedido.endereco_numero = endereco.get('numero')
+            pedido.endereco_complemento = endereco.get('complemento', '')
+            pedido.endereco_bairro = endereco.get('bairro')
+            pedido.endereco_cidade = endereco.get('cidade')
+            pedido.telefone = endereco.get('telefone')
+            db.session.commit()
 
+            # Limpa o carrinho
+            clear_current_cart()
+
+            return jsonify({
+                "success": True,
+                "pedido_id": pedido.id,
+                "message": "Pagamento realizado com sucesso!"
+            })
+        else:
+            return jsonify({"error": "Pagamento não aprovado"}), 400
+
+    except stripe.error.CardError as e:
+        # Erro no cartão
+        return jsonify({"error": f"Erro no cartão: {e.user_message}"}), 400
+    except stripe.error.StripeError as e:
+        # Erro do Stripe
+        return jsonify({"error": f"Erro ao processar pagamento: {str(e)}"}), 500
     except Exception as e:
-        print("❌ Erro Mercado Pago:", str(e))
-        return jsonify({"error": "Erro ao criar preferência", "detalhe": str(e)}), 500
-
-    # 8️⃣ Limpa o carrinho visual (não remove pedidos no banco)
-    clear_current_cart()
-
-    print("✅ Checkout criado com sucesso:", init_point)
-    return jsonify({"checkout_url": init_point})
+        # Erro geral
+        return jsonify({"error": f"Erro inesperado: {str(e)}"}), 500
 
 
 # -----------------------------
-# Retornos (Back URLs)
+# Retornos de Pagamento
 # -----------------------------
 @app.route("/pagamento/sucesso")
 def pagamento_sucesso():
-    # Params possíveis: payment_id / collection_id, status, preference_id, external_reference
     pedido_id = request.args.get("pedido_id", type=int)
-    payment_id = request.args.get("payment_id") or request.args.get("collection_id")
-    status = request.args.get("status")
-
-    # Confirma com o MP (boa prática)
-    if payment_id and pedido_id:
-        try:
-            sdk = mp_sdk()
-            pay = sdk.payment().get(payment_id).get("response", {})
-            # Validações mínimas
-            ext_ref = str(pay.get("external_reference"))
-            status_mp = pay.get("status")
-            transaction_amount = float(pay.get("transaction_amount") or 0.0)
-            pedido = Order.query.get(pedido_id)
-
-            if pedido and ext_ref == str(pedido.id) and status_mp == "approved" and abs(pedido.total - transaction_amount) < 0.01:
-                pedido.status = "Pago"
-                db.session.commit()
-        except Exception as e:
-            # Não quebra a UX; só registra/loga se desejar
-            print("Falha ao validar pagamento:", e)
-
-    return render_template("pagamento_sucesso.html", pedido_id=pedido_id, status=status)
+    return render_template("pagamento_sucesso.html", pedido_id=pedido_id)
 
 @app.route("/pagamento/falha")
 def pagamento_falha():
-    pedido_id = request.args.get("pedido_id", type=int)
-    return render_template("pagamento_falha.html", pedido_id=pedido_id)
-
-@app.route("/pagamento/pendente")
-def pagamento_pendente():
-    pedido_id = request.args.get("pedido_id", type=int)
-    return render_template("pagamento_pendente.html", pedido_id=pedido_id)
-
-# -------------------------------------------------------
-# 🌐 WEBHOOK - Retorno automático do Mercado Pago
-# -------------------------------------------------------
-
-@app.route("/webhooks/mercadopago", methods=["POST"])
-def webhook_mercadopago():
-    """
-    Webhook para receber notificações automáticas do Mercado Pago.
-    Atualiza o status dos pedidos conforme o pagamento é processado.
-    """
-
-    data = request.get_json(silent=True)
-    print("📩 Webhook recebido:", data)
-
-    if not data:
-        return jsonify({"status": "sem_dados"}), 400
-
-    # Verifica se é uma notificação de pagamento
-    evento = data.get("type") or data.get("topic")
-    if evento != "payment":
-        print("⚠️ Evento ignorado:", evento)
-        return jsonify({"status": "evento_ignorado"}), 200
-
-    # ID do pagamento
-    pagamento_id = data.get("data", {}).get("id")
-    if not pagamento_id:
-        print("⚠️ Nenhum ID de pagamento encontrado.")
-        return jsonify({"status": "sem_id"}), 400
-
-    # Consulta detalhes do pagamento no Mercado Pago
-    import mercadopago
-    sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
-
-    try:
-        pagamento = sdk.payment().get(pagamento_id)
-        info = pagamento.get("response", {})
-
-        status_pagamento = info.get("status")
-        referencia = info.get("external_reference")
-        valor = info.get("transaction_amount")
-
-        print(f"💰 Pagamento {pagamento_id} recebido | Status: {status_pagamento} | Pedido: {referencia}")
-
-        # Atualiza pedido no banco (referência = user_id ou pedido.id)
-        if referencia:
-            pedido = Order.query.filter_by(user_id=referencia).order_by(Order.id.desc()).first()
-            if pedido:
-                pedido.status = (
-                    "Pago" if status_pagamento == "approved" else
-                    "Pendente" if status_pagamento == "in_process" else
-                    "Cancelado"
-                )
-                db.session.commit()
-                print(f"✅ Pedido {pedido.id} atualizado para: {pedido.status}")
-
-        return jsonify({"status": "ok"}), 200
-
-    except Exception as e:
-        print("❌ Erro no webhook:", str(e))
-        return jsonify({"error": str(e)}), 500
+    return render_template("pagamento_falha.html")
 
 # -----------------------------
 # Admin: Pedidos
@@ -814,12 +892,30 @@ def admin_pedido_detalhe(pedido_id):
 @admin_required
 def admin_pedido_status(pedido_id):
     pedido = Order.query.get_or_404(pedido_id)
+    old_status = pedido.status
     novo_status = request.form.get("status")
     status_validos = ["Pendente", "Pago", "Enviado", "Entregue", "Cancelado"]
     if novo_status not in status_validos:
         return "Status inválido", 400
+    
     pedido.status = novo_status
     db.session.commit()
+    
+    # Enviar email de atualização de status se mudou
+    if old_status != novo_status:
+        try:
+            user = User.query.get(pedido.user_id)
+            if user:
+                email_service.send_order_status_update(
+                    user_name=user.nome,
+                    user_email=user.email,
+                    order_id=pedido.id,
+                    old_status=old_status,
+                    new_status=novo_status
+                )
+        except Exception as e:
+            print(f"⚠️ Erro ao enviar email de atualização: {e}")
+    
     return redirect(f"/admin/pedidos/{pedido_id}")
 
 # -----------------------------

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="perfil">
+  <div class="perfil-container">
+    <div class="perfil-header">
+      <h2>👤 Meu Perfil</h2>
+      <button id="btn-logout" class="btn-logout">Sair</button>
+    </div>
+    {% if session.get('is_admin') %}
+    <div class="perfil-section">
+       <a href="/admin" class="btn-admin">📊 Acessar Dashboard Administrativo</a>
+    </div>
+    {% endif %}
+
+
+    <div class="perfil-info" id="perfil-info">
+      {% if session.get('user_id') %}
+        <p><strong>Nome:</strong> {{ session['user_name'] }}</p>
+        <a href="/carrinho" class="btn-admin">
+           🛒 Carrinho <span id="carrinho-count">(0)</span>
+        </a>
+        <p><strong>Status:</strong> Logado ✅</p>
+      {% else %}
+        <p>Você não está logado. <a href="/login">Entrar</a></p>
+      {% endif %}
+    </div>
+
+    {% if session.get('user_id') %}
+    <div class="perfil-section">
+      <h3>🛒 Minhas Compras</h3>
+      <ul id="minhas-compras" class="lista-compras"></ul>
+    </div>
+
+    <div class="perfil-section">
+      <h3>⭐ Minhas Avaliações</h3>
+      <ul id="minhas-avaliacoes" class="lista-avaliacoes"></ul>
+    </div>
+    {% endif %}
+  </div>
+<section class="perfil-historico">
+  <h3>🛍️ Histórico de Compras</h3>
+  <table>
+    <tr><th>Data</th><th>Produtos</th><th>Total</th><th>Status</th></tr>
+    {% for pedido in pedidos %}
+      <tr>
+        <td>{{ pedido.created_at.strftime('%d/%m/%Y') }}</td>
+        <td>
+          {% for item in pedido.items %}
+            {{ item.product.titulo }} ({{ item.quantidade }})<br>
+          {% endfor %}
+        </td>
+        <td>R$ {{ "%.2f"|format(pedido.total) }}</td>
+        <td>{{ pedido.status }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</section>
+
+
+</section>
+
+<script>
+  // botão de logout (limpa token e redireciona)
+  document.getElementById('btn-logout').onclick = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/logout';
+  };
+
+  // se existir token (compatível com API), puxa dados extras
+  const token = localStorage.getItem('token');
+  if (token) {
+    fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + token }})
+      .then(r => r.json())
+      .then(u => {
+        if (u.nome) {
+          document.getElementById('perfil-info').innerHTML = `
+            <p><strong>Nome:</strong> ${u.nome}</p>
+            <p><strong>Email:</strong> ${u.email}</p>
+          `;
+        }
+
+        const comprasUl = document.getElementById('minhas-compras');
+        if (u.compras && u.compras.length > 0) {
+          comprasUl.innerHTML = '';
+          u.compras.forEach(c => {
+            const li = document.createElement('li');
+            li.innerHTML = `<a href="/produto/${c.product_id}">${c.titulo}</a>`;
+            comprasUl.appendChild(li);
+          });
+        } else {
+          comprasUl.innerHTML = '<li>Nenhuma compra registrada.</li>';
+        }
+
+        fetch('/api/reviews/me', { headers: { 'Authorization': 'Bearer ' + token }})
+          .then(r => r.ok ? r.json() : [])
+          .then(revs => {
+            const ul = document.getElementById('minhas-avaliacoes');
+            if (!revs || revs.length === 0) {
+              ul.innerHTML = '<li>Você ainda não avaliou nenhum produto.</li>';
+            } else {
+              ul.innerHTML = '';
+              revs.forEach(r => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${r.titulo}</strong> — ${r.nota}⭐<br>${r.comentario}`;
+                ul.appendChild(li);
+              });
+            }
+          });
+      })
+      .catch(err => console.error(err));
+  }
+  // Atualiza quantidade do carrinho sem mexer no resto
+function atualizarCarrinho() {
+  fetch('/api/carrinho')
+    .then(r => r.ok ? r.json() : [])
+    .then(data => {
+      const countEl = document.getElementById('carrinho-count');
+      if (countEl && data.itens) {
+        const total = data.itens.reduce((s, item) => s + (item.quantidade || 1), 0);
+        countEl.textContent = `(${total})`;
+      }
+    })
+    .catch(err => console.error('Erro ao carregar carrinho:', err));
+}
+
+atualizarCarrinho();
+setInterval(atualizarCarrinho, 30000);
+
+</script>
+{% endblock %}
+

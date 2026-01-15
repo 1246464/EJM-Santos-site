@@ -13,14 +13,14 @@
       <label>Preço:</label>
       <input type="number" name="preco" step="0.01" value="{{ produto.preco }}" required>
 
+      <label>Estoque:</label>
+      <input type="number" name="estoque" min="0" value="{{ produto.estoque }}" required>
+
       <label>Imagem:</label>
       {% if produto.imagem %}
         <p>Atual: <img src="/static/{{ produto.imagem }}" alt="{{ produto.titulo }}" width="80"></p>
       {% endif %}
       <input type="file" name="imagem">
-
-      <label>Link Mercado Pago:</label>
-      <input type="url" name="mercado_pago_link" value="{{ produto.mercado_pago_link }}">
 
       <button type="submit" class="botao-topo">Salvar Alterações</button>
     </form>

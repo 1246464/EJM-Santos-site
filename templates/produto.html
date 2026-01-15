@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="produto-mobile">
+<section class="produto-detalhe">
 
   <div class="produto-imagem">
     <img id="imagem-produto" src="" alt="Produto">
@@ -11,9 +11,15 @@
     <div class="produto-preco" id="preco-produto"></div>
     <p class="produto-vendas">+10 vendidos</p>
 
-    <button id="btn-add-cart" class="btn-carrinho-mobile">
-      🛒 Adicionar ao Carrinho
-    </button>
+    <!-- Botões de ação -->
+    <div class="botoes-produto">
+      <button id="btn-add-cart" class="btn-carrinho">
+        🛒 Adicionar ao Carrinho
+      </button>
+      <a id="btn-finalizar" class="btn-comprar" href="#">
+        Comprar agora
+      </a>
+    </div>
 
     <hr>
 
@@ -30,13 +36,6 @@
 
   </div>
 
-  <!-- Botão fixo no rodapé -->
-  <div class="footer-compra">
-    <a id="btn-finalizar" class="btn-comprar-mobile" href="#">
-      Comprar agora
-    </a>
-  </div>
-
 </section>
 
 <script>
@@ -45,7 +44,18 @@ const token = localStorage.getItem('token');
 
 // Atualiza UI com os dados do produto
 function showProduct(p) {
-  document.getElementById("imagem-produto").src = "/static/imagens/" + p.imagem;
+  console.log('Dados do produto:', p);
+  
+  // Atualiza imagem
+  const imgElement = document.getElementById("imagem-produto");
+  if (p.imagem) {
+    imgElement.src = "/static/imagens/" + p.imagem;
+    imgElement.onerror = function() {
+      console.error('Erro ao carregar imagem:', p.imagem);
+      this.src = "/static/imagens/placeholder.jpg";
+    };
+  }
+  
   document.getElementById("titulo-produto").textContent = p.titulo;
   document.getElementById("preco-produto").textContent = "R$ " + p.preco.toFixed(2);
   document.getElementById("descricao-produto").textContent = p.descricao;
@@ -58,7 +68,6 @@ function showProduct(p) {
 function scrollToReviews() {
   document.getElementById('produto-reviews').scrollIntoView({ behavior: "smooth" });
 }
-
 
 // Carrinho
 async function addToCart(id) {
@@ -86,8 +95,12 @@ function showReviews(list) {
 fetch(`/api/product/${productId}`)
   .then(r => r.json())
   .then(data => {
+    console.log('Resposta da API:', data);
     showProduct(data);
     showReviews(data.reviews || []);
+  })
+  .catch(error => {
+    console.error('Erro ao carregar produto:', error);
   });
 </script>
 {% endblock %}

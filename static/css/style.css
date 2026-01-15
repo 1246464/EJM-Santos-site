@@ -29,8 +29,9 @@ section{padding:20px 0}
 .produtos-preview #produtos-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;max-width:1200px;margin:12px auto;padding:12px}
 
 /* cards */
-.card{background:#fff;border-radius:10px;border:1px solid #eee;padding-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
-.card img{width:100%;height:180px;object-fit:cover;border-radius:10px 10px 0 0}
+.card{background:#fff;border-radius:10px;border:1px solid #eee;padding-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04);transition:transform 0.2s,box-shadow 0.2s}
+.card:hover{transform:translateY(-4px);box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+.card img{width:100%;height:220px;object-fit:cover;border-radius:10px 10px 0 0}
 .card h3{padding:12px 12px 4px;color:#b45309}
 .card p{padding:0 12px;color:#666;height:44px;overflow:hidden}
 .preco{display:block;padding:8px 12px;font-weight:700;color:#92400e}
@@ -58,15 +59,14 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
 /* =========================================================
    📦 05 - PÁGINA DO PRODUTO (Detalhe)
 ========================================================= */
-.produto-detalhe,
-.produto-mobile {
+.produto-detalhe {
   background: #fff;
   max-width: 1100px;
   margin: auto;
   padding: 40px 20px 100px;
   display: flex;
   gap: 40px;
-} */
+}
 
 /* --- Imagem grande do produto --- */
 .produto-imagem img {
@@ -98,18 +98,50 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
   margin-bottom: 15px;
 }
 
+/* Container dos botões */
+.botoes-produto {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+}
+
 /* Botão verde - Adicionar ao carrinho */
-.btn-carrinho-mobile {
-  width: 100%;
+.btn-carrinho {
+  flex: 1;
   background: #e0f5e0;
   color: #007e00;
-  padding: 14px;
+  padding: 14px 20px;
   border-radius: 10px;
-  border: none;
+  border: 2px solid #c8e6c9;
   font-size: 16px;
   cursor: pointer;
-  margin: 12px 0;
   font-weight: bold;
+  transition: all 0.3s;
+}
+.btn-carrinho:hover {
+  background: #c8e6c9;
+  transform: translateY(-2px);
+}
+
+/* Botão laranja - Comprar */
+.btn-comprar {
+  flex: 1;
+  background: #ff4d00;
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  display: block;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: none;
+}
+.btn-comprar:hover {
+  background: #e64400;
+  transform: translateY(-2px);
 }
 
 /* Titulos da seção de detalhes */
@@ -142,57 +174,34 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
   border: 1px solid #eee;
 }
 
-/* Botão laranja fixo no rodapé (mobile) */
-.footer-compra {
-  position: fixed;
-  bottom: 0;
-  left: 0; right: 0;
-  background: #fff;
-  border-top: 1px solid #ddd;
-  padding: 12px;
-  z-index: 99;
-}
-.btn-comprar-mobile {
-  width: 100%;
-  background: #ff4d00;
-  color: #fff;
-  padding: 14px;
-  border-radius: 10px;
-  text-align: center;
-  font-size: 18px;
-  font-weight: bold;
-  display: block;
-}
+
 /* ======== Versão Desktop ======== */
 @media (min-width: 769px) {
-  .produto-detalhe,
-  .produto-mobile {
+  .produto-detalhe {
     flex-direction: row;
     padding-bottom: 50px;
   }
-  .footer-compra {
-    position: static;
-    border: none;
-    padding: 0;
-  }
-  .btn-comprar-mobile {
-    max-width: 300px;
-    margin-top: 20px;
+  .produto-imagem img {
+    max-height: 500px;
   }
 }
 
 /* ======== Versão Mobile ======== */
 @media (max-width: 768px) {
-  .produto-detalhe,
-  .produto-mobile {
+  .produto-detalhe {
     flex-direction: column;
     gap: 20px;
-    padding-bottom: 100px;
+    padding-bottom: 50px;
   }
   .produto-conteudo { padding: 0; }
   .produto-conteudo h1 { font-size: 1.5rem; }
   .produto-preco { font-size: 22px; }
   .produto-imagem img { height: auto; }
+  
+  /* Empilhar botões verticalmente no mobile */
+  .botoes-produto {
+    flex-direction: column;
+  }
 }
 
 
@@ -263,7 +272,7 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
 }
 
 /* cartão de produto */
-.card {
+.produtos-grid .card {
   background-color: #fff;
   border-radius: 16px;
   overflow: hidden;
@@ -274,33 +283,33 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
   justify-content: space-between;
 }
 
-.card:hover {
+.produtos-grid .card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 /* imagem */
-.card img {
+.produtos-grid .card img {
   width: 100%;
-  height: 320px;
+  height: 220px;
   object-fit: cover;
 }
 
 /* texto e preço */
-.card h3 {
+.produtos-grid .card h3 {
   font-size: 1.3rem;
   color: #222;
   margin: 12px 16px 6px;
 }
 
-.card p {
+.produtos-grid .card p {
   font-size: 0.95rem;
   color: #555;
   margin: 0 16px 10px;
   line-height: 1.5;
 }
 
-.preco {
+.produtos-grid .preco {
   font-size: 1.2rem;
   color: #d97706;
   font-weight: bold;
@@ -308,14 +317,14 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
 }
 
 /* botões */
-.produto-actions {
+.produtos-grid .produto-actions {
   display: flex;
   justify-content: space-between;
   margin: 0 16px 16px;
   gap: 10px;
 }
 
-.botao-comprar {
+.produtos-grid .botao-comprar {
   background-color: #fbbf24;
   color: #222;
   font-weight: 600;
@@ -327,12 +336,12 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
   transition: background-color 0.2s ease;
 }
 
-.botao-comprar:hover {
+.produtos-grid .botao-comprar:hover {
   background-color: #f59e0b;
 }
 
 /* meta */
-.meta {
+.produtos-grid .meta {
   font-size: 0.9rem;
   color: #777;
   text-align: center;
@@ -342,6 +351,10 @@ tr[data-status="Cancelado"] .badge-status { background:#ffe4e4; color:#b71c1c; }
 /* responsivo */
 @media (max-width: 768px) {
   .card img {
+    height: 180px;
+  }
+  
+  .produtos-grid .card img {
     height: 180px;
   }
 

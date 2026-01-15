@@ -2,19 +2,239 @@
 {% block content %}
 <section class="produtos">
   <h2>Produtos</h2>
+  
+  <!-- Barra de Busca e Filtros -->
+  <div class="filtros-container">
+    <div class="busca-box">
+      <input type="text" id="busca" placeholder="🔍 Buscar produtos..." />
+    </div>
+    
+    <!-- Botão para mostrar/esconder filtros no mobile -->
+    <button class="btn-toggle-filtros" onclick="toggleFiltros()">
+      <span id="filtro-icon">🔽</span> Filtros
+    </button>
+    
+    <div class="filtros-box" id="filtros-avancados">
+      <div class="filtro-grupo">
+        <label>Preço Mínimo:</label>
+        <input type="number" id="preco-min" placeholder="R$ 0" step="0.01" />
+      </div>
+      
+      <div class="filtro-grupo">
+        <label>Preço Máximo:</label>
+        <input type="number" id="preco-max" placeholder="R$ 100" step="0.01" />
+      </div>
+      
+      <div class="filtro-grupo">
+        <label>Ordenar por:</label>
+        <select id="ordenar">
+          <option value="nome">Nome (A-Z)</option>
+          <option value="preco_asc">Menor Preço</option>
+          <option value="preco_desc">Maior Preço</option>
+          <option value="estoque">Maior Estoque</option>
+        </select>
+      </div>
+      
+      <button onclick="limparFiltros()" class="btn-limpar">🗑️ Limpar</button>
+    </div>
+  </div>
+  
   <div id="produtos-grid" class="produtos-grid"></div>
+  <div id="sem-resultados" style="display:none; text-align:center; padding:40px; color:#999;">
+    <p style="font-size:1.2em;">🔍 Nenhum produto encontrado</p>
+  </div>
 </section>
+
+<style>
+.filtros-container {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.busca-box {
+  margin-bottom: 10px;
+}
+
+.busca-box input {
+  width: 100%;
+  padding: 12px 20px;
+  border: 2px solid #ddd;
+  border-radius: 25px;
+  font-size: 1em;
+  transition: all 0.3s;
+}
+
+.busca-box input:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: 0 0 10px rgba(255,152,0,0.2);
+}
+
+/* Botão toggle filtros */
+.btn-toggle-filtros {
+  display: none;
+  width: 100%;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 10px;
+  transition: all 0.3s;
+}
+
+.btn-toggle-filtros:hover {
+  background: #f0f0f0;
+}
+
+.filtros-box {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  align-items: end;
+}
+
+.filtro-grupo {
+  display: flex;
+  flex-direction: column;
+}
+
+.filtro-grupo label {
+  font-size: 0.9em;
+  color: #555;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.filtro-grupo input,
+.filtro-grupo select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 0.95em;
+}
+
+.btn-limpar {
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.95em;
+  transition: background 0.3s;
+}
+
+.btn-limpar:hover {
+  background: #5a6268;
+}
+
+.badge-esgotado, .badge-estoque, .badge-disponivel {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: 600;
+  margin: 10px 0;
+}
+
+.badge-esgotado {
+  background: #fee;
+  color: #c00;
+  border: 1px solid #fcc;
+}
+
+.badge-estoque {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.badge-disponivel {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.botao-comprar.desabilitado {
+  background: #ccc !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
+
+/* Mobile: filtros colapsáveis */
+@media (max-width: 768px) {
+  .filtros-container {
+    padding: 10px;
+  }
+  
+  .btn-toggle-filtros {
+    display: block;
+  }
+  
+  .filtros-box {
+    display: none;
+    grid-template-columns: 1fr;
+    margin-top: 10px;
+    animation: slideDown 0.3s ease-out;
+  }
+  
+  .filtros-box.show {
+    display: grid;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
 <script>
+// Toggle filtros no mobile
+function toggleFiltros() {
+  const filtros = document.getElementById('filtros-avancados');
+  const icon = document.getElementById('filtro-icon');
+  
+  if (filtros.classList.contains('show')) {
+    filtros.classList.remove('show');
+    icon.textContent = '🔽';
+  } else {
+    filtros.classList.add('show');
+    icon.textContent = '🔼';
+  }
+}
+
 function renderDesktop(p, card) {
+  const esgotado = p.estoque <= 0;
+  const estoqueClass = esgotado ? 'esgotado' : (p.estoque < 10 ? 'estoque-baixo' : '');
+  
   card.innerHTML = `
     <img src="/static/imagens/${p.imagem}" alt="${p.titulo}">
     <h3>${p.titulo}</h3>
     <p>${p.descricao}</p>
     <span class="preco">R$ ${p.preco.toFixed(2)}</span>
     
+    ${esgotado ? '<div class="badge-esgotado">❌ Esgotado</div>' : 
+      (p.estoque < 10 ? `<div class="badge-estoque">⚠️ Restam apenas ${p.estoque}</div>` : 
+      `<div class="badge-disponivel">✅ ${p.estoque} disponíveis</div>`)}
+    
     <div class="produto-actions">
       <a class="botao-comprar" href="/produto/${p.id}">Detalhes</a>
-      <a class="botao-comprar" href="${p.mercado_pago_link || '#'}" target="_blank">Comprar</a>
+      ${esgotado ? '<button class="botao-comprar desabilitado" disabled>Esgotado</button>' :
+        `<button class="botao-comprar" onclick="addToCart(${p.id})">Adicionar</button>`}
     </div>
 
     <div class="meta">Avaliação: ${p.media || 0} ⭐ (${p.n_reviews})</div>
@@ -32,34 +252,95 @@ function renderMobile(p, card) {
   `;
 }
 
-fetch('/api/products')
-  .then(r => r.json())
-  .then(data => {
-    const grid = document.getElementById('produtos-grid');
-    grid.innerHTML = '';
-
-    const isMobile = window.innerWidth <= 768;
-
-    data.forEach(p => {
-      const card = document.createElement('div');
-      card.className = 'card';
-
-      if (isMobile) {
-        renderMobile(p, card);
-      } else {
-        renderDesktop(p, card);
+// Função para carregar produtos com filtros
+function carregarProdutos() {
+  const busca = document.getElementById('busca').value;
+  const precoMin = document.getElementById('preco-min').value;
+  const precoMax = document.getElementById('preco-max').value;
+  const ordenar = document.getElementById('ordenar').value;
+  
+  // Construir URL com parâmetros
+  const params = new URLSearchParams();
+  if (busca) params.append('q', busca);
+  if (precoMin) params.append('preco_min', precoMin);
+  if (precoMax) params.append('preco_max', precoMax);
+  params.append('ordenar', ordenar);
+  
+  fetch(`/api/products/search?${params.toString()}`)
+    .then(r => {
+      console.log('Resposta da API:', r.status);
+      return r.json();
+    })
+    .then(data => {
+      console.log('Produtos recebidos:', data.length);
+      const grid = document.getElementById('produtos-grid');
+      const semResultados = document.getElementById('sem-resultados');
+      grid.innerHTML = '';
+      
+      if (data.length === 0) {
+        grid.style.display = 'none';
+        semResultados.style.display = 'block';
+        return;
       }
+      
+      grid.style.display = 'grid';
+      semResultados.style.display = 'none';
+      const isMobile = window.innerWidth <= 768;
 
-      grid.appendChild(card);
+      data.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        if (isMobile) {
+          renderMobile(p, card);
+        } else {
+          renderDesktop(p, card);
+        }
+
+        grid.appendChild(card);
+      });
+    })
+    .catch(error => {
+      console.error('Erro ao carregar produtos:', error);
+      alert('Erro ao carregar produtos. Verifique o console.');
     });
-  });
+}
+
+// Event listeners para busca e filtros
+document.addEventListener('DOMContentLoaded', () => {
+  carregarProdutos();
+  
+  // Busca em tempo real
+  document.getElementById('busca').addEventListener('input', carregarProdutos);
+  
+  // Filtros
+  document.getElementById('preco-min').addEventListener('change', carregarProdutos);
+  document.getElementById('preco-max').addEventListener('change', carregarProdutos);
+  document.getElementById('ordenar').addEventListener('change', carregarProdutos);
+});
+
+function limparFiltros() {
+  document.getElementById('busca').value = '';
+  document.getElementById('preco-min').value = '';
+  document.getElementById('preco-max').value = '';
+  document.getElementById('ordenar').value = 'nome';
+  carregarProdutos();
+}
 
 async function addToCart(id) {
   const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
   if (response.ok) {
     alert('✅ Produto adicionado ao carrinho!');
+    location.reload(); // Atualiza estoque
   } else {
-    alert('❌ Erro ao adicionar ao carrinho!');
+    const text = await response.text();
+    if (text.includes('Esgotado')) {
+      alert('❌ Produto esgotado!');
+    } else if (text.includes('insuficiente')) {
+      alert('⚠️ Estoque insuficiente!');
+    } else {
+      alert('❌ Erro ao adicionar produto!');
+    }
   }
 }
 

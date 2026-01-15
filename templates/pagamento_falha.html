@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="pagamento-resultado falha">
+  <div class="resultado-box">
+    <div class="icone-erro">❌</div>
+    <h1>Pagamento Não Autorizado</h1>
+    <p class="mensagem-principal">Infelizmente o pagamento não pôde ser processado.</p>
+    
+    <div class="info-erro">
+      <p><strong>O que pode ter acontecido:</strong></p>
+      <ul>
+        <li>Dados do cartão incorretos</li>
+        <li>Saldo insuficiente</li>
+        <li>Cartão expirado ou bloqueado</li>
+        <li>Limite do cartão excedido</li>
+      </ul>
+    </div>
+
+    <div class="acoes">
+      <a href="/checkout" class="btn-primario">Tentar Novamente</a>
+      <a href="/carrinho" class="btn-secundario">Voltar ao Carrinho</a>
+    </div>
+  </div>
+</div>
+
+<style>
+.pagamento-resultado {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.resultado-box {
+  background: white;
+  padding: 60px 40px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
+}
+
+.icone-erro {
+  font-size: 80px;
+  margin-bottom: 20px;
+  animation: shake 0.5s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+.resultado-box h1 {
+  color: #e74c3c;
+  font-size: 2.5em;
+  margin-bottom: 15px;
+}
+
+.mensagem-principal {
+  font-size: 1.2em;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+.info-erro {
+  background: #fee;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 30px 0;
+  border-left: 4px solid #e74c3c;
+  text-align: left;
+}
+
+.info-erro p {
+  font-weight: 600;
+  color: #c0392b;
+  margin-bottom: 10px;
+}
+
+.info-erro ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-erro li {
+  padding: 8px 0;
+  color: #555;
+}
+
+.info-erro li:before {
+  content: "• ";
+  color: #e74c3c;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.acoes {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 30px;
+}
+
+.btn-primario, .btn-secundario {
+  padding: 15px 30px;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: transform 0.2s;
+}
+
+.btn-primario {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+}
+
+.btn-secundario {
+  background: #ecf0f1;
+  color: #333;
+}
+
+.btn-primario:hover, .btn-secundario:hover {
+  transform: translateY(-2px);
+}
+</style>
+{% endblock %}

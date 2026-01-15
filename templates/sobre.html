@@ -2,11 +2,188 @@
 {% block content %}
 <section class="sobre">
   <h2>Sobre a EJM Santos</h2>
-  <p>Produzimos mel puro e natural, direto das colmeias do interior. Nosso trabalho respeita as abelhas e a natureza.</p>
+  
+  <div class="historia">
+    <h3>🍯 Nossa História</h3>
+    <p>
+      Tudo começou há anos atrás, quando descobrimos o fascinante mundo das abelhas 
+      e a magia do mel puro. O que era apenas curiosidade se transformou em paixão, 
+      e hoje cuidamos de diversas colmeias com todo carinho e respeito que esses 
+      pequenos seres merecem.
+    </p>
+    
+    <p>
+      Localizados no interior, onde a natureza ainda preserva sua pureza, 
+      nossas abelhas voam livremente entre flores silvestres e campos floridos. 
+      Cada gota de mel que produzimos carrega o sabor autêntico da terra 
+      e o trabalho incansável de milhares de abelhas.
+    </p>
+  </div>
+
   <div class="galeria">
     <img src="{{ url_for('static', filename='imagens/1760708557479.jpg') }}" alt="colmeia">
     <img src="{{ url_for('static', filename='imagens/1760708557485.jpg') }}" alt="extração">
   </div>
-  <p>Nossa missão: levar até você um produto saudável, saboroso e sustentável.</p>
+
+  <div class="valores">
+    <h3>🌿 Nossos Valores</h3>
+    
+    <div class="valor-item">
+      <strong>🐝 Respeito às Abelhas</strong>
+      <p>Tratamos nossas abelhas com cuidado, mantendo práticas sustentáveis que garantem seu bem-estar e a qualidade do mel.</p>
+    </div>
+    
+    <div class="valor-item">
+      <strong>🍃 100% Natural</strong>
+      <p>Nosso mel é puro, sem adição de açúcares, conservantes ou qualquer produto químico. Do favo direto para sua mesa.</p>
+    </div>
+    
+    <div class="valor-item">
+      <strong>🌱 Sustentabilidade</strong>
+      <p>Acreditamos na harmonia com a natureza. Cada colheita é feita pensando no equilíbrio do ecossistema.</p>
+    </div>
+    
+    <div class="valor-item">
+      <strong>❤️ Qualidade</strong>
+      <p>Cada pote é preparado com atenção aos detalhes, garantindo que você receba o melhor mel em sua casa.</p>
+    </div>
+  </div>
+
+  <div class="missao">
+    <h3>🎯 Nossa Missão</h3>
+    <p>
+      Levar até você um produto saudável, saboroso e sustentável. Queremos que cada 
+      colherada de mel seja uma experiência única, conectando você à natureza e ao 
+      trabalho artesanal que fazemos com tanto amor.
+    </p>
+  </div>
 </section>
+
+<style>
+.sobre {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+  line-height: 1.8;
+}
+
+.sobre h2 {
+  text-align: center;
+  color: #b45309;
+  font-size: 2.5rem;
+  margin-bottom: 40px;
+}
+
+.sobre h3 {
+  color: #92400e;
+  font-size: 1.8rem;
+  margin: 30px 0 20px;
+  border-bottom: 3px solid #f6b800;
+  padding-bottom: 10px;
+}
+
+.historia p,
+.missao p {
+  font-size: 1.1rem;
+  color: #444;
+  margin-bottom: 20px;
+  text-align: justify;
+}
+
+.galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin: 40px 0;
+}
+
+.galeria img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform 0.3s;
+}
+
+.galeria img:hover {
+  transform: scale(1.05);
+}
+
+.valores {
+  background: #f8f9fa;
+  padding: 30px;
+  border-radius: 15px;
+  margin: 30px 0;
+}
+
+.valor-item {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border-left: 4px solid #f6b800;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.valor-item strong {
+  display: block;
+  font-size: 1.2rem;
+  color: #b45309;
+  margin-bottom: 8px;
+}
+
+.valor-item p {
+  color: #555;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.missao {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+  padding: 30px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(246, 184, 0, 0.2);
+}
+
+.missao p {
+  text-align: center;
+  font-size: 1.15rem;
+  color: #333;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .sobre {
+    padding: 15px;
+  }
+  
+  .sobre h2 {
+    font-size: 2rem;
+  }
+  
+  .sobre h3 {
+    font-size: 1.5rem;
+  }
+  
+  .historia p,
+  .missao p {
+    font-size: 1rem;
+    text-align: left;
+  }
+  
+  .galeria {
+    grid-template-columns: 1fr;
+  }
+  
+  .valores {
+    padding: 20px 15px;
+  }
+  
+  .valor-item {
+    padding: 15px;
+  }
+}
+</style>
 {% endblock %}

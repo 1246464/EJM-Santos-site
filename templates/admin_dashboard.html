@@ -11,22 +11,33 @@
       <a href="/logout" class="btn-logout">Sair</a>
     </div>
 
-    <table class="tabela-admin">
+    <!-- Busca Admin -->
+    <div class="busca-admin">
+      <input type="text" id="busca-admin" placeholder="🔍 Buscar produtos por título ou ID..." />
+    </div>
+
+    <table class="tabela-admin" id="tabela-produtos">
       <thead>
         <tr>
           <th>ID</th>
           <th>Título</th>
           <th>Preço</th>
+          <th>Estoque</th>
           <th>Imagem</th>
           <th>Ações</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="tbody-produtos">
         {% for p in produtos %}
-        <tr>
+        <tr data-id="{{ p.id }}" data-titulo="{{ p.titulo|lower }}">
           <td>{{ p.id }}</td>
           <td>{{ p.titulo }}</td>
           <td>R$ {{ "%.2f"|format(p.preco) }}</td>
+          <td>
+            <span class="badge-estoque-admin {% if p.estoque <= 0 %}esgotado{% elif p.estoque < 10 %}baixo{% endif %}">
+              {{ p.estoque }} un
+            </span>
+          </td>
           <td>
             {% if p.imagem %}
               <img src="/static/{{ p.imagem }}" alt="{{ p.titulo }}">
@@ -74,6 +85,21 @@
   .btn-add { background: #f6b800; padding: 10px 18px; border-radius: 8px; font-weight: 600; }
   .btn-logout { background: #e53935; color:#fff; padding:10px 18px; border-radius:8px; font-weight:600; }
 
+  .busca-admin { margin: 20px 0; }
+  .busca-admin input {
+    width: 100%;
+    padding: 12px 20px;
+    border: 2px solid #ddd;
+    border-radius: 25px;
+    font-size: 1em;
+    transition: all 0.3s;
+  }
+  .busca-admin input:focus {
+    outline: none;
+    border-color: #f6b800;
+    box-shadow: 0 0 10px rgba(246,184,0,0.2);
+  }
+
   .tabela-admin { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 15px; }
   .tabela-admin th {
     padding: 10px;
@@ -89,6 +115,23 @@
   .tabela-admin img { width: 60px; border-radius: 8px; }
 
   .acoes a { font-size: 18px; margin-right: 8px; text-decoration: none; }
+
+  .badge-estoque-admin {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    background: #d4edda;
+    color: #155724;
+  }
+  .badge-estoque-admin.baixo {
+    background: #fff3cd;
+    color: #856404;
+  }
+  .badge-estoque-admin.esgotado {
+    background: #fee;
+    color: #c00;
+  }
 
   .dashboard-cards {
     max-width: 1100px;
@@ -128,6 +171,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Busca em tempo real no admin
+document.getElementById('busca-admin').addEventListener('input', function() {
+  const busca = this.value.toLowerCase();
+  const linhas = document.querySelectorAll('#tbody-produtos tr');
+  
+  linhas.forEach(linha => {
+    const id = linha.getAttribute('data-id');
+    const titulo = linha.getAttribute('data-titulo');
+    
+    if (id.includes(busca) || titulo.includes(busca)) {
+      linha.style.display = '';
+    } else {
+      linha.style.display = 'none';
+    }
+  });
+});
+
 const ctx = document.getElementById('chartFaturamento').getContext('2d');
 
 new Chart(ctx, {
