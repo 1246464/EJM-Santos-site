@@ -1,60 +1,184 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="carrinho-page">
+<style>
+/* Força estilos do carrinho */
+.carrinho-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; min-height: 60vh; }
+.carrinho-content { display: flex; gap: 24px; align-items: flex-start; }
+.lista-produtos-carrinho { flex: 1; background: #fff; border-radius: 8px; overflow: hidden; }
+.carrinho-header { padding: 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+.carrinho-header h1 { font-size: 1.5rem; font-weight: 400; color: #222; margin: 0; }
+.contador-itens { color: #666; font-size: 0.95rem; }
+.item-carrinho-card { display: flex; align-items: flex-start; padding: 20px 24px; border-bottom: 1px solid #eee; gap: 16px; }
+.item-carrinho-card:hover { background: #fafafa; }
+.item-check { display: flex; align-items: center; padding-top: 4px; }
+.item-check input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+.item-imagem { width: 120px; height: 120px; flex-shrink: 0; }
+.item-imagem img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+.item-detalhes { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.item-titulo { font-size: 1rem; font-weight: 400; color: #222; margin: 0; line-height: 1.4; }
+.item-vendedor { font-size: 0.85rem; color: #666; margin: 0; }
+.item-preco-quantidade { display: flex; align-items: center; gap: 20px; margin-top: auto; }
+.quantidade-selector { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 6px 12px; }
+.btn-quantidade { background: none; border: none; cursor: pointer; color: #B45309; padding: 4px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; }
+.quantidade-numero { font-weight: 500; color: #222; min-width: 20px; text-align: center; font-size: 0.95rem; }
+.item-preco-total { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 140px; }
+.preco-unitario { font-size: 0.85rem; color: #666; text-decoration: line-through; }
+.preco-subtotal { font-size: 1.5rem; font-weight: 400; color: #222; }
+.btn-remover-desktop { background: none; border: none; cursor: pointer; color: #666; padding: 8px; border-radius: 4px; }
+.carrinho-vazio { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; gap: 16px; }
+.btn-ver-produtos { background: #F6B800; color: #000; padding: 14px 32px; border-radius: 8px; font-weight: 600; margin-top: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(246, 184, 0, 0.3); }
+.resumo-lateral { width: 340px; flex-shrink: 0; position: sticky; top: 90px; }
+.resumo-card { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.resumo-titulo { font-size: 1.1rem; font-weight: 400; color: #222; margin: 0 0 20px 0; padding-bottom: 16px; border-bottom: 1px solid #eee; }
+.resumo-linha { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #666; font-size: 0.95rem; }
+.resumo-frete { padding-bottom: 16px; border-bottom: 1px solid #eee; margin-bottom: 16px; }
+.frete-gratis { color: #00a650; font-weight: 600; }
+.resumo-total { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; font-size: 1.3rem; }
+.total-valor { font-weight: 400; color: #222; }
+.btn-finalizar { width: 100%; background: #3483fa; color: white; border: none; border-radius: 6px; padding: 14px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(52, 131, 250, 0.3); }
+.btn-finalizar:hover { background: #2968c8; }
+.resumo-info { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; padding: 12px; background: #f0f9ff; border-radius: 6px; font-size: 0.85rem; color: #666; line-height: 1.4; }
+.item-acoes-mobile { display: none; }
+@media (max-width: 900px) {
+  .carrinho-content { flex-direction: column; }
+  .resumo-lateral { width: 100%; position: static; }
+  .item-imagem { width: 100px; height: 100px; }
+}
+@media (max-width: 768px) {
+  .item-carrinho-card { padding: 16px; flex-wrap: wrap; }
+  .item-imagem { width: 80px; height: 80px; margin-left: 30px; }
+  .item-detalhes { width: calc(100% - 110px); }
+  .item-preco-quantidade { display: none; }
+  .item-acoes-mobile { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 12px; }
+  .item-preco-total { width: 100%; flex-direction: row; justify-content: space-between; margin-top: 12px; }
+  .btn-remover-desktop { display: none; }
+}
+</style>
+<div class="carrinho-container">
+  
+  <div class="carrinho-content">
+    <!-- Lista de Produtos -->
+    <div class="lista-produtos-carrinho">
+      <div class="carrinho-header">
+        <h1>Carrinho de compras</h1>
+        {% if produtos %}
+        <span class="contador-itens">{{ produtos|length }} {% if produtos|length == 1 %}produto{% else %}produtos{% endif %}</span>
+        {% endif %}
+      </div>
 
-  <div class="lista-produtos">
-    <h2>🛒 Meu Carrinho</h2>
-
-    {% if produtos %}
-      {% for p in produtos %}
-      <div class="item-carrinho">
-        
-        <div class="item-img">
-          <img src="/static/imagens/{{ p.imagem }}" alt="{{ p.titulo }}">
-        </div>
-
-        <div class="item-info">
-          <h3>{{ p.titulo }}</h3>
-          <p class="preco">R$ {{ "%.2f"|format(p.preco) }}</p>
-
-          <div class="quantidade-controls">
-            <button class="btn-qtd" onclick="updateQty('{{ p.id }}', 'sub')">-</button>
-            <span class="qtd">{{ p.quantidade }}</span>
-            <button class="btn-qtd" onclick="updateQty('{{ p.id }}', 'add')">+</button>
+      {% if produtos %}
+        {% for p in produtos %}
+        <div class="item-carrinho-card">
+          
+          <div class="item-check">
+            <input type="checkbox" id="item-{{ p.id }}" checked>
           </div>
 
-          <a class="remover" onclick="removeItem('{{ p.id }}')">Excluir</a>
+          <div class="item-imagem">
+            <img src="/static/imagens/{{ p.imagem.replace('imagens/', '') if p.imagem.startswith('imagens/') else p.imagem }}" alt="{{ p.titulo }}">
+          </div>
+
+          <div class="item-detalhes">
+            <h3 class="item-titulo">{{ p.titulo }}</h3>
+            <p class="item-vendedor">Vendido por EJM Santos</p>
+            
+            <div class="item-acoes-mobile">
+              <div class="quantidade-selector">
+                <button class="btn-quantidade" onclick="updateQty('{{ p.id }}', 'sub')">
+                  <svg width="12" height="2" viewBox="0 0 12 2" fill="currentColor"><path d="M0 0h12v2H0z"/></svg>
+                </button>
+                <span class="quantidade-numero">{{ p.quantidade }}</span>
+                <button class="btn-quantidade" onclick="updateQty('{{ p.id }}', 'add')">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0v12M0 6h12" stroke="currentColor" stroke-width="2"/></svg>
+                </button>
+              </div>
+              
+              <button class="btn-remover" onclick="removeItem('{{ p.id }}')">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M3 4h10v1H3V4zm1 2h8v7a1 1 0 01-1 1H5a1 1 0 01-1-1V6zm2-3V2a1 1 0 011-1h2a1 1 0 011 1v1h3v1H3V3h3z"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="item-preco-quantidade">
+              <div class="quantidade-selector">
+                <button class="btn-quantidade" onclick="updateQty('{{ p.id }}', 'sub')">
+                  <svg width="12" height="2" viewBox="0 0 12 2" fill="currentColor"><path d="M0 0h12v2H0z"/></svg>
+                </button>
+                <span class="quantidade-numero">{{ p.quantidade }}</span>
+                <button class="btn-quantidade" onclick="updateQty('{{ p.id }}', 'add')">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0v12M0 6h12" stroke="currentColor" stroke-width="2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="item-preco-total">
+            <div class="preco-unitario">R$ {{ "%.2f"|format(p.preco) }}</div>
+            <div class="preco-subtotal">R$ {{ "%.2f"|format(p.subtotal) }}</div>
+            <button class="btn-remover-desktop" onclick="removeItem('{{ p.id }}')">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M3 4h10v1H3V4zm1 2h8v7a1 1 0 01-1 1H5a1 1 0 01-1-1V6zm2-3V2a1 1 0 011-1h2a1 1 0 011 1v1h3v1H3V3h3z"/>
+              </svg>
+            </button>
+          </div>
+
+        </div>
+        {% endfor %}
+
+      {% else %}
+        <div class="carrinho-vazio">
+          <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+            <circle cx="40" cy="40" r="40" fill="#F0F0F0"/>
+            <path d="M25 30h30l-3 20H28l-3-20z" stroke="#999" stroke-width="2" fill="none"/>
+            <circle cx="32" cy="55" r="3" fill="#999"/>
+            <circle cx="48" cy="55" r="3" fill="#999"/>
+          </svg>
+          <h2>Seu carrinho está vazio</h2>
+          <p>Adicione produtos e eles aparecerão aqui</p>
+          <a href="/produtos" class="btn-ver-produtos">Ver produtos</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Resumo da Compra -->
+    {% if produtos %}
+    <div class="resumo-lateral">
+      <div class="resumo-card">
+        <h3 class="resumo-titulo">Resumo da compra</h3>
+        
+        <div class="resumo-linha">
+          <span>Produtos ({{ produtos|length }})</span>
+          <span>R$ {{ "%.2f"|format(total) }}</span>
+        </div>
+        
+        <div class="resumo-linha resumo-frete">
+          <span>Frete</span>
+          <span class="frete-gratis">Grátis</span>
+        </div>
+        
+        <div class="resumo-total">
+          <span>Total</span>
+          <span class="total-valor">R$ {{ "%.2f"|format(total) }}</span>
         </div>
 
-        <div class="item-preco">
-          R$ {{ "%.2f"|format(p.subtotal) }}
-        </div>
+        <button class="btn-finalizar" onclick="window.location.href='/checkout'">
+          Continuar a compra
+        </button>
 
+        <div class="resumo-info">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="color: #00a650;">
+            <path d="M8 0a8 8 0 100 16A8 8 0 008 0zm1 12H7V7h2v5zm0-6H7V4h2v2z"/>
+          </svg>
+          <span>Frete grátis para compras acima de R$ 50</span>
+        </div>
       </div>
-      {% endfor %}
-    {% else %}
-      <p>Seu carrinho está vazio.</p>
+    </div>
     {% endif %}
   </div>
 
-  {% if produtos %}
-  <div class="resumo-compra">
-    <h3>Resumo da compra</h3>
-    <p class="linha">
-      Produtos ({{ produtos|length }})
-      <span>R$ {{ "%.2f"|format(total) }}</span>
-    </p>
-    
-    <div class="total">
-      Total
-      <strong>R$ {{ "%.2f"|format(total) }}</strong>
-    </div>
-
-    <button class="btn-comprar" onclick="window.location.href='/checkout'">💳 Finalizar Compra</button>
-  </div>
-  {% endif %}
-
 </div>
+
 <script>
 async function updateQty(id, acao) {
   await fetch(`/carrinho/update/${id}/${acao}`, { method: "POST" });
@@ -62,8 +186,10 @@ async function updateQty(id, acao) {
 }
 
 async function removeItem(id) {
-  await fetch(`/carrinho/remove/${id}`, { method: "POST" });
-  location.reload();
+  if (confirm('Deseja remover este item do carrinho?')) {
+    await fetch(`/carrinho/remove/${id}`, { method: "POST" });
+    location.reload();
+  }
 }
 </script>
 {% endblock %}

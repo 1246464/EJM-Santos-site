@@ -16,9 +16,9 @@
       <button id="btn-add-cart" class="btn-carrinho">
         🛒 Adicionar ao Carrinho
       </button>
-      <a id="btn-finalizar" class="btn-comprar" href="#">
+      <button id="btn-finalizar" class="btn-comprar">
         Comprar agora
-      </a>
+      </button>
     </div>
 
     <hr>
@@ -49,7 +49,9 @@ function showProduct(p) {
   // Atualiza imagem
   const imgElement = document.getElementById("imagem-produto");
   if (p.imagem) {
-    imgElement.src = "/static/imagens/" + p.imagem;
+    // Remove "imagens/" do início se já existir para evitar duplicação
+    const imagePath = p.imagem.startsWith('imagens/') ? p.imagem.substring(8) : p.imagem;
+    imgElement.src = "/static/imagens/" + imagePath;
     imgElement.onerror = function() {
       console.error('Erro ao carregar imagem:', p.imagem);
       this.src = "/static/imagens/placeholder.jpg";
@@ -60,8 +62,18 @@ function showProduct(p) {
   document.getElementById("preco-produto").textContent = "R$ " + p.preco.toFixed(2);
   document.getElementById("descricao-produto").textContent = p.descricao;
   
-  document.getElementById("btn-finalizar").href = p.mercado_pago_link || "#";
   document.getElementById("btn-add-cart").onclick = () => addToCart(p.id);
+  document.getElementById("btn-finalizar").onclick = () => buyNow(p.id);
+}
+
+// Comprar agora
+async function buyNow(id) {
+  const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
+  if (response.ok) {
+    window.location.href = '/checkout';
+  } else {
+    alert('❌ Erro ao adicionar ao carrinho.');
+  }
 }
 
 // Rolar até avaliações

@@ -42,8 +42,9 @@
         }
       };
       
+      const imagePath = p.imagem.startsWith('imagens/') ? p.imagem.substring(8) : p.imagem;
       card.innerHTML = `
-        <img src="/static/imagens/${p.imagem}" alt="${p.titulo}">
+        <img src="/static/imagens/${imagePath}" alt="${p.titulo}">
         <h3>${p.titulo}</h3>
         <p class="desc">${p.descricao}</p>
         <span class="preco">R$ ${p.preco.toFixed(2)}</span>

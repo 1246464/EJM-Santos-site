@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>EJM Santos</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.0">
 
   <style>
     /* ======== MENU MOBILE ======== */
@@ -81,10 +81,36 @@
     {% block content %}{% endblock %}
   </main>
 
-  <a href="https://wa.me/55XXXXXXXXXXX" class="whats-flutuante" target="_blank">💬</a>
+  <a href="https://wa.me/55XXXXXXXXXXX" class="whats-flutuante" target="_blank" title="Fale conosco no WhatsApp">
+    💬
+  </a>
 
-  <footer>
-    <p>© 2025 EJM Santos - Mel puro e natural. Todos os direitos reservados.</p>
+  <footer class="footer-moderno">
+    <div class="footer-conteudo">
+      <div class="footer-secao">
+        <h3>EJM Santos</h3>
+        <p>Mel puro e natural, direto da colmeia para sua mesa.</p>
+      </div>
+      
+      <div class="footer-secao">
+        <h4>Links Rápidos</h4>
+        <ul>
+          <li><a href="/">Início</a></li>
+          <li><a href="/produtos">Produtos</a></li>
+          <li><a href="/sobre">Sobre Nós</a></li>
+        </ul>
+      </div>
+      
+      <div class="footer-secao">
+        <h4>Contato</h4>
+        <p>📧 contato@ejmsantos.com</p>
+        <p>📱 WhatsApp: (XX) XXXXX-XXXX</p>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <p>© 2025 EJM Santos. Todos os direitos reservados.</p>
+    </div>
   </footer>
 
   <script>

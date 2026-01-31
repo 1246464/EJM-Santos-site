@@ -374,8 +374,7 @@ def api_product_detail(product_id):
         .all()
     )
     revs = [{"nome": r.nome, "nota": r.nota, "comentario": r.comentario, "created_at": r.created_at.isoformat()} for r in reviews]
-    return jsonify({"id": p.id, "titulo": p.titulo, "descricao": p.descricao, "preco": p.preco, "imagem": p.imagem,
-                    "mercado_pago_link": p.mercado_pago_link, "reviews": revs})
+    return jsonify({"id": p.id, "titulo": p.titulo, "descricao": p.descricao, "preco": p.preco, "imagem": p.imagem, "reviews": revs})
 
 @app.route("/api/purchase", methods=["POST"])
 @token_required
@@ -547,7 +546,7 @@ def perfil_page():
     # Buscar todos os pedidos do usuário
     pedidos = Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all()
     
-    return render_template("perfil.html", pedidos=pedidos, user=user)
+    return render_template("perfil_novo.html", pedidos=pedidos, user=user)
 
 @app.route("/sobre")
 def sobre_page():

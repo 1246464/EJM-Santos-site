@@ -220,9 +220,10 @@ function toggleFiltros() {
 function renderDesktop(p, card) {
   const esgotado = p.estoque <= 0;
   const estoqueClass = esgotado ? 'esgotado' : (p.estoque < 10 ? 'estoque-baixo' : '');
+  const imagePath = p.imagem.startsWith('imagens/') ? p.imagem.substring(8) : p.imagem;
   
   card.innerHTML = `
-    <img src="/static/imagens/${p.imagem}" alt="${p.titulo}">
+    <img src="/static/imagens/${imagePath}" alt="${p.titulo}">
     <h3>${p.titulo}</h3>
     <p>${p.descricao}</p>
     <span class="preco">R$ ${p.preco.toFixed(2)}</span>
@@ -243,9 +244,10 @@ function renderDesktop(p, card) {
 
 
 function renderMobile(p, card) {
+  const imagePath = p.imagem.startsWith('imagens/') ? p.imagem.substring(8) : p.imagem;
   card.innerHTML = `
     <a href="/produto/${p.id}" class="card-link">
-      <img src="/static/imagens/${p.imagem}" alt="${p.titulo}">
+      <img src="/static/imagens/${imagePath}" alt="${p.titulo}">
       <h3>${p.titulo}</h3>
       <span class="preco">R$ ${p.preco.toFixed(2)}</span>
     </a>
