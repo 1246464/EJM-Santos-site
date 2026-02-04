@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 import stripe
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -19,17 +22,25 @@ load_dotenv(dotenv_path=dotenv_path)
 # CONFIGURAÇÃO DA APLICAÇÃO
 # ============================================
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_PATH = os.path.join(BASE_DIR, "instance", "ejm.db")
+from config import get_config
 
+# Determinar ambiente
+env = os.getenv('FLASK_ENV', 'production')
+config_class = get_config(env)
+
+# Criar aplicação
 app = Flask(__name__, static_folder="static", template_folder="templates")
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SECRET_KEY"] = os.getenv("EJM_SECRET", "chave_fallback")
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max upload
+app.config.from_object(config_class)
 
-# Inicializar SQLAlchemy
+# Inicializar extensões de segurança
 db = SQLAlchemy(app)
+csrf = CSRFProtect(app)
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri=app.config['RATELIMIT_STORAGE_URL']
+)
 
 # ============================================
 # CONFIGURAR LOGGING E ERROR HANDLERS
@@ -50,8 +61,8 @@ register_error_handlers(app, logger)
 # ============================================
 
 try:
-    stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-    STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
+    stripe.api_key = app.config['STRIPE_SECRET_KEY']
+    STRIPE_PUBLIC_KEY = app.config['STRIPE_PUBLIC_KEY']
     if not stripe.api_key:
         logger.warning("⚠️ STRIPE_SECRET_KEY não configurada")
     else:
@@ -64,13 +75,14 @@ except Exception as e:
 # IMPORTAR MODELOS
 # ============================================
 
-# Importar todos os modelos ANTES de criar as tabelas
-from app.models import User, Product, Order, OrderItem, Review, CartItem
+# Importar e inicializar todos os modelos ANTES de criar as tabelas
+from app.models import init_models
+
+User, Product, Order, OrderItem, Review, CartItem = init_models(db)
 
 # Configurar diretório de upload
-UPLOAD_FOLDER = os.path.join(app.static_folder, "imagens")
+UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # ============================================
 # IMPORTAR E CONFIGURAR HELPERS
@@ -106,7 +118,7 @@ models_dict = {
 }
 
 # Auth Blueprint
-init_auth(db, User, app.config, email_service, logger)
+init_auth(db, User, app.config, email_service, logger, limiter)
 app.register_blueprint(auth_bp)
 logger.info("✅ Blueprint de autenticação registrado")
 
@@ -126,13 +138,32 @@ app.register_blueprint(payment_bp)
 logger.info("✅ Blueprint de pagamento registrado")
 
 # ============================================
-# CACHE CONTROL
+# HEADERS DE SEGURANÇA
 # ============================================
 
 @app.after_request
-def add_header(response):
-    """Evita cache de páginas pós-login"""
-    response.headers["Cache-Control"] = "no-store"
+def security_headers(response):
+    """Adiciona headers de segurança"""
+    # Cache control
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    
+    # Segurança
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    # Política de conteúdo (permite Stripe)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://js.stripe.com; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self' https://api.stripe.com; "
+        "frame-src https://js.stripe.com;"
+    )
+    
     return response
 
 # ============================================
@@ -141,15 +172,20 @@ def add_header(response):
 
 if __name__ == "__main__":
     # Criar diretórios necessários
-    os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
+    os.makedirs(app.config['INSTANCE_DIR'], exist_ok=True)
+    os.makedirs(app.config['LOGS_DIR'], exist_ok=True)
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # Criar tabelas do banco de dados
     with app.app_context():
         db.create_all()
         logger.info("✅ Banco de dados inicializado")
     
+    # Info de ambiente
+    logger.info(f"🌍 Ambiente: {env}")
+    logger.info(f"🔒 CSRF: {'Ativo' if app.config['WTF_CSRF_ENABLED'] else 'Inativo'}")
+    logger.info(f"⚡ Rate Limiting: {'Ativo' if app.config.get('RATELIMIT_ENABLED', True) else 'Inativo'}")
     logger.info("🚀 Servidor iniciando em http://0.0.0.0:5000")
     logger.info("="*50)
     
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=app.config['DEBUG'])

@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, render_template, session, redirec
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import jwt
+import re
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -15,15 +16,39 @@ User = None
 app_config = None
 email_service = None
 logger = None
+limiter = None
 
-def init_auth(database, user_model, config, email_svc, log):
+def init_auth(database, user_model, config, email_svc, log, rate_limiter=None):
     """Inicializa o blueprint com dependências"""
-    global db, User, app_config, email_service, logger
+    global db, User, app_config, email_service, logger, limiter
     db = database
     User = user_model
     app_config = config
     email_service = email_svc
     logger = log
+    limiter = rate_limiter
+
+
+# ============================================
+# FUNÇÕES DE VALIDAÇÃO
+# ============================================
+
+def validate_email(email):
+    """Valida formato de email"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def validate_password(password):
+    """Valida senha forte: mín 8 chars, 1 maiúscula, 1 minúscula, 1 número"""
+    if len(password) < 8:
+        return False, "Senha deve ter no mínimo 8 caracteres"
+    if not re.search(r'[A-Z]', password):
+        return False, "Senha deve conter ao menos 1 letra maiúscula"
+    if not re.search(r'[a-z]', password):
+        return False, "Senha deve conter ao menos 1 letra minúscula"
+    if not re.search(r'[0-9]', password):
+        return False, "Senha deve conter ao menos 1 número"
+    return True, "OK"
 
 
 # ============================================
@@ -33,14 +58,22 @@ def init_auth(database, user_model, config, email_svc, log):
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login_page():
     """Página de login de usuários"""
+    # Aplicar rate limit se disponível
+    if limiter:
+        limiter.limit("10 per minute")(login_page)
+    
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()
         senha = request.form.get("senha", "")
         
-        # Validação básica
+        # Validação de entrada
         if not email or not senha:
-            logger.warning(f"Tentativa de login sem credenciais - IP: {request.remote_addr}")
-            return render_template("login.html", erro="Preencha todos os campos.")
+            logger.warning(f"Login sem credenciais - IP: {request.remote_addr}")
+            return render_template("login.html", erro="Preencha todos os campos."), 400
+        
+        if not validate_email(email):
+            logger.warning(f"Login com email inválido: {email} - IP: {request.remote_addr}")
+            return render_template("login.html", erro="Email inválido."), 400
         
         # Buscar usuário
         user = User.query.filter_by(email=email).first()
@@ -50,13 +83,14 @@ def login_page():
             session["user_id"] = user.id
             session["user_name"] = user.nome
             session["is_admin"] = user.is_admin
+            session.permanent = True  # Usar PERMANENT_SESSION_LIFETIME
             
-            logger.info(f"Login bem-sucedido - User ID: {user.id} ({user.email})")
+            logger.info(f"✅ Login - User: {user.id} ({user.email}) - IP: {request.remote_addr}")
             return redirect("/")
         
-        # Credenciais inválidas
-        logger.warning(f"Tentativa de login falhou para email: {email} - IP: {request.remote_addr}")
-        return render_template("login.html", erro="Credenciais inválidas.")
+        # Credenciais inválidas (mesma mensagem para não revelar se email existe)
+        logger.warning(f"❌ Login falhou: {email} - IP: {request.remote_addr}")
+        return render_template("login.html", erro="Email ou senha inválidos."), 401
     
     # GET request
     return render_template("login.html")
@@ -76,22 +110,37 @@ def logout():
 @auth_bp.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     """Página de login de administradores"""
+    # Aplicar rate limit se disponível
+    if limiter:
+        limiter.limit("5 per minute")(admin_login)
+    
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()
         senha = request.form.get("senha", "")
         
-        user = User.query.filter_by(email=email).first()
+        # Validação
+        if not email or not senha:
+            logger.warning(f"Admin login sem credenciais - IP: {request.remote_addr}")
+            return render_template("admin_login.html", erro="Preencha todos os campos."), 400
         
-        if user and check_password_hash(user.senha_hash, senha) and user.is_admin:
+        if not validate_email(email):
+            logger.warning(f"Admin login email inválido: {email} - IP: {request.remote_addr}")
+            return render_template("admin_login.html", erro="Email inválido."), 400
+        
+        # Buscar usuário admin
+        user = User.query.filter_by(email=email, is_admin=True).first()
+        
+        if user and check_password_hash(user.senha_hash, senha):
             session["user_id"] = user.id
             session["user_name"] = user.nome
-            session["is_admin"] = user.is_admin
+            session["is_admin"] = True
+            session.permanent = True
             
-            logger.info(f"Login admin bem-sucedido - User ID: {user.id} ({user.email})")
+            logger.info(f"✅ Admin login - User: {user.id} ({user.email}) - IP: {request.remote_addr}")
             return redirect("/admin")
         
-        logger.warning(f"Tentativa de login admin falhou para: {email} - IP: {request.remote_addr}")
-        return render_template("admin_login.html", erro="Credenciais inválidas ou sem permissão.")
+        logger.warning(f"❌ Admin login falhou: {email} - IP: {request.remote_addr}")
+        return render_template("admin_login.html", erro="Credenciais de administrador inválidas."), 401
     
     return render_template("admin_login.html")
 
@@ -103,24 +152,42 @@ def admin_login():
 @auth_bp.route("/api/register", methods=["POST"])
 def api_register():
     """API para cadastro de novos usuários"""
-    from app.utils import Validator
+    # Aplicar rate limit se disponível
+    if limiter:
+        limiter.limit("3 per hour")(api_register)
     
     data = request.json or {}
     
-    # Validar dados de entrada
-    is_valid, errors = Validator.validate_user_registration(data)
-    if not is_valid:
-        logger.warning(f"Tentativa de cadastro com dados inválidos: {errors}")
-        return jsonify({"message": "Dados inválidos", "errors": errors}), 400
+    # Validar campos obrigatórios
+    nome = data.get("nome", "").strip()
+    email = data.get("email", "").strip().lower()
+    senha = data.get("senha", "")
     
-    nome = Validator.sanitize_string(data.get("nome"), 120)
-    email = data.get("email").strip().lower()
-    senha = data.get("senha")
+    if not nome or not email or not senha:
+        logger.warning(f"Cadastro incompleto - IP: {request.remote_addr}")
+        return jsonify({"message": "Todos os campos são obrigatórios"}), 400
+    
+    # Validar email
+    if not validate_email(email):
+        logger.warning(f"Cadastro email inválido: {email} - IP: {request.remote_addr}")
+        return jsonify({"message": "Email inválido"}), 400
+    
+    # Validar senha forte
+    is_valid, msg = validate_password(senha)
+    if not is_valid:
+        logger.warning(f"Cadastro senha fraca - IP: {request.remote_addr}")
+        return jsonify({"message": msg}), 400
+    
+    # Validar nome (sem caracteres especiais perigosos)
+    if len(nome) < 3 or len(nome) > 120:
+        return jsonify({"message": "Nome deve ter entre 3 e 120 caracteres"}), 400
+    if re.search(r'[<>{}]', nome):
+        return jsonify({"message": "Nome contém caracteres inválidos"}), 400
     
     # Verificar se email já existe
     if User.query.filter_by(email=email).first():
-        logger.warning(f"Tentativa de cadastro com email já existente: {email}")
-        return jsonify({"message": "Email já cadastrado"}), 400
+        logger.warning(f"❌ Cadastro email duplicado: {email} - IP: {request.remote_addr}")
+        return jsonify({"message": "Email já cadastrado"}), 409
     
     try:
         # Criar novo usuário
