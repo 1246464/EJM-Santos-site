@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section style="padding: 60px 20px; text-align: center; min-height: 60vh; display: flex; align-items: center; justify-content: center;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <!-- Ícone de erro -->
+    <div style="font-size: 80px; margin-bottom: 20px;">
+      ⚠️
+    </div>
+    
+    <!-- Título -->
+    <h1 style="color: #d32f2f; margin-bottom: 20px; font-size: 2rem;">
+      {{ mensagem or "Ocorreu um erro" }}
+    </h1>
+    
+    <!-- Detalhes (se houver) -->
+    {% if detalhes %}
+    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin: 30px 0; color: #856404;">
+      <p style="margin: 0; font-size: 1.1rem;">
+        {{ detalhes }}
+      </p>
+    </div>
+    {% endif %}
+    
+    <!-- Mensagem de suporte -->
+    <p style="color: #666; margin: 30px 0; font-size: 1.1rem;">
+      Se o problema persistir, entre em contato com nosso suporte.
+    </p>
+    
+    <!-- Botões de ação -->
+    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 40px;">
+      <a href="/" style="background: #f6b800; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; transition: all 0.3s;">
+        🏠 Voltar para Home
+      </a>
+      
+      <a href="javascript:history.back()" style="background: #666; color: #fff; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; transition: all 0.3s;">
+        ← Voltar
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+</style>
+{% endblock %}

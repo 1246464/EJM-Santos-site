@@ -21,6 +21,11 @@ from sqlalchemy import extract
 # Importar serviço de email
 from email_service import email_service
 
+# Importar utils de tratamento de erros e logging
+from app.utils.logger import setup_logger
+from app.utils.error_handlers import register_error_handlers
+from app.utils import exceptions
+
 # -----------------------------
 # Config / Bootstrap
 # -----------------------------
@@ -37,12 +42,30 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.getenv("EJM_SECRET", "chave_fallback")
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max upload
 
 db = SQLAlchemy(app)
 
+# Configurar logging
+logger = setup_logger(app)
+logger.info("="*50)
+logger.info("🍯 Iniciando EJM Santos - Loja de Mel Natural")
+logger.info("="*50)
+
+# Registrar error handlers
+register_error_handlers(app, logger)
+
 # Configuração do Stripe
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
+try:
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
+    if not stripe.api_key:
+        logger.warning("⚠️ STRIPE_SECRET_KEY não configurada")
+    else:
+        logger.info("✅ Stripe configurado com sucesso")
+except Exception as e:
+    logger.error(f"❌ Erro ao configurar Stripe: {e}")
+    STRIPE_PUBLIC_KEY = None
 
 # -----------------------------
 # MODELOS
@@ -195,44 +218,58 @@ def clear_current_cart():
 
 def create_order_from_items(user_id, itens):
     """Cria Order + OrderItems a partir dos itens do carrinho."""
-    total = sum(i["preco"] * i["quantidade"] for i in itens)
-    pedido = Order(user_id=user_id, total=total, status="Pendente")
-    db.session.add(pedido)
-    db.session.commit()  # gera pedido.id
-
-    for it in itens:
-        db.session.add(OrderItem(
-            order_id=pedido.id,
-            product_id=it["product_id"],
-            quantidade=it["quantidade"],
-            preco_unitario=it["preco"]
-        ))
-    db.session.commit()
-    
-    # Enviar email de confirmação de pedido
     try:
-        user = User.query.get(user_id)
-        if user:
-            # Preparar dados dos itens para o email
-            order_items_data = []
-            for it in itens:
-                order_items_data.append({
-                    'titulo': it.get('titulo', 'Produto'),
-                    'quantidade': it['quantidade'],
-                    'preco': it['preco'] * it['quantidade']
-                })
-            
-            email_service.send_order_confirmation(
-                user_name=user.nome,
-                user_email=user.email,
+        if not itens:
+            raise ValueError("Carrinho vazio")
+        
+        if not user_id:
+            raise ValueError("Usuário não identificado")
+        
+        total = sum(i["preco"] * i["quantidade"] for i in itens)
+        pedido = Order(user_id=user_id, total=total, status="Pendente")
+        db.session.add(pedido)
+        db.session.commit()  # gera pedido.id
+
+        for it in itens:
+            db.session.add(OrderItem(
                 order_id=pedido.id,
-                order_items=order_items_data,
-                total=total
-            )
-    except Exception as e:
-        print(f"⚠️ Erro ao enviar email de confirmação: {e}")
+                product_id=it["product_id"],
+                quantidade=it["quantidade"],
+                preco_unitario=it["preco"]
+            ))
+        db.session.commit()
+        
+        logger.info(f"Pedido criado - ID: {pedido.id} - User: {user_id} - Total: R$ {total:.2f}")
+        
+        # Enviar email de confirmação de pedido
+        try:
+            user = User.query.get(user_id)
+            if user:
+                # Preparar dados dos itens para o email
+                order_items_data = []
+                for it in itens:
+                    order_items_data.append({
+                        'titulo': it.get('titulo', 'Produto'),
+                        'quantidade': it['quantidade'],
+                        'preco': it['preco'] * it['quantidade']
+                    })
+                
+                email_service.send_order_confirmation(
+                    user_name=user.nome,
+                    user_email=user.email,
+                    order_id=pedido.id,
+                    order_items=order_items_data,
+                    total=total
+                )
+        except Exception as e:
+            logger.error(f"Erro ao enviar email de confirmação do pedido {pedido.id}: {str(e)}")
+        
+        return pedido
     
-    return pedido
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Erro ao criar pedido para user {user_id}: {str(e)}", exc_info=True)
+        raise
 
 # -----------------------------
 # ROTAS: Login / Logout / Admin
@@ -240,21 +277,37 @@ def create_order_from_items(user_id, itens):
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     if request.method == "POST":
-        email = request.form.get("email")
-        senha = request.form.get("senha")
-        if not (email and senha):
-            return render_template("login.html", erro="Preencha todos os campos.")
-        user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.senha_hash, senha):
-            session["user_id"] = user.id
-            session["user_name"] = user.nome
-            session["is_admin"] = user.is_admin
-            return redirect("/")
-        return render_template("login.html", erro="Credenciais inválidas.")
+        try:
+            email = request.form.get("email", "").strip()
+            senha = request.form.get("senha", "")
+            
+            if not (email and senha):
+                logger.warning(f"Tentativa de login sem credenciais - IP: {request.remote_addr}")
+                return render_template("login.html", erro="Preencha todos os campos.")
+            
+            user = User.query.filter_by(email=email).first()
+            
+            if user and check_password_hash(user.senha_hash, senha):
+                session["user_id"] = user.id
+                session["user_name"] = user.nome
+                session["is_admin"] = user.is_admin
+                logger.info(f"Login bem-sucedido - User ID: {user.id} ({email})")
+                return redirect("/")
+            
+            logger.warning(f"Login falhou para: {email} - IP: {request.remote_addr}")
+            return render_template("login.html", erro="Credenciais inválidas.")
+        
+        except Exception as e:
+            logger.error(f"Erro durante login: {str(e)}", exc_info=True)
+            return render_template("login.html", erro="Erro ao processar login. Tente novamente.")
+    
     return render_template("login.html")
 
 @app.route("/logout")
 def logout():
+    user_id = session.get("user_id")
+    if user_id:
+        logger.info(f"Logout - User ID: {user_id}")
     session.clear()
     return redirect("/")
 
@@ -318,35 +371,72 @@ def admin_dashboard():
 # -----------------------------
 @app.route("/api/register", methods=["POST"])
 def api_register():
-    data = request.json or {}
-    nome, email, senha = data.get("nome"), data.get("email"), data.get("senha")
-    if not (nome and email and senha):
-        return jsonify({"message": "Campos obrigatórios: nome, email, senha"}), 400
-    if User.query.filter_by(email=email).first():
-        return jsonify({"message": "Email já cadastrado"}), 400
-    user = User(nome=nome, email=email, senha_hash=generate_password_hash(senha))
-    db.session.add(user); db.session.commit()
-    
-    # Enviar email de boas-vindas
     try:
-        email_service.send_welcome_email(nome, email)
-    except Exception as e:
-        print(f"⚠️ Erro ao enviar email de boas-vindas: {e}")
+        data = request.json or {}
+        nome, email, senha = data.get("nome"), data.get("email"), data.get("senha")
+        
+        if not (nome and email and senha):
+            logger.warning(f"Cadastro API com campos faltando - IP: {request.remote_addr}")
+            return jsonify({"message": "Campos obrigatórios: nome, email, senha"}), 400
+        
+        # Validar email
+        email = email.strip().lower()
+        if "@" not in email:
+            return jsonify({"message": "Email inválido"}), 400
+        
+        if User.query.filter_by(email=email).first():
+            logger.warning(f"Tentativa de cadastro com email existente: {email}")
+            return jsonify({"message": "Email já cadastrado"}), 400
+        
+        user = User(nome=nome, email=email, senha_hash=generate_password_hash(senha))
+        db.session.add(user)
+        db.session.commit()
+        
+        logger.info(f"Novo usuário cadastrado - ID: {user.id} ({email})")
+        
+        # Enviar email de boas-vindas
+        try:
+            email_service.send_welcome_email(nome, email)
+        except Exception as e:
+            logger.error(f"Erro ao enviar email de boas-vindas para {email}: {str(e)}")
+        
+        return jsonify({"message": "Cadastro realizado com sucesso"}), 201
     
-    return jsonify({"message": "Cadastro realizado com sucesso"}), 201
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Erro no cadastro API: {str(e)}", exc_info=True)
+        return jsonify({"message": "Erro ao realizar cadastro"}), 500
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
-    data = request.json or {}
-    email, senha = data.get("email"), data.get("senha")
-    if not (email and senha):
-        return jsonify({"message": "Email e senha necessários"}), 400
-    user = User.query.filter_by(email=email).first()
-    if not user or not check_password_hash(user.senha_hash, senha):
-        return jsonify({"message": "Credenciais inválidas"}), 401
-    payload = {"user_id": user.id, "exp": datetime.utcnow() + timedelta(days=7)}
-    token = jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
-    return jsonify({"token": token, "user": {"id": user.id, "nome": user.nome, "email": user.email}})
+    try:
+        data = request.json or {}
+        email, senha = data.get("email"), data.get("senha")
+        
+        if not (email and senha):
+            logger.warning(f"Login API sem credenciais - IP: {request.remote_addr}")
+            return jsonify({"message": "Email e senha necessários"}), 400
+        
+        email = email.strip().lower()
+        user = User.query.filter_by(email=email).first()
+        
+        if not user or not check_password_hash(user.senha_hash, senha):
+            logger.warning(f"Login API falhou para: {email} - IP: {request.remote_addr}")
+            return jsonify({"message": "Credenciais inválidas"}), 401
+        
+        payload = {"user_id": user.id, "exp": datetime.utcnow() + timedelta(days=7)}
+        token = jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
+        
+        logger.info(f"Login API bem-sucedido - User ID: {user.id} ({email})")
+        
+        return jsonify({
+            "token": token, 
+            "user": {"id": user.id, "nome": user.nome, "email": user.email}
+        })
+    
+    except Exception as e:
+        logger.error(f"Erro no login API: {str(e)}", exc_info=True)
+        return jsonify({"message": "Erro ao processar login"}), 500
 
 @app.route("/api/products")
 def api_products():
@@ -618,37 +708,54 @@ def admin_remover_produto(pid):
 # -----------------------------
 @app.route('/carrinho/add/<int:id>', methods=['POST'])
 def carrinho_add(id):
-    produto = Product.query.get(id)
-    if not produto: return "Produto não encontrado", 404
+    try:
+        produto = Product.query.get(id)
+        if not produto:
+            logger.warning(f"Tentativa de adicionar produto inexistente ao carrinho: {id}")
+            return "Produto não encontrado", 404
 
-    # Verifica estoque disponível
-    if produto.estoque <= 0:
-        return "Produto esgotado", 400
+        # Verifica estoque disponível
+        if produto.estoque <= 0:
+            logger.warning(f"Tentativa de adicionar produto esgotado: {id}")
+            return "Produto esgotado", 400
 
-    if 'user_id' in session:
-        user_id = session['user_id']
-        item = CartItem.query.filter_by(user_id=user_id, product_id=id).first()
+        if 'user_id' in session:
+            user_id = session['user_id']
+            item = CartItem.query.filter_by(user_id=user_id, product_id=id).first()
+            
+            # Verifica se já tem no carrinho e valida estoque
+            quantidade_atual = item.quantity if item else 0
+            if quantidade_atual + 1 > produto.estoque:
+                logger.warning(f"Estoque insuficiente para produto {id} - User: {user_id}")
+                return "Estoque insuficiente", 400
+            
+            if item:
+                item.quantity += 1
+            else:
+                db.session.add(CartItem(user_id=user_id, product_id=id, quantity=1))
+            
+            db.session.commit()
+            logger.info(f"Produto {id} adicionado ao carrinho (DB) - User: {user_id}")
+            return "OK (db)", 200
+
+        carrinho = session.get('cart', {})
+        quantidade_atual = carrinho.get(str(id), 0)
         
-        # Verifica se já tem no carrinho e valida estoque
-        quantidade_atual = item.quantity if item else 0
+        # Valida estoque para carrinho de sessão
         if quantidade_atual + 1 > produto.estoque:
+            logger.warning(f"Estoque insuficiente para produto {id} (sessão)")
             return "Estoque insuficiente", 400
         
-        if item: item.quantity += 1
-        else: db.session.add(CartItem(user_id=user_id, product_id=id, quantity=1))
-        db.session.commit()
-        return "OK (db)", 200
-
-    carrinho = session.get('cart', {})
-    quantidade_atual = carrinho.get(str(id), 0)
+        carrinho[str(id)] = quantidade_atual + 1
+        session['cart'] = carrinho
+        session.modified = True
+        logger.info(f"Produto {id} adicionado ao carrinho (sessão)")
+        return "OK (sessão)", 200
     
-    # Valida estoque para carrinho de sessão
-    if quantidade_atual + 1 > produto.estoque:
-        return "Estoque insuficiente", 400
-    
-    carrinho[str(id)] = quantidade_atual + 1
-    session['cart'] = carrinho; session.modified = True
-    return "OK (sessão)", 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Erro ao adicionar produto {id} ao carrinho: {str(e)}", exc_info=True)
+        return "Erro ao adicionar ao carrinho", 500
 
 @app.route("/carrinho")
 def ver_carrinho():
@@ -764,86 +871,102 @@ def processar_pagamento():
     """
     Processa o pagamento com Stripe usando os dados do cartão
     """
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Usuário não logado"}), 401
-
-    # Captura dados do formulário
-    data = request.get_json()
-    payment_method_id = data.get('payment_method_id')
-    endereco = data.get('endereco', {})
-    
-    if not payment_method_id:
-        return jsonify({"error": "Método de pagamento inválido"}), 400
-    
-    # Valida endereço
-    if not all([endereco.get('rua'), endereco.get('numero'), endereco.get('bairro'), 
-                endereco.get('cidade'), endereco.get('telefone')]):
-        return jsonify({"error": "Endereço de entrega incompleto"}), 400
-
-    # Pega itens do carrinho
-    carrinho_itens = snapshot_cart_for_checkout()
-    if not carrinho_itens:
-        return jsonify({"error": "Carrinho vazio"}), 400
-
-    # Calcula total (em centavos para Stripe)
-    total = sum(it["preco"] * it["quantidade"] for it in carrinho_itens)
-    total_centavos = int(total * 100)
-
     try:
-        # Cria o PaymentIntent no Stripe
-        intent = stripe.PaymentIntent.create(
-            amount=total_centavos,
-            currency="brl",
-            payment_method=payment_method_id,
-            confirm=True,
-            description=f"Pedido EJM Santos - Usuario #{user_id}",
-            automatic_payment_methods={
-                'enabled': True,
-                'allow_redirects': 'never'
-            }
-        )
+        user_id = session.get('user_id')
+        if not user_id:
+            logger.warning(f"Tentativa de pagamento sem login - IP: {request.remote_addr}")
+            return jsonify({"error": "Usuário não logado"}), 401
 
-        # Se o pagamento foi aprovado
-        if intent['status'] == 'succeeded':
-            # Desconta estoque dos produtos
-            for item in carrinho_itens:
-                produto = Product.query.get(item["product_id"])
-                if produto:
-                    produto.estoque -= item["quantidade"]
-                    if produto.estoque < 0:
-                        produto.estoque = 0
-            
-            # Cria o pedido no banco com endereço
-            pedido = create_order_from_items(user_id, carrinho_itens)
-            pedido.status = "Pago"
-            pedido.endereco_rua = endereco.get('rua')
-            pedido.endereco_numero = endereco.get('numero')
-            pedido.endereco_complemento = endereco.get('complemento', '')
-            pedido.endereco_bairro = endereco.get('bairro')
-            pedido.endereco_cidade = endereco.get('cidade')
-            pedido.telefone = endereco.get('telefone')
-            db.session.commit()
+        # Captura dados do formulário
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Dados inválidos"}), 400
+        
+        payment_method_id = data.get('payment_method_id')
+        endereco = data.get('endereco', {})
+        
+        if not payment_method_id:
+            logger.warning(f"Pagamento sem método - User: {user_id}")
+            return jsonify({"error": "Método de pagamento inválido"}), 400
+        
+        # Valida endereço
+        if not all([endereco.get('rua'), endereco.get('numero'), endereco.get('bairro'), 
+                    endereco.get('cidade'), endereco.get('telefone')]):
+            logger.warning(f"Endereço incompleto no pagamento - User: {user_id}")
+            return jsonify({"error": "Endereço de entrega incompleto"}), 400
 
-            # Limpa o carrinho
-            clear_current_cart()
+        # Pega itens do carrinho
+        carrinho_itens = snapshot_cart_for_checkout()
+        if not carrinho_itens:
+            logger.warning(f"Tentativa de pagamento com carrinho vazio - User: {user_id}")
+            return jsonify({"error": "Carrinho vazio"}), 400
 
-            return jsonify({
-                "success": True,
-                "pedido_id": pedido.id,
-                "message": "Pagamento realizado com sucesso!"
-            })
-        else:
-            return jsonify({"error": "Pagamento não aprovado"}), 400
+        # Calcula total (em centavos para Stripe)
+        total = sum(it["preco"] * it["quantidade"] for it in carrinho_itens)
+        total_centavos = int(total * 100)
 
-    except stripe.error.CardError as e:
-        # Erro no cartão
-        return jsonify({"error": f"Erro no cartão: {e.user_message}"}), 400
-    except stripe.error.StripeError as e:
-        # Erro do Stripe
-        return jsonify({"error": f"Erro ao processar pagamento: {str(e)}"}), 500
+        try:
+            # Cria o PaymentIntent no Stripe
+            intent = stripe.PaymentIntent.create(
+                amount=total_centavos,
+                currency="brl",
+                payment_method=payment_method_id,
+                confirm=True,
+                description=f"Pedido EJM Santos - Usuario #{user_id}",
+                automatic_payment_methods={
+                    'enabled': True,
+                    'allow_redirects': 'never'
+                }
+            )
+
+            # Se o pagamento foi aprovado
+            if intent['status'] == 'succeeded':
+                # Desconta estoque dos produtos
+                for item in carrinho_itens:
+                    produto = Product.query.get(item["product_id"])
+                    if produto:
+                        produto.estoque -= item["quantidade"]
+                        if produto.estoque < 0:
+                            produto.estoque = 0
+                
+                # Cria o pedido no banco com endereço
+                pedido = create_order_from_items(user_id, carrinho_itens)
+                pedido.status = "Pago"
+                pedido.endereco_rua = endereco.get('rua')
+                pedido.endereco_numero = endereco.get('numero')
+                pedido.endereco_complemento = endereco.get('complemento', '')
+                pedido.endereco_bairro = endereco.get('bairro')
+                pedido.endereco_cidade = endereco.get('cidade')
+                pedido.telefone = endereco.get('telefone')
+                db.session.commit()
+
+                # Limpa o carrinho
+                clear_current_cart()
+                
+                logger.info(f"✅ Pagamento aprovado - Pedido {pedido.id} - User: {user_id} - Total: R$ {total:.2f}")
+
+                return jsonify({
+                    "success": True,
+                    "pedido_id": pedido.id,
+                    "message": "Pagamento realizado com sucesso!"
+                })
+            else:
+                logger.warning(f"Pagamento não aprovado - User: {user_id} - Status: {intent['status']}")
+                return jsonify({"error": "Pagamento não aprovado"}), 400
+
+        except stripe.error.CardError as e:
+            # Erro no cartão
+            logger.warning(f"Erro de cartão - User: {user_id}: {e.user_message}")
+            return jsonify({"error": f"Erro no cartão: {e.user_message}"}), 400
+        except stripe.error.StripeError as e:
+            # Erro do Stripe
+            logger.error(f"Erro do Stripe - User: {user_id}: {str(e)}")
+            return jsonify({"error": f"Erro ao processar pagamento: {str(e)}"}), 500
+    
     except Exception as e:
         # Erro geral
+        db.session.rollback()
+        logger.error(f"Erro inesperado no pagamento - User: {session.get('user_id')}: {str(e)}", exc_info=True)
         return jsonify({"error": f"Erro inesperado: {str(e)}"}), 500
 
 

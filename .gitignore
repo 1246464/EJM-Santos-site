@@ -1,1 +1,49 @@
+# ============================================
+# .gitignore — EJM Santos
+# ============================================
+
+# Environment Variables
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyc
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Database
+*.db
+*.sqlite3
+instance/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backups
+_backup_*/
+*.bak
+app_old.py
+app_refatorado.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build/Distribution
+*.egg-info/
+dist/
+build/

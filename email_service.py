@@ -22,6 +22,10 @@ class EmailService:
         if not self.email_user or not self.email_password:
             print("⚠️ Configuração de email não encontrada. Email não enviado.")
             return False
+        
+        if not to_email or "@" not in to_email:
+            print(f"❌ Email inválido: {to_email}")
+            return False
             
         try:
             msg = MIMEMultipart('alternative')
@@ -32,16 +36,30 @@ class EmailService:
             html_part = MIMEText(html_content, 'html', 'utf-8')
             msg.attach(html_part)
             
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=30) as server:
                 server.starttls()
                 server.login(self.email_user, self.email_password)
                 server.send_message(msg)
                 
             print(f"✅ Email enviado com sucesso para {to_email}")
             return True
+        
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"❌ Erro de autenticação SMTP: {e}")
+            return False
+        
+        except smtplib.SMTPException as e:
+            print(f"❌ Erro SMTP ao enviar email: {e}")
+            return False
+        
+        except TimeoutError as e:
+            print(f"❌ Timeout ao conectar ao servidor SMTP: {e}")
+            return False
             
         except Exception as e:
-            print(f"❌ Erro ao enviar email: {e}")
+            print(f"❌ Erro inesperado ao enviar email: {e}")
+            import traceback
+            print(traceback.format_exc())
             return False
     
     def send_welcome_email(self, user_name, user_email):
