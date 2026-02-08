@@ -44,8 +44,9 @@
         height: calc(100vh - 60px);
         border-left: 2px solid #ddd;
         box-shadow: -2px 0 10px rgba(0,0,0,0.2);
-        z-index: 9999;
+        z-index: 10000;
         overflow-y: auto;
+        pointer-events: auto;
       }
 
       nav.menu a {
@@ -53,9 +54,15 @@
         border-bottom: 1px solid #eee;
         font-size: 1.1rem;
         transition: background 0.2s;
+        color: #333;
+        text-decoration: none;
+        display: block;
+        position: relative;
+        z-index: 10001;
       }
 
-      nav.menu a:hover {
+      nav.menu a:hover,
+      nav.menu a:active {
         background: #f0f0f0;
       }
 
@@ -65,7 +72,7 @@
 
       .menu-toggle {
         display: flex;
-        z-index: 10001;
+        z-index: 10002;
       }
 
       .botao-topo {
@@ -81,7 +88,8 @@
         right: 0;
         bottom: 0;
         background: rgba(0,0,0,0.5);
-        z-index: 9998;
+        z-index: 9999;
+        pointer-events: auto;
       }
     }
   </style>
