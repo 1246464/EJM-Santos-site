@@ -132,6 +132,7 @@ from app.routes import (
     payment_bp, init_payment
 )
 from app.routes.profile import profile_bp, init_profile
+from app.routes.diagnostico import diagnostico_bp, init_diagnostico
 
 # Inicializar blueprints com suas dependências
 models_dict = {
@@ -169,6 +170,11 @@ logger.info("✅ Blueprint de pagamento registrado")
 init_profile(db, models_dict, logger)
 app.register_blueprint(profile_bp)
 logger.info("✅ Blueprint de perfil registrado")
+
+# Diagnostico Blueprint
+init_diagnostico(db, User, Product, app.config)
+app.register_blueprint(diagnostico_bp)
+logger.info("✅ Blueprint de diagnóstico registrado")
 
 # ============================================
 # HEADERS DE SEGURANÇA
