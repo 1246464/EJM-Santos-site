@@ -36,34 +36,33 @@
       nav.menu {
         display: none;
         position: fixed;
-        top: 60px;
+        top: 0;
         right: 0;
         background: #fff;
         flex-direction: column;
-        width: 250px;
-        height: calc(100vh - 60px);
+        width: 280px;
+        height: 100vh;
         border-left: 2px solid #ddd;
-        box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+        box-shadow: -2px 0 20px rgba(0,0,0,0.3);
         z-index: 10000;
         overflow-y: auto;
-        pointer-events: auto;
+        padding-top: 60px;
       }
 
       nav.menu a {
-        padding: 16px 20px;
+        padding: 18px 24px;
         border-bottom: 1px solid #eee;
         font-size: 1.1rem;
         transition: background 0.2s;
         color: #333;
         text-decoration: none;
         display: block;
-        position: relative;
-        z-index: 10001;
+        font-weight: 500;
       }
 
-      nav.menu a:hover,
       nav.menu a:active {
-        background: #f0f0f0;
+        background: #F6B800;
+        color: #000;
       }
 
       nav.menu.ativo {
@@ -75,21 +74,32 @@
         z-index: 10002;
       }
 
+      .menu-close {
+        display: none;
+        position: fixed;
+        top: 15px;
+        right: 20px;
+        background: #fff;
+        border: 2px solid #ddd;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        z-index: 10001;
+        color: #333;
+        font-weight: bold;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      }
+
+      body.menu-aberto .menu-close {
+        display: flex;
+      }
+
       .botao-topo {
         display: none;
-      }
-      
-      /* Overlay para fechar menu ao clicar fora */
-      body.menu-aberto::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.5);
-        z-index: 9999;
-        pointer-events: auto;
       }
     }
   </style>
@@ -100,6 +110,10 @@
 
     <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false">
       <span></span><span></span><span></span>
+    </button>
+
+    <button class="menu-close" id="menu-close" type="button" aria-label="Fechar Menu">
+      ×
     </button>
 
     <nav class="menu" id="menu">
