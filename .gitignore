@@ -4,6 +4,8 @@
 
 # Environment Variables
 .env
+.env.local
+.env.production
 
 # Python
 __pycache__/
@@ -11,6 +13,7 @@ __pycache__/
 *$py.class
 *.so
 *.pyc
+.pytest_cache/
 
 # Virtual Environment
 .venv/
@@ -21,11 +24,23 @@ env/
 # Database
 *.db
 *.sqlite3
-instance/
+instance/*.db
+!instance/.gitkeep
 
 # Logs
 logs/
 *.log
+!logs/.gitkeep
+
+# Backups
+backups/
+!backups/.gitkeep
+_backup_*/
+*.bak
+app_old.py
+app_refatorado.py
+*_old.py
+*_backup.py
 
 # IDE
 .vscode/
@@ -33,17 +48,28 @@ logs/
 *.swp
 *.swo
 
-# Backups
-_backup_*/
-*.bak
-app_old.py
-app_refatorado.py
-
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Build/Distribution
 *.egg-info/
 dist/
 build/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Temporary files
+*.tmp
+*.temp
+~*
+
+# Static files (development uploads)
+static/imagens/*
+!static/imagens/.gitkeep
+!static/imagens/logo.png

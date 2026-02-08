@@ -97,14 +97,94 @@
 .btn-alterar { position: absolute; right: 8px; top: 32px; background: #F6B800; color: #000; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.3s; }
 .btn-alterar:hover { background: #FFC107; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================
+   📱 CSS EXCLUSIVO PARA MOBILE
+============================================ */
 @media (max-width: 768px) {
-  .perfil-header-content { flex-direction: column; gap: 20px; text-align: center; }
-  .perfil-avatar { flex-direction: column; }
-  .perfil-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .tab-btn { font-size: 0.9rem; padding: 10px 16px; }
-  .perfil-content { padding: 20px; }
-  .content-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  /* ESTRUTURA GERAL */
+  .perfil-page { padding: 15px 10px; }
+  
+  /* HEADER DO PERFIL */
+  .perfil-header-novo { padding: 20px 15px; border-radius: 8px; margin-bottom: 15px; }
+  .perfil-header-content { flex-direction: column; gap: 15px; text-align: center; }
+  .perfil-avatar { flex-direction: column; gap: 12px; }
+  .avatar-circle { width: 60px; height: 60px; font-size: 1.5rem; }
+  .perfil-info-header h1 { font-size: 1.3rem; }
+  .perfil-info-header p { font-size: 0.85rem; }
+  
+  /* BOTÕES DO HEADER - Empilhados em mobile */
+  .perfil-header-novo > div > div:last-child { 
+    flex-direction: column; 
+    width: 100%; 
+    gap: 8px; 
+  }
+  .btn-carrinho-novo, .btn-admin-novo, .btn-logout-novo { 
+    width: 100%; 
+    justify-content: center; 
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+  
+  /* TABS - Melhor clicabilidade */
+  .perfil-tabs { 
+    padding: 6px; 
+    gap: 6px; 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .tab-btn { 
+    font-size: 0.85rem; 
+    padding: 14px 20px; /* Aumentado para melhor toque */
+    min-width: fit-content;
+    touch-action: manipulation; /* Melhor resposta ao toque */
+    -webkit-tap-highlight-color: rgba(246, 184, 0, 0.3); /* Feedback visual */
+  }
+  .tab-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* CONTEÚDO */
+  .perfil-content { padding: 16px; min-height: auto; border-radius: 8px; }
+  
+  /* HEADER DO CONTEÚDO */
+  .content-header { 
+    flex-direction: column; 
+    align-items: flex-start; 
+    gap: 12px; 
+    padding-bottom: 15px; 
+  }
+  .content-header h2 { font-size: 1.3rem; }
+  .stats-mini { flex-direction: column; gap: 8px; }
+  
+  /* PEDIDOS */
+  .pedido-card-novo { padding: 15px; }
+  .pedido-card-header { flex-wrap: wrap; gap: 8px; }
+  .pedido-numero .numero { font-size: 1.1rem; }
+  .pedido-badge { font-size: 0.75rem; padding: 4px 10px; }
+  .pedido-items { padding: 12px; }
+  .pedido-card-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .btn-ver-pedido { width: 100%; text-align: center; padding: 12px; }
+  
+  /* ENDEREÇOS E CARTÕES */
   .enderecos-grid, .cartoes-grid { grid-template-columns: 1fr; }
+  .endereco-card, .cartao-card { padding: 16px; }
+  
+  /* BOTÕES DE AÇÃO */
+  .btn-adicionar { width: 100%; justify-content: center; padding: 12px; }
+  .btn-comprar-agora { width: 100%; text-align: center; padding: 12px 24px; }
+  
+  /* FORMULÁRIOS */
+  .dados-form { width: 100%; }
+  .form-group input { font-size: 16px; /* Evita zoom no iOS */ }
+  .btn-alterar { position: static; width: 100%; margin-top: 8px; padding: 10px; }
+  
+  /* ESTADO VAZIO */
+  .empty-state { padding: 40px 15px; }
+  .empty-state h3 { font-size: 1.2rem; }
+  .empty-state svg { width: 60px; height: 60px; }
 }
 </style>
 <div class="perfil-page">
@@ -247,51 +327,53 @@
     <div id="tab-enderecos" class="tab-content">
       <div class="content-header">
         <h2>Meus Endereços</h2>
-        <button class="btn-adicionar" onclick="abrirModalEndereco()">
+        <button class="btn-adicionar" onclick="irParaCheckout()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 0v16M0 8h16" stroke="currentColor" stroke-width="2"/>
           </svg>
-          Adicionar endereço
+          Adicionar no próximo pedido
         </button>
       </div>
 
       <div class="enderecos-grid">
-        <!-- Endereço do último pedido -->
-        {% if pedidos %}
-          {% set ultimo_pedido = pedidos[0] %}
-          {% if ultimo_pedido.endereco_rua %}
+        {% if enderecos %}
+          {% for endereco in enderecos %}
           <div class="endereco-card">
             <div class="endereco-header">
-              <span class="endereco-tipo">Principal</span>
+              <span class="endereco-tipo">{{ endereco.apelido }}{% if endereco.is_default %} (Padrão){% endif %}</span>
               <div class="endereco-acoes">
-                <button class="btn-icon" title="Editar">
+                <button class="btn-icon" onclick="editarEndereco({{ endereco.id }})" title="Editar">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M12 0l4 4-8 8H4v-4l8-8zm0 3l-1 1-1-1 1-1 1 1z"/>
+                  </svg>
+                </button>
+                <button class="btn-icon" onclick="removerEndereco({{ endereco.id }})" title="Remover">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M3 4h10v1H3V4zm1 2h8v7a1 1 0 01-1 1H5a1 1 0 01-1-1V6z"/>
                   </svg>
                 </button>
               </div>
             </div>
             <div class="endereco-content">
-              <p class="endereco-rua">{{ ultimo_pedido.endereco_rua }}, {{ ultimo_pedido.endereco_numero }}</p>
-              {% if ultimo_pedido.endereco_complemento %}
-              <p class="endereco-complemento">{{ ultimo_pedido.endereco_complemento }}</p>
+              <p class="endereco-rua">{{ endereco.rua }}, {{ endereco.numero }}</p>
+              {% if endereco.complemento %}
+              <p class="endereco-complemento">{{ endereco.complemento }}</p>
               {% endif %}
-              <p class="endereco-cidade">{{ ultimo_pedido.endereco_bairro }}, {{ ultimo_pedido.endereco_cidade }}</p>
-              {% if ultimo_pedido.telefone %}
-              <p class="endereco-telefone">📞 {{ ultimo_pedido.telefone }}</p>
+              <p class="endereco-cidade">{{ endereco.bairro }}, {{ endereco.cidade }}{% if endereco.estado %} - {{ endereco.estado }}{% endif %}</p>
+              {% if endereco.cep %}
+              <p class="endereco-complemento">CEP: {{ endereco.cep }}</p>
               {% endif %}
+              <p class="endereco-telefone">📞 {{ endereco.telefone }}</p>
             </div>
           </div>
-          {% endif %}
-        {% endif %}
-
-        <!-- Card para adicionar novo endereço -->
-        <div class="endereco-card endereco-add" onclick="abrirModalEndereco()">
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="currentColor" style="color: #ccc;">
-            <path d="M20 10v20M10 20h20" stroke="currentColor" stroke-width="3"/>
-          </svg>
-          <span>Adicionar novo endereço</span>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <h3>😊 Nenhum endereço salvo ainda</h3>
+          <p>Adicione endereços durante o checkout para facilitar suas próximas compras</p>
+          <a href="/produtos" class="btn-comprar-agora">Ver Produtos</a>
         </div>
+        {% endif %}
       </div>
     </div>
 
@@ -299,52 +381,54 @@
     <div id="tab-pagamento" class="tab-content">
       <div class="content-header">
         <h2>Formas de Pagamento</h2>
-        <button class="btn-adicionar" onclick="abrirModalCartao()">
+        <button class="btn-adicionar" onclick="irParaCheckout()">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 0v16M0 8h16" stroke="currentColor" stroke-width="2"/>
           </svg>
-          Adicionar cartão
+          Adicionar no próximo pedido
         </button>
       </div>
 
       <div class="cartoes-grid">
-        <!-- Placeholder de cartão salvo -->
-        <div class="cartao-card">
-          <div class="cartao-bandeira">
-            <svg width="50" height="32" viewBox="0 0 50 32" fill="none">
-              <rect width="50" height="32" rx="4" fill="#1A1F71"/>
-              <circle cx="15" cy="16" r="8" fill="#EB001B" opacity="0.8"/>
-              <circle cx="23" cy="16" r="8" fill="#F79E1B" opacity="0.8"/>
-            </svg>
+        {% if cartoes %}
+          {% for cartao in cartoes %}
+          <div class="cartao-card">
+            <div class="cartao-bandeira">
+              <div style="font-size: 0.8rem; font-weight: 600; opacity: 0.8;">
+                {{ cartao.apelido }}{% if cartao.is_default %} (Padrão){% endif %}
+              </div>
+            </div>
+            <div class="cartao-info">
+              <p class="cartao-numero">{{ cartao.get_card_display() }}</p>
+              <p class="cartao-nome">{{ session['user_name'].upper() }}</p>
+              <p class="cartao-validade">
+                Válido até {{ "%02d"|format(cartao.card_exp_month) }}/{{ cartao.card_exp_year }}
+                {% if cartao.is_expired() %}<br><span style="color: #ff6b6b; font-weight: 600;">⚠️ Expirado</span>{% endif %}
+              </p>
+            </div>
+            <div class="cartao-acoes">
+              <button class="btn-icon" style="color: white;" onclick="removerCartao({{ cartao.id }})" title="Remover">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M3 4h10v1H3V4zm1 2h8v7a1 1 0 01-1 1H5a1 1 0 01-1-1V6z"/>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="cartao-info">
-            <p class="cartao-numero">•••• •••• •••• 4242</p>
-            <p class="cartao-nome">{{ session['user_name'].upper() }}</p>
-            <p class="cartao-validade">Válido até 12/28</p>
-          </div>
-          <div class="cartao-acoes">
-            <button class="btn-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M3 4h10v1H3V4zm1 2h8v7a1 1 0 01-1 1H5a1 1 0 01-1-1V6z"/>
-              </svg>
-            </button>
-          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <h3>😊 Nenhum cartão salvo ainda</h3>
+          <p>Salve seus cartões durante o checkout para pagamentos mais rápidos</p>
+          <a href="/produtos" class="btn-comprar-agora">Ver Produtos</a>
         </div>
-
-        <!-- Card para adicionar novo cartão -->
-        <div class="cartao-card cartao-add" onclick="abrirModalCartao()">
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="currentColor" style="color: #ccc;">
-            <path d="M20 10v20M10 20h20" stroke="currentColor" stroke-width="3"/>
-          </svg>
-          <span>Adicionar novo cartão</span>
-        </div>
+        {% endif %}
       </div>
 
       <div class="info-seguranca">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="color: #00a650;">
           <path d="M8 0L2 3v5c0 3.5 2.4 6.8 6 7.7 3.6-.9 6-4.2 6-7.7V3L8 0zm0 11H7V7h1v4zm0-5H7V4h1v2z"/>
         </svg>
-        <p>Seus dados de pagamento são criptografados e armazenados com segurança</p>
+        <p>Seus dados de pagamento são criptografados e armazenados com segurança via Stripe</p>
       </div>
     </div>
 
@@ -709,5 +793,56 @@ document.querySelector('input[name="telefone"]').addEventListener('input', funct
   }
   e.target.value = value;
 });
+
+// Funções para gerenciar endereços e cartões
+function irParaCheckout() {
+  window.location.href = '/carrinho';
+}
+
+function removerEndereco(id) {
+  if (!confirm('Deseja remover este endereço?')) return;
+  
+  fetch(`/api/addresses/${id}`, {
+    method: 'DELETE',
+    headers: {'Content-Type':'application/json'}
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      alert('❌ Erro ao remover endereço: ' + data.error);
+    } else {
+      alert('✅ Endereço removido com sucesso!');
+      location.reload();
+    }
+  })
+  .catch(err => {
+    alert('❌ Erro: ' + err.message);
+  });
+}
+
+function removerCartao(id) {
+  if (!confirm('Deseja remover este cartão? Esta ação não pode ser desfeita.')) return;
+  
+  fetch(`/api/payment-methods/${id}`, {
+    method: 'DELETE',
+    headers: {'Content-Type':'application/json'}
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      alert('❌ Erro ao remover cartão: ' + data.error);
+    } else {
+      alert('✅ Cartão removido com sucesso!');
+      location.reload();
+    }
+  })
+  .catch(err => {
+    alert('❌ Erro: ' + err.message);
+  });
+}
+
+function editarEndereco(id) {
+  alert('💡 Para editar, remova este endereço e adicione um novo durante o próximo checkout.');
+}
 </script>
 {% endblock %}

@@ -1,7 +1,10 @@
 """
 Script para recriar o banco de dados com dados iniciais
 """
-from app import app, db, Product, User
+import os
+os.environ['FLASK_ENV'] = 'production'  # Força production
+
+from app_new import app, db, User, Product
 from werkzeug.security import generate_password_hash
 
 with app.app_context():

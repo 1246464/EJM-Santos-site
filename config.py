@@ -43,16 +43,40 @@ class Config:
     # URLs
     PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:5000")
     
-    # Sessão
-    SESSION_COOKIE_SECURE = True  # Apenas HTTPS
+    # HTTPS e Proxy
+    FORCE_HTTPS = False  # Será True em production
+    TRUST_PROXY_HEADERS = True  # Confiar em X-Forwarded-Proto, X-Real-IP, etc.
+    PREFERRED_URL_SCHEME = 'http'  # Será 'https' em production
+    
+    # Sessão (padrões - serão sobrescritos por ambiente)
+    SESSION_COOKIE_SECURE = False  # Será True apenas em production
     SESSION_COOKIE_HTTPONLY = True  # Não acessível via JavaScript
     SESSION_COOKIE_SAMESITE = 'Lax'  # Proteção CSRF
+    SESSION_COOKIE_NAME = 'ejm_session'  # Nome customizado
     PERMANENT_SESSION_LIFETIME = 3600 * 24  # 24 horas
     
     # CSRF
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None  # Token não expira (para checkout longo)
     WTF_CSRF_SSL_STRICT = False  # Permite desenvolvimento local
+    WTF_CSRF_CHECK_DEFAULT = True
+    WTF_CSRF_HEADERS = ['X-CSRFToken', 'X-CSRF-Token']  # Headers aceitos para AJAX
+    WTF_CSRF_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']  # Métodos protegidos
+    WTF_CSRF_FIELD_NAME = 'csrf_token'  # Nome do campo no formulário
+    WTF_CSRF_COOKIE_NAME = 'csrf_token'  # Nome do cookie
+    WTF_CSRF_COOKIE_HTTPONLY = False  # Precisa ser acessível para AJAX
+    WTF_CSRF_COOKIE_SECURE = False  # Será True em production
+    WTF_CSRF_COOKIE_SAMESITE = 'Lax'  # Proteção adicional
+    
+    # Backups
+    BACKUP_ENABLED = True  # Habilitar sistema de backups
+    BACKUP_DIR = BASE_DIR / "backups"  # Diretório de backups
+    BACKUP_KEEP_COUNT = 10  # Manter últimos N backups
+    BACKUP_KEEP_DAYS = 30  # Manter backups dos últimos N dias
+    BACKUP_INCLUDE_DB = True  # Incluir banco de dados
+    BACKUP_INCLUDE_IMAGES = True  # Incluir imagens
+    BACKUP_INCLUDE_LOGS = False  # Incluir logs (desabilitado por padrão)
+    BACKUP_AUTO_CLEANUP = True  # Limpeza automática de backups antigos
     
     # Rate Limiting (padrão)
     RATELIMIT_STORAGE_URL = "memory://"
@@ -70,9 +94,17 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = f"sqlite:///{Config.INSTANCE_DIR / 'ejm_dev.db'}"
     SQLALCHEMY_ECHO = True  # Log de queries SQL
     
+    # HTTPS desabilitado em desenvolvimento
+    FORCE_HTTPS = False
+    PREFERRED_URL_SCHEME = 'http'
+    
     # Sessão menos restritiva para desenvolvimento
     SESSION_COOKIE_SECURE = False  # HTTP permitido
     WTF_CSRF_SSL_STRICT = False
+    WTF_CSRF_COOKIE_SECURE = False
+    
+    # CSRF habilitado mas com configuração flexível para HTTP
+    WTF_CSRF_ENABLED = True
     
     # Rate limiting mais permissivo
     RATELIMIT_ENABLED = False  # Desabilitar em dev para testes
@@ -86,6 +118,10 @@ class TestingConfig(Config):
     
     # Banco em memória
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    
+    # HTTPS desabilitado em testes
+    FORCE_HTTPS = False
+    PREFERRED_URL_SCHEME = 'http'
     
     # Desabilitar proteções para testes
     WTF_CSRF_ENABLED = False
@@ -108,9 +144,14 @@ class ProductionConfig(Config):
         f"sqlite:///{Config.INSTANCE_DIR / 'ejm.db'}"
     )
     
-    # Segurança máxima
+    # HTTPS obrigatório
+    FORCE_HTTPS = True
+    PREFERRED_URL_SCHEME = 'https'
+    
+    # Segurança máxima de cookies
     SESSION_COOKIE_SECURE = True  # HTTPS obrigatório
     WTF_CSRF_SSL_STRICT = True
+    WTF_CSRF_COOKIE_SECURE = True  # Cookie CSRF também via HTTPS
     
     # Rate limiting rígido
     RATELIMIT_STORAGE_URL = os.getenv("REDIS_URL", "memory://")

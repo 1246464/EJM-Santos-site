@@ -3,107 +3,238 @@
 Site institucional e e-commerce desenvolvido em **Flask**, representando a marca **EJM Santos**, produtora de mel artesanal e natural.
 
 ## 🌿 Sobre o Projeto
-O projeto foi criado com o objetivo de apresentar os produtos da marca **EJM Santos** de forma clara e moderna, transmitindo a identidade natural e artesanal do mel produzido.
 
-A estrutura do site inclui uma página inicial com destaque visual, catálogo de produtos, carrinho de compras e **sistema de pagamento direto com cartão de crédito** via Stripe.
+Projeto completo de e-commerce com arquitetura modular, sistema de segurança robusto, backups automáticos e documentação profissional.
 
-## 🧩 Estrutura do Site
-- **Home (index.html):** Apresentação da marca e chamada para ação "Ver Produtos".  
-- **Produtos:** Catálogo completo de tipos de mel com imagem, descrição e preços.  
-- **Carrinho de Compras:** Gestão de itens antes da finalização.  
-- **Checkout:** Formulário seguro para pagamento com cartão de crédito.  
-- **Painel Admin:** Gerenciamento de produtos e pedidos.  
-- **Banco de dados:** SQLite via Flask SQLAlchemy para produtos, usuários e pedidos.  
-- **Pagamento:** Integração com **Stripe** para processar cartões de crédito.
+## 📁 Estrutura do Projeto
 
-## 🚀 Tecnologias Utilizadas
-- **Python + Flask**
-- **HTML5 e Jinja2**
-- **CSS3**
-- **SQLite** (banco de dados)
-- **Stripe** (processamento de pagamentos)
-- **JWT** (autenticação)
+```
+ejm-santos/
+├── app/                       # Código da aplicação
+│   ├── models/               # Modelos do banco de dados
+│   ├── routes/               # Rotas (blueprints)
+│   ├── helpers/              # Helpers de carrinho e pedidos
+│   └── utils/                # Utilitários (logger, erros, segurança)
+│
+├── docs/                     # 📚 Documentação completa
+│   ├── README.md            # Índice da documentação
+│   ├── INSTALACAO.md        # Guia de instalação
+│   ├── GUIA_BACKUPS.md      # Sistema de backups
+│   ├── SEGURANCA_HTTPS_CSRF.md  # Segurança
+│   └── arquivos-de-analise/ # Análises técnicas
+│
+├── scripts/                  # 🔧 Scripts utilitários
+│   ├── backup/              # Gestão de backups
+│   ├── database/            # Gestão do banco
+│   ├── deployment/          # Scripts de deploy
+│   └── maintenance/         # Manutenção
+│
+├── tests/                    # 🧪 Testes automatizados
+│
+├── static/                   # Arquivos estáticos (CSS, JS, imagens)
+├── templates/                # Templates HTML
+├── instance/                 # Banco de dados
+├── logs/                     # Logs da aplicação
+├── backups/                  # Backups automáticos
+│
+├── app_new.py               # 🚀 Aplicação principal
+├── config.py                # Configurações por ambiente
+└── requirements.txt         # Dependências
+```
 
-## 🧾 Funcionalidades Principais
-- ✅ Catálogo de produtos com sistema de avaliações
-- ✅ Carrinho de compras persistente  
-- ✅ Sistema de login e cadastro de usuários
-- ✅ **Pagamento direto com cartão de crédito** (Stripe)
-- ✅ Validação automática de dados do cartão
-- ✅ Painel administrativo para gestão
-- ✅ Histórico de pedidos do usuário
-- ✅ Design responsivo e moderno
+## ✨ Funcionalidades
 
-## 💳 Sistema de Pagamento
+### Para Clientes
+- 🛒 Carrinho de compras persistente
+- 💳 Pagamento via Stripe
+- 📧 Confirmação de pedido por email
+- 👤 Perfil de usuário
+- ⭐ Avaliações de produtos
 
-O site agora possui integração completa com **Stripe** para processar pagamentos com cartão:
+### Para Administradores
+- 📊 Dashboard administrativo
+- 📦 Gestão de produtos
+- 🔍 Gestão de pedidos
+- 📸 Upload de imagens
+- 📈 Análise de vendas
 
-- 🔒 **Seguro**: Tokenização no lado do cliente (PCI DSS compliant)
-- ✅ **Fácil**: Interface intuitiva para inserir dados do cartão
-- 🌐 **Moedas**: Suporte a Real Brasileiro (BRL)
-- 🎯 **Validação**: Verificação automática de dados do cartão
+### Sistema
+- 🔒 Segurança HTTPS + CSRF
+- 💾 Backups automáticos
+- 📝 Sistema de logs
+- 🛡️ Tratamento de erros
+- ⚡ Rate limiting
 
-## ⚙️ Como Rodar Localmente
+## 🚀 Quick Start
 
-### 1. Clonar e Configurar Ambiente
+### 1. Instalação
+
 ```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/ejm-santos.git
+cd ejm-santos
+
+# Crie ambiente virtual
 python -m venv .venv
-.venv\Scripts\activate
+
+# Ative o ambiente
+# Windows:
+.venv\Scripts\Activate.ps1
+# Linux/Mac:
+source .venv/bin/activate
+
+# Instale dependências
 pip install -r requirements.txt
 ```
 
-### 2. Configurar Stripe
-1. Crie conta gratuita: https://dashboard.stripe.com/register
-2. Pegue suas chaves de teste: https://dashboard.stripe.com/test/apikeys
-3. Copie `.env.example` para `.env`
-4. Adicione suas chaves no `.env`:
+### 2. Configuração
+
+```bash
+# Copie o arquivo de exemplo
+cp .env.example .env
+
+# Edite .env com suas configurações
+```
+
+**Variáveis principais:**
 ```env
-STRIPE_PUBLIC_KEY=pk_test_sua_chave
-STRIPE_SECRET_KEY=sk_test_sua_chave
+EJM_SECRET=sua_chave_secreta_32_chars
+STRIPE_PUBLIC_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+EMAIL_USER=seu@email.com
+EMAIL_PASSWORD=senha_de_app
+PUBLIC_BASE_URL=https://seu-dominio.com
 ```
 
 ### 3. Inicializar Banco de Dados
+
 ```bash
-python init_db.py
+python scripts/database/init_db.py
 ```
 
 ### 4. Executar
+
 ```bash
-python app.py
+# Desenvolvimento
+python app_new.py
+
+# Produção
+gunicorn app_new:app
 ```
 
-### 5. Testar Pagamento
-Use o cartão de teste do Stripe:
-- **Número**: 4242 4242 4242 4242
-- **CVV**: 123
-- **Validade**: Qualquer data futura
+Acesse: http://localhost:5000
 
-## 📚 Documentação Adicional
+Acesse: http://localhost:5000
 
-- **[INSTALACAO.md](INSTALACAO.md)** - Guia rápido de instalação
-- **[STRIPE_CONFIG.md](STRIPE_CONFIG.md)** - Documentação completa do Stripe
-- **[LEIA_ME_PRIMEIRO.py](LEIA_ME_PRIMEIRO.py)** - Próximos passos após clone
+## 💳 Sistema de Pagamento
 
-## 🔄 Migrando do Mercado Pago
+Integração completa com **Stripe**:
 
-Se você tinha uma versão anterior com Mercado Pago, execute:
+- 🔒 **Seguro**: Tokenização PCI DSS compliant
+- ✅ **Validação**: Automática de dados do cartão
+- 🌐 **Moedas**: Suporte a Real Brasileiro (BRL)
+
+**Teste com cartão Stripe:**
+- Número: `4242 4242 4242 4242`
+- CVV: `123`
+- Validade: Qualquer data futura
+
+## 📚 Documentação
+
+Toda a documentação está na pasta **[docs/](docs/)**:
+
+- **[INSTALACAO.md](docs/INSTALACAO.md)** - Instalação completa
+- **[GUIA_BACKUPS.md](docs/GUIA_BACKUPS.md)** - Sistema de backups
+- **[SEGURANCA_HTTPS_CSRF.md](docs/SEGURANCA_HTTPS_CSRF.md)** - Segurança
+- **[EMAIL_CONFIG.md](docs/EMAIL_CONFIG.md)** - Configuração de email
+- **[STRIPE_CONFIG.md](docs/STRIPE_CONFIG.md)** - Pagamentos
+
+## 🔧 Scripts Úteis
+
 ```bash
-python migrar_db.py
+# Backups
+python scripts/backup/backup_manager.py create
+python scripts/backup/backup_manager.py list
+python scripts/backup/restore_backup.py
+
+# Database
+python scripts/database/verificar_db.py
+python scripts/database/recriar_db.py
+
+# Testes
+python tests/test_security.py
+python tests/test_backups.py
 ```
 
-Isso removerá o campo `mercado_pago_link` do banco de dados.
+## 🛡️ Segurança
 
-## 🌐 Deploy
+- ✅ HTTPS Force (produção)
+- ✅ Proteção CSRF
+- ✅ Rate Limiting
+- ✅ Headers de segurança (HSTS, CSP)
+- ✅ Validação de inputs
+- ✅ Senhas hasheadas
+- ✅ Sessões seguras
 
-O projeto está configurado para deploy no **Render** ou similar. Não esqueça de:
-1. Configurar as variáveis de ambiente (chaves do Stripe)
-2. Usar chaves de **produção** (`pk_live_` e `sk_live_`)
-3. Habilitar HTTPS (obrigatório para Stripe)
+Veja [docs/SEGURANCA_HTTPS_CSRF.md](docs/SEGURANCA_HTTPS_CSRF.md).
+
+## 💾 Backups
+
+Sistema automatizado:
+- Backup de banco de dados SQLite
+- Backup de imagens de produtos
+- Compressão ZIP
+- Rotação automática
+- Agendamento diário/semanal
+- Restauração interativa
+
+Veja [docs/GUIA_BACKUPS.md](docs/GUIA_BACKUPS.md).
+
+## 🌍 Deploy
+
+### Render (Recomendado)
+
+```yaml
+# render.yaml já configurado
+services:
+  - type: web
+    name: ejm-santos
+    env: python
+    startCommand: "gunicorn app_new:app"
+```
+
+### VPS (Nginx + Gunicorn)
+
+Veja [docs/INSTALACAO.md](docs/INSTALACAO.md) seção de produção.
+
+## 🧪 Testes
+
+```bash
+python tests/test_security.py   # Segurança
+python tests/test_backups.py    # Backups
+python tests/test_structure.py  # Estrutura
+```
+
+## 🚀 Tecnologias
+
+- **Flask 2.3.3** - Framework web
+- **SQLAlchemy 3.0.3** - ORM
+- **Stripe 5.4.0** - Pagamentos
+- **Flask-WTF 1.2.1** - CSRF Protection
+- **Flask-Limiter 3.5.0** - Rate Limiting
+- **Schedule 1.2.0** - Backups automáticos
 
 ## 📝 Licença
 
-Este projeto foi desenvolvido para **EJM Santos** como exemplo educacional.
+Este projeto é privado. Todos os direitos reservados.
+
+## 📧 Contato
+
+- Website: https://ejm-santos.com
+- Email: contato@ejm-santos.com
 
 ---
 
-**Desenvolvido com 🍯 e Python**
+**🍯 EJM Santos - Mel Natural com Código Natural**
+
+*Desenvolvido com ❤️ e Flask*

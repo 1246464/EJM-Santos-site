@@ -26,7 +26,86 @@
       <h3>📍 Endereço de Entrega</h3>
       
       <form id="payment-form">
+        <!-- Endereços Salvos -->
+        {% if saved_addresses %}
         <div class="endereco-section">
+          <div class="saved-options">
+            <label class="option-card">
+              <input type="radio" name="address-option" value="saved" checked>
+              <span>Usar endereço salvo</span>
+            </label>
+            <label class="option-card">
+              <input type="radio" name="address-option" value="new">
+              <span>Adicionar novo endereço</span>
+            </label>
+          </div>
+
+          <div id="saved-addresses-list" class="saved-list">
+            {% for addr in saved_addresses %}
+            <label class="saved-item {% if addr.is_default %}default-item{% endif %}">
+              <input type="radio" name="saved-address-id" value="{{ addr.id }}" {% if addr.is_default %}checked{% endif %}>
+              <div class="saved-item-content">
+                <strong>{{ addr.apelido }}</strong>
+                {% if addr.is_default %}<span class="badge-default">Padrão</span>{% endif %}
+                <div class="saved-item-details">
+                  {{ addr.get_endereco_resumido() }}<br>
+                  📞 {{ addr.telefone }}
+                </div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+
+          <div id="new-address-form" class="form-section" style="display: none;">
+            <div class="form-row">
+              <div class="form-group" style="flex: 2;">
+                <label for="rua">Rua/Avenida *</label>
+                <input type="text" id="rua" name="rua" placeholder="Ex: Rua das Flores">
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label for="numero">Número *</label>
+                <input type="text" id="numero" name="numero" placeholder="123">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="complemento">Complemento</label>
+              <input type="text" id="complemento" name="complemento" placeholder="Apto, bloco, casa...">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="bairro">Bairro *</label>
+                <input type="text" id="bairro" name="bairro" placeholder="Centro">
+              </div>
+              <div class="form-group">
+                <label for="cidade">Cidade *</label>
+                <input type="text" id="cidade" name="cidade" placeholder="Sua cidade">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="telefone">Telefone/WhatsApp *</label>
+              <input type="tel" id="telefone" name="telefone" placeholder="(11) 99999-9999">
+            </div>
+
+            <div class="form-group checkbox-group">
+              <label>
+                <input type="checkbox" id="save-address" name="save-address">
+                Salvar este endereço para próximas compras
+              </label>
+            </div>
+
+            <div class="form-group" id="address-nickname-group" style="display: none;">
+              <label for="address-nickname">Apelido do endereço</label>
+              <input type="text" id="address-nickname" name="address-nickname" placeholder="Ex: Casa, Trabalho, Casa da mãe">
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <!-- Nenhum endereço salvo - mostrar formulário direto -->
+        <div class="endereco-section">
+          <p class="info-message">📍 Você ainda não tem endereços salvos</p>
           <div class="form-row">
             <div class="form-group" style="flex: 2;">
               <label for="rua">Rua/Avenida *</label>
@@ -58,15 +137,99 @@
             <label for="telefone">Telefone/WhatsApp *</label>
             <input type="tel" id="telefone" name="telefone" required placeholder="(11) 99999-9999">
           </div>
-        </div>
 
-        <h3 style="margin-top: 30px;">💳 Dados do Cartão</h3>
-        <div class="form-group">
-          <label for="card-element">Informações do Cartão</label>
-          <div id="card-element">
-            <!-- Stripe Element será inserido aqui -->
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" id="save-address" name="save-address" checked>
+              Salvar este endereço para próximas compras
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="address-nickname">Apelido do endereço</label>
+            <input type="text" id="address-nickname" name="address-nickname" placeholder="Ex: Casa, Trabalho" value="Meu endereço">
           </div>
         </div>
+        {% endif %}
+
+        <h3 style="margin-top: 30px;">💳 Dados do Cartão</h3>
+        
+        <!-- Cartões Salvos -->
+        {% if saved_payment_methods %}
+        <div class="payment-method-section">
+          <div class="saved-options">
+            <label class="option-card">
+              <input type="radio" name="payment-option" value="saved" checked>
+              <span>Usar cartão salvo</span>
+            </label>
+            <label class="option-card">
+              <input type="radio" name="payment-option" value="new">
+              <span>Adicionar novo cartão</span>
+            </label>
+          </div>
+
+          <div id="saved-payment-methods-list" class="saved-list">
+            {% for pm in saved_payment_methods %}
+            <label class="saved-item {% if pm.is_default %}default-item{% endif %}">
+              <input type="radio" name="saved-payment-method-id" value="{{ pm.id }}" {% if pm.is_default %}checked{% endif %}>
+              <div class="saved-item-content">
+                <strong>{{ pm.apelido }}</strong>
+                {% if pm.is_default %}<span class="badge-default">Padrão</span>{% endif %}
+                <div class="saved-item-details">
+                  {{ pm.get_card_display() }}<br>
+                  Validade: {{ "%02d"|format(pm.card_exp_month) }}/{{ pm.card_exp_year }}
+                  {% if pm.is_expired() %}<span class="badge-expired">Expirado</span>{% endif %}
+                </div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+
+          <div id="new-card-form" class="form-section" style="display: none;">
+            <div class="form-group">
+              <label for="card-element">Informações do Cartão</label>
+              <div id="card-element">
+                <!-- Stripe Element será inserido aqui -->
+              </div>
+            </div>
+
+            <div class="form-group checkbox-group">
+              <label>
+                <input type="checkbox" id="save-card" name="save-card">
+                Salvar este cartão para próximas compras
+              </label>
+            </div>
+
+            <div class="form-group" id="card-nickname-group" style="display: none;">
+              <label for="card-nickname">Apelido do cartão</label>
+              <input type="text" id="card-nickname" name="card-nickname" placeholder="Ex: Cartão principal, Nubank">
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <!-- Nenhum cartão salvo - mostrar Stripe Element direto -->
+        <div class="payment-method-section">
+          <p class="info-message">💳 Você ainda não tem cartões salvos</p>
+          <div class="form-group">
+            <label for="card-element">Informações do Cartão</label>
+            <div id="card-element">
+              <!-- Stripe Element será inserido aqui -->
+            </div>
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" id="save-card" name="save-card" checked>
+              Salvar este cartão para próximas compras
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="card-nickname">Apelido do cartão</label>
+            <input type="text" id="card-nickname" name="card-nickname" placeholder="Ex: Cartão principal" value="Meu cartão">
+          </div>
+        </div>
+        {% endif %}
 
         <div id="card-errors" class="error-message"></div>
 
@@ -88,53 +251,111 @@
 <script>
   const stripe = Stripe('{{ stripe_public_key }}');
   const elements = stripe.elements();
+  let cardElement = null;
 
-  // Cria o elemento de cartão
-  const cardElement = elements.create('card', {
-    style: {
-      base: {
-        fontSize: '16px',
-        color: '#32325d',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        '::placeholder': {
-          color: '#aab7c4'
-        }
-      },
-      invalid: {
-        color: '#e74c3c'
+  // Controlar exibição de endereços salvos vs novo
+  const addressOptions = document.querySelectorAll('input[name="address-option"]');
+  const savedAddressList = document.getElementById('saved-addresses-list');
+  const newAddressForm = document.getElementById('new-address-form');
+  
+  addressOptions.forEach(option => {
+    option.addEventListener('change', (e) => {
+      if (e.target.value === 'saved') {
+        if (savedAddressList) savedAddressList.style.display = 'block';
+        if (newAddressForm) newAddressForm.style.display = 'none';
+      } else {
+        if (savedAddressList) savedAddressList.style.display = 'none';
+        if (newAddressForm) newAddressForm.style.display = 'block';
       }
-    }
+    });
   });
 
-  // Monta o elemento no DOM
-  cardElement.mount('#card-element');
-
-  // Exibe erros de validação
-  cardElement.on('change', function(event) {
-    const errorDiv = document.getElementById('card-errors');
-    if (event.error) {
-      errorDiv.textContent = event.error.message;
-    } else {
-      errorDiv.textContent = '';
-    }
+  // Controlar exibição de cartões salvos vs novo
+  const paymentOptions = document.querySelectorAll('input[name="payment-option"]');
+  const savedPaymentList = document.getElementById('saved-payment-methods-list');
+  const newCardForm = document.getElementById('new-card-form');
+  
+  paymentOptions.forEach(option => {
+    option.addEventListener('change', (e) => {
+      if (e.target.value === 'saved') {
+        if (savedPaymentList) savedPaymentList.style.display = 'block';
+        if (newCardForm) newCardForm.style.display = 'none';
+        // Destruir Stripe Element se existir
+        if (cardElement) {
+          cardElement.destroy();
+          cardElement = null;
+        }
+      } else {
+        if (savedPaymentList) savedPaymentList.style.display = 'none';
+        if (newCardForm) newCardForm.style.display = 'block';
+        // Criar Stripe Element
+        if (!cardElement) {
+          createStripeElement();
+        }
+      }
+    });
   });
+
+  // Mostrar campo de apelido quando checkbox de salvar é marcado
+  const saveAddressCheckbox = document.getElementById('save-address');
+  const addressNicknameGroup = document.getElementById('address-nickname-group');
+  if (saveAddressCheckbox) {
+    saveAddressCheckbox.addEventListener('change', (e) => {
+      if (addressNicknameGroup) {
+        addressNicknameGroup.style.display = e.target.checked ? 'block' : 'none';
+      }
+    });
+  }
+
+  const saveCardCheckbox = document.getElementById('save-card');
+  const cardNicknameGroup = document.getElementById('card-nickname-group');
+  if (saveCardCheckbox) {
+    saveCardCheckbox.addEventListener('change', (e) => {
+      if (cardNicknameGroup) {
+        cardNicknameGroup.style.display = e.target.checked ? 'block' : 'none';
+      }
+    });
+  }
+
+  function createStripeElement() {
+    cardElement = elements.create('card', {
+      style: {
+        base: {
+          fontSize: '16px',
+          color: '#32325d',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          '::placeholder': {
+            color: '#aab7c4'
+          }
+        },
+        invalid: {
+          color: '#e74c3c'
+        }
+      }
+    });
+
+    cardElement.mount('#card-element');
+
+    cardElement.on('change', function(event) {
+      const errorDiv = document.getElementById('card-errors');
+      if (event.error) {
+        errorDiv.textContent = event.error.message;
+      } else {
+        errorDiv.textContent = '';
+      }
+    });
+  }
+
+  // Se não tem cartões salvos OU se a opção "novo" está marcada, criar elemento
+  const hasPaymentOption = document.querySelector('input[name="payment-option"]');
+  if (!hasPaymentOption || (hasPaymentOption && hasPaymentOption.value === 'new')) {
+    createStripeElement();
+  }
 
   // Processar pagamento
   const form = document.getElementById('payment-form');
   form.addEventListener('submit', async function(e) {
     e.preventDefault();
-    
-    // Validar campos de endereço
-    const rua = document.getElementById('rua').value.trim();
-    const numero = document.getElementById('numero').value.trim();
-    const bairro = document.getElementById('bairro').value.trim();
-    const cidade = document.getElementById('cidade').value.trim();
-    const telefone = document.getElementById('telefone').value.trim();
-
-    if (!rua || !numero || !bairro || !cidade || !telefone) {
-      alert('⚠️ Por favor, preencha todos os campos obrigatórios do endereço.');
-      return;
-    }
     
     const btnSubmit = document.getElementById('btn-submit');
     const loadingDiv = document.getElementById('loading');
@@ -146,33 +367,91 @@
     errorDiv.textContent = '';
 
     try {
-      // Cria payment method com Stripe Elements
-      const {paymentMethod, error} = await stripe.createPaymentMethod({
-        type: 'card',
-        card: cardElement
-      });
+      let paymentData = {};
 
-      if (error) {
-        throw new Error(error.message);
+      // Verificar se usa endereço salvo ou novo
+      const addressOption = document.querySelector('input[name="address-option"]:checked');
+      const usingSavedAddress = addressOption && addressOption.value === 'saved';
+      
+      if (usingSavedAddress) {
+        const savedAddressId = document.querySelector('input[name="saved-address-id"]:checked');
+        if (!savedAddressId) {
+          throw new Error('Selecione um endereço');
+        }
+        paymentData.saved_address_id = parseInt(savedAddressId.value);
+      } else {
+        // Validar campos de endereço
+        const rua = document.getElementById('rua').value.trim();
+        const numero = document.getElementById('numero').value.trim();
+        const bairro = document.getElementById('bairro').value.trim();
+        const cidade = document.getElementById('cidade').value.trim();
+        const telefone = document.getElementById('telefone').value.trim();
+
+        if (!rua || !numero || !bairro || !cidade || !telefone) {
+          throw new Error('Por favor, preencha todos os campos obrigatórios do endereço');
+        }
+
+        paymentData.endereco = {
+          rua: rua,
+          numero: numero,
+          complemento: document.getElementById('complemento').value.trim(),
+          bairro: bairro,
+          cidade: cidade,
+          telefone: telefone
+        };
+
+        // Verificar se quer salvar endereço
+        const saveAddress = document.getElementById('save-address');
+        if (saveAddress && saveAddress.checked) {
+          paymentData.save_address = true;
+          const addressNickname = document.getElementById('address-nickname');
+          paymentData.address_nickname = addressNickname ? addressNickname.value.trim() || 'Meu endereço' : 'Meu endereço';
+        }
       }
 
-      // Envia payment method e endereço para o servidor
+      // Verificar se usa cartão salvo ou novo
+      const paymentOption = document.querySelector('input[name="payment-option"]:checked');
+      const usingSavedCard = paymentOption && paymentOption.value === 'saved';
+      
+      if (usingSavedCard) {
+        const savedPaymentId = document.querySelector('input[name="saved-payment-method-id"]:checked');
+        if (!savedPaymentId) {
+          throw new Error('Selecione um cartão');
+        }
+        paymentData.saved_payment_method_id = parseInt(savedPaymentId.value);
+      } else {
+        // Criar payment method com Stripe Elements
+        if (!cardElement) {
+          throw new Error('Cartão não carregado. Recarregue a página.');
+        }
+
+        const {paymentMethod, error} = await stripe.createPaymentMethod({
+          type: 'card',
+          card: cardElement
+        });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        paymentData.payment_method_id = paymentMethod.id;
+
+        // Verificar se quer salvar cartão
+        const saveCard = document.getElementById('save-card');
+        if (saveCard && saveCard.checked) {
+          paymentData.save_card = true;
+          const cardNickname = document.getElementById('card-nickname');
+          paymentData.card_nickname = cardNickname ? cardNickname.value.trim() || 'Meu cartão' : 'Meu cartão';
+        }
+      }
+
+      // Enviar para o servidor
       const response = await fetch('/processar-pagamento', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          payment_method_id: paymentMethod.id,
-          endereco: {
-            rua: rua,
-            numero: numero,
-            complemento: document.getElementById('complemento').value.trim(),
-            bairro: bairro,
-            cidade: cidade,
-            telefone: telefone
-          }
-        })
+        body: JSON.stringify(paymentData)
       });
 
       const result = await response.json();
@@ -218,11 +497,145 @@
   font-size: 1.4em;
 }
 
-.endereco-section {
+.endereco-section, .payment-method-section {
   background: #f8f9fa;
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 25px;
+}
+
+.saved-options {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.option-card {
+  flex: 1;
+  padding: 15px;
+  background: white;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.option-card:hover {
+  border-color: #f39c12;
+  transform: translateY(-2px);
+}
+
+.option-card input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
+.option-card input[type="radio"]:checked ~ span {
+  font-weight: bold;
+  color: #f39c12;
+}
+
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.saved-item {
+  background: white;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.saved-item:hover {
+  border-color: #f39c12;
+  box-shadow: 0 3px 10px rgba(243,156,18,0.2);
+}
+
+.saved-item.default-item {
+  border-color: #f39c12;
+  background: #fffbf0;
+}
+
+.saved-item input[type="radio"] {
+  margin-top: 3px;
+  width: auto;
+}
+
+.saved-item-content {
+  flex: 1;
+}
+
+.saved-item-content strong {
+  display: inline-block;
+  margin-bottom: 5px;
+  color: #333;
+  font-size: 1.05em;
+}
+
+.saved-item-details {
+  color: #666;
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+.badge-default {
+  display: inline-block;
+  background: #f39c12;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  margin-left: 8px;
+  font-weight: normal;
+}
+
+.badge-expired {
+  display: inline-block;
+  background: #e74c3c;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  margin-left: 8px;
+  font-weight: normal;
+}
+
+.form-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px dashed #ddd;
+}
+
+.info-message {
+  background: #fff3cd;
+  color: #856404;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border-left: 4px solid #ffc107;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin: 0;
 }
 
 .form-row {
@@ -290,12 +703,6 @@
   border-color: #f39c12;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 15px;
-}
-
 .btn-pagar {
   width: 100%;
   padding: 15px;
@@ -353,7 +760,11 @@
   }
   
   .form-row {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+  
+  .saved-options {
+    flex-direction: column;
   }
 }
 </style>

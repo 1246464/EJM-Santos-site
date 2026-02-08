@@ -73,8 +73,21 @@ def perfil_page():
     # Buscar todos os pedidos do usuário
     pedidos = Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all()
     
+    # Buscar endereços salvos
+    from app.models import Address, PaymentMethod
+    enderecos = Address.query.filter_by(user_id=user_id).order_by(
+        Address.is_default.desc(),
+        Address.created_at.desc()
+    ).all()
+    
+    # Buscar cartões salvos
+    cartoes = PaymentMethod.query.filter_by(user_id=user_id).order_by(
+        PaymentMethod.is_default.desc(),
+        PaymentMethod.created_at.desc()
+    ).all()
+    
     logger.info(f"Perfil acessado - User ID: {user_id}")
-    return render_template("perfil_novo.html", pedidos=pedidos, user=user)
+    return render_template("perfil_novo.html", pedidos=pedidos, user=user, enderecos=enderecos, cartoes=cartoes)
 
 
 # ============================================

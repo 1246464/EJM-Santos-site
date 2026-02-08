@@ -26,6 +26,7 @@
       <div class="cardDM">
         <h3>Status</h3>
         <form method="POST" action="/admin/pedidos/{{ pedido.id }}/status" style="display:flex;gap:10px;justify-content:center;align-items:center;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <select name="status">
             {% set ops = ['Pendente','Pago','Enviado','Entregue','Cancelado'] %}
             {% for s in ops %}

@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="checkout-page">
+  <h2>💳 Finalizar Pagamento</h2>
+
+  <div class="checkout-container">
+    <!-- Resumo do Pedido -->
+    <div class="resumo-pedido">
+      <h3>Resumo do Pedido</h3>
+      
+      {% for item in itens %}
+      <div class="item-resumo">
+        <span class="item-nome">{{ item.titulo }} ({{ item.quantidade }}x)</span>
+        <span class="item-preco">R$ {{ "%.2f"|format(item.preco * item.quantidade) }}</span>
+      </div>
+      {% endfor %}
+
+      <div class="total-pedido">
+        <strong>Total:</strong>
+        <strong>R$ {{ "%.2f"|format(total) }}</strong>
+      </div>
+    </div>
+
+    <!-- Formulário de Pagamento -->
+    <div class="form-pagamento">
+      <h3>📍 Endereço de Entrega</h3>
+      
+      <form id="payment-form">
+        <div class="endereco-section">
+          <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+              <label for="rua">Rua/Avenida *</label>
+              <input type="text" id="rua" name="rua" required placeholder="Ex: Rua das Flores">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="numero">Número *</label>
+              <input type="text" id="numero" name="numero" required placeholder="123">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="complemento">Complemento</label>
+            <input type="text" id="complemento" name="complemento" placeholder="Apto, bloco, casa...">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="bairro">Bairro *</label>
+              <input type="text" id="bairro" name="bairro" required placeholder="Centro">
+            </div>
+            <div class="form-group">
+              <label for="cidade">Cidade *</label>
+              <input type="text" id="cidade" name="cidade" required placeholder="Sua cidade">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="telefone">Telefone/WhatsApp *</label>
+            <input type="tel" id="telefone" name="telefone" required placeholder="(11) 99999-9999">
+          </div>
+        </div>
+
+        <h3 style="margin-top: 30px;">💳 Dados do Cartão</h3>
+        <div class="form-group">
+          <label for="card-element">Informações do Cartão</label>
+          <div id="card-element">
+            <!-- Stripe Element será inserido aqui -->
+          </div>
+        </div>
+
+        <div id="card-errors" class="error-message"></div>
+
+        <button type="submit" class="btn-pagar" id="btn-submit">
+          🔒 Pagar R$ {{ "%.2f"|format(total) }}
+        </button>
+
+        <div id="loading" class="loading" style="display: none;">Processando pagamento...</div>
+      </form>
+
+      <div class="seguranca-info">
+        🔒 Pagamento seguro e criptografado
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+  const stripe = Stripe('{{ stripe_public_key }}');
+  const elements = stripe.elements();
+
+  // Cria o elemento de cartão
+  const cardElement = elements.create('card', {
+    style: {
+      base: {
+        fontSize: '16px',
+        color: '#32325d',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        '::placeholder': {
+          color: '#aab7c4'
+        }
+      },
+      invalid: {
+        color: '#e74c3c'
+      }
+    }
+  });
+
+  // Monta o elemento no DOM
+  cardElement.mount('#card-element');
+
+  // Exibe erros de validação
+  cardElement.on('change', function(event) {
+    const errorDiv = document.getElementById('card-errors');
+    if (event.error) {
+      errorDiv.textContent = event.error.message;
+    } else {
+      errorDiv.textContent = '';
+    }
+  });
+
+  // Processar pagamento
+  const form = document.getElementById('payment-form');
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Validar campos de endereço
+    const rua = document.getElementById('rua').value.trim();
+    const numero = document.getElementById('numero').value.trim();
+    const bairro = document.getElementById('bairro').value.trim();
+    const cidade = document.getElementById('cidade').value.trim();
+    const telefone = document.getElementById('telefone').value.trim();
+
+    if (!rua || !numero || !bairro || !cidade || !telefone) {
+      alert('⚠️ Por favor, preencha todos os campos obrigatórios do endereço.');
+      return;
+    }
+    
+    const btnSubmit = document.getElementById('btn-submit');
+    const loadingDiv = document.getElementById('loading');
+    const errorDiv = document.getElementById('card-errors');
+    
+    // Desabilita botão e mostra loading
+    btnSubmit.disabled = true;
+    loadingDiv.style.display = 'block';
+    errorDiv.textContent = '';
+
+    try {
+      // Cria payment method com Stripe Elements
+      const {paymentMethod, error} = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Envia payment method e endereço para o servidor
+      const response = await fetch('/processar-pagamento', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          payment_method_id: paymentMethod.id,
+          endereco: {
+            rua: rua,
+            numero: numero,
+            complemento: document.getElementById('complemento').value.trim(),
+            bairro: bairro,
+            cidade: cidade,
+            telefone: telefone
+          }
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Redireciona para página de sucesso
+        window.location.href = '/pagamento/sucesso?pedido_id=' + result.pedido_id;
+      } else {
+        throw new Error(result.error || 'Erro ao processar pagamento');
+      }
+    } catch (error) {
+      errorDiv.textContent = error.message;
+      btnSubmit.disabled = false;
+      loadingDiv.style.display = 'none';
+    }
+  });
+</script>
+
+<style>
+.checkout-page {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.checkout-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 30px;
+}
+
+.resumo-pedido, .form-pagamento {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.resumo-pedido h3, .form-pagamento h3 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 1.4em;
+}
+
+.endereco-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.item-resumo {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.total-pedido {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 20px;
+  font-size: 1.3em;
+  color: #f39c12;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+#card-element {
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  transition: border-color 0.3s;
+}
+
+#card-element.StripeElement--focus {
+  border-color: #f39c12;
+}
+
+#card-element.StripeElement--invalid {
+  border-color: #e74c3c;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #f39c12;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 15px;
+}
+
+.btn-pagar {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.btn-pagar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(243,156,18,0.3);
+}
+
+.btn-pagar:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.error-message {
+  color: #e74c3c;
+  margin-top: 15px;
+  padding: 10px;
+  background: #fee;
+  border-radius: 5px;
+  display: none;
+}
+
+.error-message:not(:empty) {
+  display: block;
+}
+
+.loading {
+  text-align: center;
+  color: #f39c12;
+  margin-top: 15px;
+  font-weight: 500;
+}
+
+.seguranca-info {
+  text-align: center;
+  margin-top: 20px;
+  color: #27ae60;
+  font-size: 0.9em;
+}
+
+@media (max-width: 768px) {
+  .checkout-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+{% endblock %}

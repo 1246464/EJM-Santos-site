@@ -50,10 +50,24 @@ def checkout():
 
     total = sum(it["preco"] * it["quantidade"] for it in carrinho_itens)
     
+    # Buscar endereços e métodos de pagamento salvos
+    from app.models import Address, PaymentMethod
+    saved_addresses = Address.query.filter_by(user_id=user_id).order_by(
+        Address.is_default.desc(), 
+        Address.created_at.desc()
+    ).all()
+    
+    saved_payment_methods = PaymentMethod.query.filter_by(user_id=user_id).order_by(
+        PaymentMethod.is_default.desc(), 
+        PaymentMethod.created_at.desc()
+    ).all()
+    
     return render_template("checkout.html", 
                          itens=carrinho_itens, 
                          total=total,
-                         stripe_public_key=STRIPE_PUBLIC_KEY)
+                         stripe_public_key=STRIPE_PUBLIC_KEY,
+                         saved_addresses=saved_addresses,
+                         saved_payment_methods=saved_payment_methods)
 
 
 @payment_bp.route('/processar-pagamento', methods=['POST'])
@@ -69,18 +83,54 @@ def processar_pagamento():
         if not data:
             return jsonify({"error": "Dados inválidos"}), 400
         
+        # Suporta tanto payment method novo quanto salvo
         payment_method_id = data.get('payment_method_id')
-        endereco = data.get('endereco', {})
+        saved_payment_method_id = data.get('saved_payment_method_id')
+        save_card = data.get('save_card', False)  # Salvar novo cartão?
+        card_nickname = data.get('card_nickname', 'Meu cartão')  # Apelido para salvar
         
-        if not payment_method_id:
+        # Suporta tanto endereço novo quanto salvo
+        saved_address_id = data.get('saved_address_id')
+        endereco_data = data.get('endereco', {})
+        save_address = data.get('save_address', False)  # Salvar novo endereço?
+        address_nickname = data.get('address_nickname', 'Meu endereço')  # Apelido para salvar
+        
+        # Validar que tem método de pagamento (novo OU salvo)
+        if not payment_method_id and not saved_payment_method_id:
             logger.warning(f"Pagamento sem método - User: {user_id}")
             return jsonify({"error": "Método de pagamento inválido"}), 400
         
-        # Validar endereço
-        if not all([endereco.get('rua'), endereco.get('numero'), endereco.get('bairro'), 
-                    endereco.get('cidade'), endereco.get('telefone')]):
-            logger.warning(f"Endereço incompleto no pagamento - User: {user_id}")
-            return jsonify({"error": "Endereço de entrega incompleto"}), 400
+        # Se usa payment method salvo, buscar o ID do Stripe
+        if saved_payment_method_id:
+            from app.models import PaymentMethod
+            saved_pm = PaymentMethod.query.filter_by(id=saved_payment_method_id, user_id=user_id).first()
+            if not saved_pm:
+                return jsonify({"error": "Cartão salvo não encontrado"}), 404
+            payment_method_id = saved_pm.stripe_payment_method_id
+        
+        # Buscar ou validar endereço
+        endereco = {}
+        if saved_address_id:
+            # Usa endereço salvo
+            from app.models import Address
+            saved_addr = Address.query.filter_by(id=saved_address_id, user_id=user_id).first()
+            if not saved_addr:
+                return jsonify({"error": "Endereço salvo não encontrado"}), 404
+            endereco = {
+                'rua': saved_addr.rua,
+                'numero': saved_addr.numero,
+                'complemento': saved_addr.complemento or '',
+                'bairro': saved_addr.bairro,
+                'cidade': saved_addr.cidade,
+                'telefone': saved_addr.telefone
+            }
+        else:
+            # Usa endereço novo - validar
+            endereco = endereco_data
+            if not all([endereco.get('rua'), endereco.get('numero'), endereco.get('bairro'), 
+                        endereco.get('cidade'), endereco.get('telefone')]):
+                logger.warning(f"Endereço incompleto no pagamento - User: {user_id}")
+                return jsonify({"error": "Endereço de entrega incompleto"}), 400
 
         # Pegar itens do carrinho
         from app.models import CartItem
@@ -132,6 +182,51 @@ def processar_pagamento():
                 pedido.endereco_cidade = endereco.get('cidade')
                 pedido.telefone = endereco.get('telefone')
                 db.session.commit()
+                
+                # Salvar endereço se solicitado (e não estava usando um salvo)
+                if save_address and not saved_address_id:
+                    try:
+                        from app.models import Address
+                        new_address = Address(
+                            user_id=user_id,
+                            apelido=address_nickname,
+                            rua=endereco['rua'],
+                            numero=endereco['numero'],
+                            complemento=endereco.get('complemento', ''),
+                            bairro=endereco['bairro'],
+                            cidade=endereco['cidade'],
+                            telefone=endereco['telefone'],
+                            is_default=(Address.query.filter_by(user_id=user_id).count() == 0)
+                        )
+                        db.session.add(new_address)
+                        db.session.commit()
+                        logger.info(f"✅ Endereço salvo - User: {user_id}")
+                    except Exception as e:
+                        logger.error(f"Erro ao salvar endereço: {str(e)}")
+                
+                # Salvar cartão se solicitado (e não estava usando um salvo)
+                if save_card and not saved_payment_method_id:
+                    try:
+                        from app.models import PaymentMethod
+                        # Buscar info do cartão no Stripe
+                        stripe_pm = stripe.PaymentMethod.retrieve(payment_method_id)
+                        card = stripe_pm.card
+                        
+                        new_pm = PaymentMethod(
+                            user_id=user_id,
+                            apelido=card_nickname,
+                            stripe_payment_method_id=payment_method_id,
+                            card_brand=card.brand,
+                            card_last4=card.last4,
+                            card_exp_month=card.exp_month,
+                            card_exp_year=card.exp_year,
+                            is_default=(PaymentMethod.query.filter_by(user_id=user_id).count() == 0)
+                        )
+                        db.session.add(new_pm)
+                        db.session.commit()
+                        logger.info(f"✅ Cartão salvo - User: {user_id}")
+                    except Exception as e:
+                        logger.error(f"Erro ao salvar cartão: {str(e)}")
 
                 # Limpar carrinho
                 CartHelper.clear_current_cart(db, CartItem)

@@ -4,6 +4,7 @@
   <div class="admin-form-box">
     <h2>✏️ Editar Produto</h2>
     <form method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <label>Título:</label>
       <input type="text" name="titulo" value="{{ produto.titulo }}" required>
 
@@ -18,12 +19,53 @@
 
       <label>Imagem:</label>
       {% if produto.imagem %}
-        <p>Atual: <img src="/static/{{ produto.imagem }}" alt="{{ produto.titulo }}" width="80"></p>
+        <p>Atual: <img src="/static/{{ produto.imagem }}" alt="{{ produto.titulo }}" width="80" style="border-radius: 6px; object-fit: cover;"></p>
       {% endif %}
-      <input type="file" name="imagem">
+      <input type="file" name="imagem" accept="image/*" capture="environment" id="input-imagem">
+      <small style="color: #666; font-size: 0.85rem; margin-top: 4px; display: block;">
+        📸 Tire uma foto ou escolha da galeria (deixe vazio para manter a atual)
+      </small>
+      <div id="preview-imagem" style="margin-top: 12px; display: none;">
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">Nova imagem:</p>
+        <img id="img-preview" style="max-width: 100%; max-height: 300px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      </div>
 
       <button type="submit" class="botao-topo">Salvar Alterações</button>
     </form>
   </div>
 </section>
+
+<style>
+  .admin-form-box { background: #fff; padding: 30px; border-radius: 16px; max-width: 600px; margin: 40px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+  form { display: flex; flex-direction: column; }
+  label { margin-top: 10px; font-weight: bold; }
+  input, textarea { padding: 10px; border-radius: 6px; border: 1px solid #ccc; margin-top: 4px; }
+  button { margin-top: 20px; }
+  
+  @media (max-width: 768px) {
+    .admin-form-box { padding: 20px; margin: 20px 10px; }
+    input[type="file"] { 
+      padding: 12px 8px; 
+      font-size: 14px;
+      cursor: pointer;
+    }
+  }
+</style>
+
+<script>
+// Preview da imagem ao selecionar
+document.getElementById('input-imagem').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const preview = document.getElementById('preview-imagem');
+      const img = document.getElementById('img-preview');
+      img.src = event.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+});
+</script>
 {% endblock %}

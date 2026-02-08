@@ -4,6 +4,7 @@
 
 from flask import Blueprint, request, jsonify, render_template, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_wtf.csrf import CSRFProtect
 from datetime import datetime, timedelta
 import jwt
 import re
@@ -58,39 +59,47 @@ def validate_password(password):
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login_page():
     """Página de login de usuários"""
-    # Aplicar rate limit se disponível
-    if limiter:
-        limiter.limit("10 per minute")(login_page)
-    
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        senha = request.form.get("senha", "")
-        
-        # Validação de entrada
-        if not email or not senha:
-            logger.warning(f"Login sem credenciais - IP: {request.remote_addr}")
-            return render_template("login.html", erro="Preencha todos os campos."), 400
-        
-        if not validate_email(email):
-            logger.warning(f"Login com email inválido: {email} - IP: {request.remote_addr}")
-            return render_template("login.html", erro="Email inválido."), 400
-        
-        # Buscar usuário
-        user = User.query.filter_by(email=email).first()
-        
-        if user and check_password_hash(user.senha_hash, senha):
-            # Login bem-sucedido
-            session["user_id"] = user.id
-            session["user_name"] = user.nome
-            session["is_admin"] = user.is_admin
-            session.permanent = True  # Usar PERMANENT_SESSION_LIFETIME
+        try:
+            # Debug: verificar dados recebidos
+            logger.info(f"📥 Login POST recebido - IP: {request.remote_addr}")
+            logger.info(f"📝 Form data keys: {list(request.form.keys())}")
+            logger.info(f"🔑 CSRF token no form: {request.form.get('csrf_token', 'MISSING')[:20]}...")
+            logger.info(f"🍪 Cookies: {list(request.cookies.keys())}")
+            logger.info(f"🔐 Session before: {dict(session)}")
             
-            logger.info(f"✅ Login - User: {user.id} ({user.email}) - IP: {request.remote_addr}")
-            return redirect("/")
+            email = request.form.get("email", "").strip().lower()
+            senha = request.form.get("senha", "")
+            
+            # Validação de entrada
+            if not email or not senha:
+                logger.warning(f"Login sem credenciais - IP: {request.remote_addr}")
+                return render_template("login.html", erro="Preencha todos os campos.")
+            
+            # Buscar usuário
+            user = User.query.filter_by(email=email).first()
+            
+            if user and check_password_hash(user.senha_hash, senha):
+                # Login bem-sucedido
+                session["user_id"] = user.id
+                session["user_name"] = user.nome
+                session["is_admin"] = user.is_admin
+                session.permanent = True
+                
+                logger.info(f"✅ Login - User: {user.id} ({user.email}) - Admin: {user.is_admin} - IP: {request.remote_addr}")
+                
+                # Redirecionar admin para dashboard, usuário normal para home
+                if user.is_admin:
+                    return redirect("/admin")
+                return redirect("/")
+            
+            # Credenciais inválidas
+            logger.warning(f"❌ Login falhou: {email} - IP: {request.remote_addr}")
+            return render_template("login.html", erro="Email ou senha inválidos.")
         
-        # Credenciais inválidas (mesma mensagem para não revelar se email existe)
-        logger.warning(f"❌ Login falhou: {email} - IP: {request.remote_addr}")
-        return render_template("login.html", erro="Email ou senha inválidos."), 401
+        except Exception as e:
+            logger.error(f"❌ Erro no login: {str(e)}", exc_info=True)
+            return render_template("login.html", erro="Erro ao processar login. Tente novamente.")
     
     # GET request
     return render_template("login.html")
@@ -107,42 +116,10 @@ def logout():
     return redirect("/")
 
 
-@auth_bp.route("/admin/login", methods=["GET", "POST"])
+@auth_bp.route("/admin/login")
 def admin_login():
-    """Página de login de administradores"""
-    # Aplicar rate limit se disponível
-    if limiter:
-        limiter.limit("5 per minute")(admin_login)
-    
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        senha = request.form.get("senha", "")
-        
-        # Validação
-        if not email or not senha:
-            logger.warning(f"Admin login sem credenciais - IP: {request.remote_addr}")
-            return render_template("admin_login.html", erro="Preencha todos os campos."), 400
-        
-        if not validate_email(email):
-            logger.warning(f"Admin login email inválido: {email} - IP: {request.remote_addr}")
-            return render_template("admin_login.html", erro="Email inválido."), 400
-        
-        # Buscar usuário admin
-        user = User.query.filter_by(email=email, is_admin=True).first()
-        
-        if user and check_password_hash(user.senha_hash, senha):
-            session["user_id"] = user.id
-            session["user_name"] = user.nome
-            session["is_admin"] = True
-            session.permanent = True
-            
-            logger.info(f"✅ Admin login - User: {user.id} ({user.email}) - IP: {request.remote_addr}")
-            return redirect("/admin")
-        
-        logger.warning(f"❌ Admin login falhou: {email} - IP: {request.remote_addr}")
-        return render_template("admin_login.html", erro="Credenciais de administrador inválidas."), 401
-    
-    return render_template("admin_login.html")
+    """Redireciona para o login unificado"""
+    return redirect("/login")
 
 
 # ============================================

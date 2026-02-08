@@ -26,6 +26,8 @@ def create_user_model(db):
         orders = db.relationship('Order', backref='user', lazy=True)
         reviews = db.relationship('Review', backref='user', lazy=True)
         cart_items = db.relationship('CartItem', backref='user', lazy=True)
+        addresses = db.relationship('Address', backref='user', lazy=True, cascade='all, delete-orphan')
+        payment_methods = db.relationship('PaymentMethod', backref='user', lazy=True, cascade='all, delete-orphan')
         
         def __repr__(self):
             return f'<User {self.id}: {self.email}>'

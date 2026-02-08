@@ -7,9 +7,9 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import stripe
-from flask import Flask
+from flask import Flask, request, render_template
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -32,9 +32,25 @@ config_class = get_config(env)
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config.from_object(config_class)
 
+# Sobrescrever configurações de cookies em development para permitir HTTP
+if env == 'development':
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    print("🔓 Cookies de sessão configurados para HTTP (desenvolvimento)")
+
 # Inicializar extensões de segurança
 db = SQLAlchemy(app)
-csrf = CSRFProtect(app)
+
+# Inicializar CSRF apenas se habilitado na configuração
+if app.config.get('WTF_CSRF_ENABLED', True):
+    csrf = CSRFProtect(app)
+    # Configurar cookie CSRF
+    app.config.setdefault('WTF_CSRF_COOKIE_HTTPONLY', False)
+    app.config.setdefault('WTF_CSRF_COOKIE_SAMESITE', 'Lax')
+else:
+    csrf = None
+    
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
@@ -55,6 +71,15 @@ logger.info("🍯 Iniciando EJM Santos - Loja de Mel Natural")
 logger.info("="*50)
 
 register_error_handlers(app, logger)
+
+# Handler de erro CSRF (apenas se CSRF estiver habilitado)
+if app.config.get('WTF_CSRF_ENABLED', True):
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        logger.error(f"❌ CSRF Error: {e.description} - IP: {request.remote_addr if request else 'unknown'}")
+        if request.path.startswith('/api/'):
+            return {'error': 'CSRF token missing or invalid'}, 400
+        return render_template('login.html', erro='Erro de segurança. Recarregue a página e tente novamente.'), 400
 
 # ============================================
 # CONFIGURAR STRIPE
@@ -78,7 +103,7 @@ except Exception as e:
 # Importar e inicializar todos os modelos ANTES de criar as tabelas
 from app.models import init_models
 
-User, Product, Order, OrderItem, Review, CartItem = init_models(db)
+User, Product, Order, OrderItem, Review, CartItem, Address, PaymentMethod = init_models(db)
 
 # Configurar diretório de upload
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
@@ -106,6 +131,7 @@ from app.routes import (
     products_bp, init_products,
     payment_bp, init_payment
 )
+from app.routes.profile import profile_bp, init_profile
 
 # Inicializar blueprints com suas dependências
 models_dict = {
@@ -114,7 +140,9 @@ models_dict = {
     'Order': Order,
     'OrderItem': OrderItem,
     'Review': Review,
-    'CartItem': CartItem
+    'CartItem': CartItem,
+    'Address': Address,
+    'PaymentMethod': PaymentMethod
 }
 
 # Auth Blueprint
@@ -137,34 +165,21 @@ init_payment(db, models_dict, logger, email_service, CartHelper, OrderHelper, ST
 app.register_blueprint(payment_bp)
 logger.info("✅ Blueprint de pagamento registrado")
 
+# Profile Blueprint
+init_profile(db, models_dict, logger)
+app.register_blueprint(profile_bp)
+logger.info("✅ Blueprint de perfil registrado")
+
 # ============================================
 # HEADERS DE SEGURANÇA
 # ============================================
 
+from app.utils.security import apply_security_headers
+
 @app.after_request
 def security_headers(response):
-    """Adiciona headers de segurança"""
-    # Cache control
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    
-    # Segurança
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    
-    # Política de conteúdo (permite Stripe)
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://js.stripe.com; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: https:; "
-        "font-src 'self' data:; "
-        "connect-src 'self' https://api.stripe.com; "
-        "frame-src https://js.stripe.com;"
-    )
-    
-    return response
+    """Adiciona headers de segurança otimizados"""
+    return apply_security_headers(response, app.config)
 
 # ============================================
 # EXECUÇÃO
@@ -184,8 +199,12 @@ if __name__ == "__main__":
     # Info de ambiente
     logger.info(f"🌍 Ambiente: {env}")
     logger.info(f"🔒 CSRF: {'Ativo' if app.config['WTF_CSRF_ENABLED'] else 'Inativo'}")
+    logger.info(f"🔐 HTTPS Force: {'Ativo' if app.config.get('FORCE_HTTPS', False) else 'Inativo'}")
     logger.info(f"⚡ Rate Limiting: {'Ativo' if app.config.get('RATELIMIT_ENABLED', True) else 'Inativo'}")
-    logger.info("🚀 Servidor iniciando em http://0.0.0.0:5000")
+    
+    # URL de acesso
+    protocol = 'https' if app.config.get('FORCE_HTTPS', False) else 'http'
+    logger.info(f"🚀 Servidor iniciando em {protocol}://0.0.0.0:5000")
     logger.info("="*50)
     
     app.run(host="0.0.0.0", port=5000, debug=app.config['DEBUG'])

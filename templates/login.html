@@ -12,6 +12,7 @@
       {% endif %}
 
       <form action="/login" method="POST" id="form-login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <input name="email" id="email" placeholder="Email" required />
         <input name="senha" id="senha" type="password" placeholder="Senha" required />
         <button type="submit">Entrar</button>
@@ -43,56 +44,5 @@
   </div>
 </section>
 
-<script>
-  const loginC = document.getElementById('login-container');
-  const cadC = document.getElementById('cadastro-container');
-  const msg = document.getElementById('msg');
-
-  // Alternar para CADASTRO
-  document.getElementById('mostrar-cadastro').onclick = (e) => {
-    e.preventDefault();
-    loginC.style.display = "none";
-    cadC.style.display = "block";
-  };
-
-  // Alternar para LOGIN
-  document.getElementById('mostrar-login').onclick = (e) => {
-    e.preventDefault();
-    cadC.style.display = "none";
-    loginC.style.display = "block";
-    msg.textContent = "";
-  };
-
-  // CADASTRO VIA /api/register
-  document.getElementById('btn-cad').onclick = async () => {
-    const nome = document.getElementById('nome-cad').value.trim();
-    const email = document.getElementById('email-cad').value.trim();
-    const senha = document.getElementById('senha-cad').value.trim();
-
-    if (!nome || !email || !senha) {
-      msg.textContent = 'Preencha todos os campos.';
-      msg.style.color = 'red';
-      return;
-    }
-
-    const res = await fetch('/api/register', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ nome, email, senha })
-    });
-
-    const j = await res.json();
-    if (res.ok) {
-      msg.textContent = '✅ Cadastro realizado! Faça login agora.';
-      msg.style.color = 'green';
-      setTimeout(() => {
-        cadC.style.display = "none";
-        loginC.style.display = "block";
-      }, 2000);
-    } else {
-      msg.textContent = j.message || 'Erro ao cadastrar.';
-      msg.style.color = 'red';
-    }
-  };
-</script>
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
 {% endblock %}
