@@ -7,11 +7,9 @@
     
     const toggle = document.getElementById('menu-toggle');
     const menu = document.getElementById('menu');
-    const closeBtn = document.getElementById('menu-close');
     
     console.log('🔧 DEBUG: Toggle encontrado?', !!toggle);
     console.log('🔧 DEBUG: Menu encontrado?', !!menu);
-    console.log('🔧 DEBUG: Botão fechar encontrado?', !!closeBtn);
     
     if (!toggle || !menu) {
       console.error('❌ DEBUG: Elementos do menu não encontrados!');
@@ -61,36 +59,27 @@
       }
     }, { passive: false });
     
-    // Botão de fechar
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function(e) {
-        console.log('🔧 DEBUG: Clique no botão X');
-        e.preventDefault();
-        e.stopPropagation();
-        fecharMenu();
-      });
-      
-      closeBtn.addEventListener('touchstart', function(e) {
-        console.log('🔧 DEBUG: Touch no botão X');
-        e.preventDefault();
-        e.stopPropagation();
-        fecharMenu();
-      }, { passive: false });
-    }
-    
     // Fechar menu ao clicar em um link
     menuLinks.forEach(function(link, index) {
       link.addEventListener('click', function(e) {
         console.log('🔧 DEBUG: Clique no link', index, link.href);
-        // NÃO prevenir default - deixar navegação acontecer
         setTimeout(fecharMenu, 100);
       });
       
       link.addEventListener('touchend', function(e) {
         console.log('🔧 DEBUG: Touch no link', index, link.href);
-        // NÃO prevenir default - deixar navegação acontecer  
         setTimeout(fecharMenu, 100);
       });
+    });
+    
+    // Fechar menu ao clicar no overlay (área escura)
+    document.addEventListener('click', function(e) {
+      if (menu.classList.contains('ativo') && 
+          !menu.contains(e.target) && 
+          !toggle.contains(e.target)) {
+        console.log('🔧 DEBUG: Clique no overlay - fechando');
+        fecharMenu();
+      }
     });
     
     console.log('✅ DEBUG: Menu mobile inicializado com sucesso!');
