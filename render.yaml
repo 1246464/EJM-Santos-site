@@ -1,7 +1,17 @@
-envVars:
-  - key: MP_ACCESS_TOKEN
-    sync: false
-  - key: PUBLIC_BASE_URL
-    value: https://ejm-santos-site-1.onrender.com
-  - key: EJM_SECRET
-    sync: false
+services:
+  - type: web
+    name: ejm-santos-site
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    envVars:
+      - key: EJM_SECRET
+        sync: false
+      - key: FLASK_ENV
+        value: production
+      - key: STRIPE_PUBLIC_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        value: https://ejm-santos-site-1.onrender.com
