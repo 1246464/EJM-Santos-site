@@ -35,91 +35,44 @@
     @media (max-width: 768px) {
       nav.menu {
         display: none;
-        position: fixed;
-        top: 0;
-        right: -300px;
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        position: absolute;
+        top: 60px;
+        right: 10px;
+        background: white;
         flex-direction: column;
-        width: 280px;
-        height: 100vh;
-        border-left: 1px solid rgba(246, 184, 0, 0.3);
-        box-shadow: -4px 0 24px rgba(0,0,0,0.15);
-        z-index: 10000;
-        overflow-y: auto;
-        padding-top: 80px;
-        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 200px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        padding: 8px 0;
       }
 
       nav.menu a {
-        padding: 18px 24px;
-        margin: 4px 12px;
-        border-radius: 8px;
-        font-size: 1.05rem;
-        transition: all 0.2s ease;
+        padding: 12px 16px;
+        font-size: 1rem;
         color: #333;
         text-decoration: none;
         display: block;
-        font-weight: 500;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      nav.menu a::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        width: 4px;
-        background: #F6B800;
-        transform: scaleY(0);
-        transition: transform 0.2s ease;
+        transition: background 0.15s;
       }
 
       nav.menu a:active {
-        background: linear-gradient(90deg, #F6B800 0%, #FFC107 100%);
+        background: #FFC107;
         color: #000;
-        transform: translateX(4px);
-      }
-      
-      nav.menu a:active::before {
-        transform: scaleY(1);
       }
 
       nav.menu.ativo {
         display: flex;
-        right: 0;
       }
 
       .menu-toggle {
         display: flex;
-        z-index: 10002;
-      }
-
-      .menu-close {
-        display: none;
+        z-index: 1001;
       }
 
       .botao-topo {
         display: none;
-      }
-      
-      /* Overlay suave para fechar menu */
-      body.menu-aberto::after {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.4);
-        z-index: 9999;
-        animation: fadeIn 0.3s ease;
-      }
-      
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
       }
     }
   </style>
