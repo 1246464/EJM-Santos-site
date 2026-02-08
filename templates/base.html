@@ -26,19 +26,28 @@
     @media (max-width: 768px) {
       nav.menu {
         display: none;
-        position: absolute;
+        position: fixed;
         top: 60px;
         right: 0;
-        background: #f8f8f8;
+        background: #fff;
         flex-direction: column;
-        width: 200px;
-        border-left: 1px solid #ddd;
-        box-shadow: -2px 4px 10px rgba(0,0,0,0.1);
+        width: 250px;
+        height: calc(100vh - 60px);
+        border-left: 2px solid #ddd;
+        box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+        z-index: 9999;
+        overflow-y: auto;
       }
 
       nav.menu a {
-        padding: 12px;
+        padding: 16px 20px;
         border-bottom: 1px solid #eee;
+        font-size: 1.1rem;
+        transition: background 0.2s;
+      }
+
+      nav.menu a:hover {
+        background: #f0f0f0;
       }
 
       nav.menu.ativo {
@@ -47,10 +56,23 @@
 
       .menu-toggle {
         display: flex;
+        z-index: 10000;
       }
 
       .botao-topo {
         display: none;
+      }
+      
+      /* Overlay para fechar menu ao clicar fora */
+      body.menu-aberto::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9998;
       }
     }
   </style>
@@ -115,10 +137,33 @@
   </footer>
 
   <script>
+    // Menu Mobile
     const toggle = document.getElementById('menu-toggle');
     const menu = document.getElementById('menu');
+    const menuLinks = menu.querySelectorAll('a');
+    
+    // Abrir/fechar menu ao clicar no toggle
     toggle.addEventListener('click', () => {
       menu.classList.toggle('ativo');
+      document.body.classList.toggle('menu-aberto');
+    });
+    
+    // Fechar menu ao clicar em um link
+    menuLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        menu.classList.remove('ativo');
+        document.body.classList.remove('menu-aberto');
+      });
+    });
+    
+    // Fechar menu ao clicar fora (no overlay)
+    document.addEventListener('click', (e) => {
+      if (menu.classList.contains('ativo') && 
+          !menu.contains(e.target) && 
+          !toggle.contains(e.target)) {
+        menu.classList.remove('ativo');
+        document.body.classList.remove('menu-aberto');
+      }
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
