@@ -60,16 +60,17 @@ def validate_password(password):
 def login_page():
     """Página de login de usuários"""
     if request.method == "POST":
+        email = None
+        user = None
         try:
             # Debug: verificar dados recebidos
             logger.info(f"📥 Login POST recebido - IP: {request.remote_addr}")
             logger.info(f"📝 Form data keys: {list(request.form.keys())}")
-            logger.info(f"🔑 CSRF token no form: {request.form.get('csrf_token', 'MISSING')[:20]}...")
-            logger.info(f"🍪 Cookies: {list(request.cookies.keys())}")
-            logger.info(f"🔐 Session before: {dict(session)}")
             
             email = request.form.get("email", "").strip().lower()
             senha = request.form.get("senha", "")
+            
+            logger.info(f"📧 Email recebido: {email}")
             
             # Validação de entrada
             if not email or not senha:
@@ -77,28 +78,40 @@ def login_page():
                 return render_template("login.html", erro="Preencha todos os campos.")
             
             # Buscar usuário
+            logger.info(f"🔍 Buscando usuário no banco: {email}")
             user = User.query.filter_by(email=email).first()
+            logger.info(f"👤 Usuário encontrado: {user is not None}")
             
             if user and check_password_hash(user.senha_hash, senha):
                 # Login bem-sucedido
+                logger.info(f"✅ Senha válida para: {user.email}")
+                
                 session["user_id"] = user.id
                 session["user_name"] = user.nome
                 session["is_admin"] = user.is_admin
                 session.permanent = True
                 
-                logger.info(f"✅ Login - User: {user.id} ({user.email}) - Admin: {user.is_admin} - IP: {request.remote_addr}")
+                logger.info(f"✅ Login OK - User: {user.id} ({user.email}) - Admin: {user.is_admin} - IP: {request.remote_addr}")
+                logger.info(f"🔐 Session after: {dict(session)}")
                 
                 # Redirecionar admin para dashboard, usuário normal para home
                 if user.is_admin:
+                    logger.info(f"🔄 Redirecionando admin para /admin")
                     return redirect("/admin")
+                logger.info(f"🔄 Redirecionando usuário para /")
                 return redirect("/")
             
             # Credenciais inválidas
-            logger.warning(f"❌ Login falhou: {email} - IP: {request.remote_addr}")
+            if user:
+                logger.warning(f"❌ Senha incorreta para: {email} - IP: {request.remote_addr}")
+            else:
+                logger.warning(f"❌ Usuário não encontrado: {email} - IP: {request.remote_addr}")
             return render_template("login.html", erro="Email ou senha inválidos.")
         
         except Exception as e:
-            logger.error(f"❌ Erro no login: {str(e)}", exc_info=True)
+            logger.error(f"❌ ERRO CRÍTICO NO LOGIN: {type(e).__name__}: {str(e)}", exc_info=True)
+            logger.error(f"📧 Email tentado: {email if 'email' in locals() else 'N/A'}")
+            logger.error(f"🔍 User encontrado: {'user' in locals() and user is not None}")
             return render_template("login.html", erro="Erro ao processar login. Tente novamente.")
     
     # GET request

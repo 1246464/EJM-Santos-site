@@ -19,7 +19,19 @@ class Config:
     # Segurança
     SECRET_KEY = os.getenv("EJM_SECRET")
     if not SECRET_KEY:
-        raise ValueError("❌ EJM_SECRET não configurado! Gere uma chave segura com: python -c 'import secrets; print(secrets.token_hex(32))'")
+        # Em desenvolvimento, gerar chave temporária
+        # Em produção, DEVE ser configurada como variável de ambiente
+        import sys
+        if os.getenv("FLASK_ENV") == "production":
+            print("❌ ERRO: EJM_SECRET não configurado em produção!")
+            print("Configure no Render: Dashboard > Environment > Add Secret File")
+            print("Nome: EJM_SECRET")
+            print(f"Valor: {secrets.token_hex(32)}")
+            sys.exit(1)
+        else:
+            SECRET_KEY = secrets.token_hex(32)
+            print(f"⚠️  Usando SECRET_KEY temporária (desenvolvimento)")
+            print(f"   Para produção, defina EJM_SECRET no .env")
     
     # Banco de dados
     SQLALCHEMY_TRACK_MODIFICATIONS = False
