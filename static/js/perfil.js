@@ -29,7 +29,7 @@ function abrirModalEndereco() {
 }
 
 function abrirModalCartao() {
-  alert('Funcionalidade de adicionar cartão em desenvolvimento\n\nPara segurança, cartões devem ser gerenciados diretamente no checkout.');
+  document.getElementById('modal-cartao').style.display = 'flex';
 }
 
 function fecharModal(modalId) {
@@ -51,10 +51,60 @@ document.getElementById('form-endereco')?.addEventListener('submit', async funct
   const formData = new FormData(this);
   const data = Object.fromEntries(formData);
   
-  console.log('Salvando endereço:', data);
-  alert('✅ Endereço salvo com sucesso!\n\n(Funcionalidade de backend em desenvolvimento)');
-  fecharModal('modal-endereco');
-  this.reset();
+  try {
+    const response = await fetch('/api/addresses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok) {
+      alert('✅ Endereço salvo com sucesso!');
+      fecharModal('modal-endereco');
+      this.reset();
+      location.reload();
+    } else {
+      alert('❌ Erro: ' + (result.error || 'Não foi possível salvar o endereço'));
+    }
+  } catch (error) {
+    console.error('Erro ao salvar endereço:', error);
+    alert('❌ Erro ao salvar endereço. Tente novamente.');
+  }
+});
+
+// Form de Cartão
+document.getElementById('form-cartao')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const data = Object.fromEntries(formData);
+  
+  try {
+    const response = await fetch('/api/payment-methods', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok) {
+      alert('✅ Cartão salvo com sucesso!');
+      fecharModal('modal-cartao');
+      this.reset();
+      location.reload();
+    } else {
+      alert('❌ Erro: ' + (result.error || 'Não foi possível salvar o cartão'));
+    }
+  } catch (error) {
+    console.error('Erro ao salvar cartão:', error);
+    alert('❌ Erro ao salvar cartão. Tente novamente.');
+  }
 });
 
 // Form de Alterar Senha
@@ -97,6 +147,38 @@ document.querySelector('input[name="telefone"]')?.addEventListener('input', func
     value = '(' + value.slice(0, 2) + ') ' + value.slice(2, 6) + '-' + value.slice(6);
   } else if (value.length > 2) {
     value = '(' + value.slice(0, 2) + ') ' + value.slice(2);
+  }
+  e.target.value = value;
+});
+
+// Máscara de Número de Cartão
+document.getElementById('numero-cartao')?.addEventListener('input', function(e) {
+  let value = e.target.value.replace(/\D/g, '');
+  value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+  e.target.value = value.slice(0, 19);
+});
+
+// Máscara de Validade do Cartão
+document.getElementById('validade-cartao')?.addEventListener('input', function(e) {
+  let value = e.target.value.replace(/\D/g, '');
+  if (value.length >= 2) {
+    value = value.slice(0, 2) + '/' + value.slice(2, 4);
+  }
+  e.target.value = value;
+});
+
+// Máscara de CVV
+document.getElementById('cvv-cartao')?.addEventListener('input', function(e) {
+  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+});
+
+// Máscara de CPF
+document.getElementById('cpf-cartao')?.addEventListener('input', function(e) {
+  let value = e.target.value.replace(/\D/g, '');
+  if (value.length <= 11) {
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
   }
   e.target.value = value;
 });

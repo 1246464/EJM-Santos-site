@@ -267,65 +267,135 @@ def add_payment_method():
     if not data:
         return jsonify({"error": "Dados inválidos"}), 400
     
+    # Verificar se tem stripe_payment_method_id (integração com Stripe)
     stripe_pm_id = data.get('stripe_payment_method_id')
-    apelido = data.get('apelido', '').strip()
     
-    if not stripe_pm_id:
-        return jsonify({"error": "ID do método de pagamento é obrigatório"}), 400
-    
-    if not apelido:
-        return jsonify({"error": "Apelido é obrigatório"}), 400
-    
-    try:
-        # Buscar informações do cartão no Stripe
+    if stripe_pm_id:
+        # Fluxo com Stripe (checkout)
+        apelido = data.get('apelido', '').strip()
+        
+        if not apelido:
+            return jsonify({"error": "Apelido é obrigatório"}), 400
+        
         try:
-            stripe_pm = stripe.PaymentMethod.retrieve(stripe_pm_id)
-            card = stripe_pm.card
-        except stripe.error.StripeError as e:
-            logger.error(f"Erro ao buscar payment method no Stripe: {str(e)}")
-            return jsonify({"error": "Cartão inválido ou não encontrado"}), 400
-        
-        # Verificar se já existe
-        existing = PaymentMethod.query.filter_by(stripe_payment_method_id=stripe_pm_id).first()
-        if existing:
-            return jsonify({"error": "Este cartão já está salvo"}), 409
-        
-        # Se é o primeiro cartão ou marcado como padrão, setar como default
-        is_default = data.get('is_default', False)
-        existing_count = PaymentMethod.query.filter_by(user_id=user_id).count()
-        
-        if existing_count == 0:
-            is_default = True
-        elif is_default:
-            # Remover default de outros cartões
-            PaymentMethod.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
-        
-        # Criar novo método de pagamento
-        payment_method = PaymentMethod(
-            user_id=user_id,
-            apelido=apelido,
-            stripe_payment_method_id=stripe_pm_id,
-            card_brand=card.brand,
-            card_last4=card.last4,
-            card_exp_month=card.exp_month,
-            card_exp_year=card.exp_year,
-            is_default=is_default
-        )
-        
-        db.session.add(payment_method)
-        db.session.commit()
-        
-        logger.info(f"✅ Método de pagamento adicionado - User: {user_id} - ID: {payment_method.id}")
-        
-        return jsonify({
-            "message": "Cartão salvo com sucesso",
-            "payment_method": payment_method.to_dict()
-        }), 201
+            # Buscar informações do cartão no Stripe
+            try:
+                stripe_pm = stripe.PaymentMethod.retrieve(stripe_pm_id)
+                card = stripe_pm.card
+            except stripe.error.StripeError as e:
+                logger.error(f"Erro ao buscar payment method no Stripe: {str(e)}")
+                return jsonify({"error": "Cartão inválido ou não encontrado"}), 400
+            
+            # Verificar se já existe
+            existing = PaymentMethod.query.filter_by(stripe_payment_method_id=stripe_pm_id).first()
+            if existing:
+                return jsonify({"error": "Este cartão já está salvo"}), 409
+            
+            # Se é o primeiro cartão ou marcado como padrão, setar como default
+            is_default = data.get('is_default', False)
+            existing_count = PaymentMethod.query.filter_by(user_id=user_id).count()
+            
+            if existing_count == 0:
+                is_default = True
+            elif is_default:
+                # Remover default de outros cartões
+                PaymentMethod.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+            
+            # Criar novo método de pagamento
+            payment_method = PaymentMethod(
+                user_id=user_id,
+                apelido=apelido,
+                stripe_payment_method_id=stripe_pm_id,
+                card_brand=card.brand,
+                card_last4=card.last4,
+                card_exp_month=card.exp_month,
+                card_exp_year=card.exp_year,
+                is_default=is_default
+            )
+            
+            db.session.add(payment_method)
+            db.session.commit()
+            
+            logger.info(f"✅ Método de pagamento adicionado via Stripe - User: {user_id} - ID: {payment_method.id}")
+            
+            return jsonify({
+                "message": "Cartão salvo com sucesso",
+                "payment_method": payment_method.to_dict()
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao adicionar método de pagamento via Stripe - User: {user_id}: {str(e)}")
+            return jsonify({"error": "Erro ao salvar cartão"}), 500
     
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Erro ao adicionar método de pagamento - User: {user_id}: {str(e)}")
-        return jsonify({"error": "Erro ao salvar cartão"}), 500
+    else:
+        # Fluxo simplificado - salvar apenas informações básicas
+        # ATENÇÃO: Em produção, nunca armazene número completo ou CVV!
+        # Este é apenas para demonstração
+        required_fields = ['apelido', 'numero', 'validade', 'nome_titular']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"Campo '{field}' é obrigatório"}), 400
+        
+        try:
+            # Extrair últimos 4 dígitos e determinar bandeira
+            numero_limpo = data['numero'].replace(' ', '').replace('-', '')
+            last4 = numero_limpo[-4:]
+            
+            # Determinar bandeira pelo primeiro dígito
+            first_digit = numero_limpo[0]
+            if first_digit == '4':
+                brand = 'visa'
+            elif first_digit == '5':
+                brand = 'mastercard'
+            elif first_digit == '3':
+                brand = 'amex'
+            else:
+                brand = 'unknown'
+            
+            # Extrair mês e ano da validade
+            validade_parts = data['validade'].split('/')
+            if len(validade_parts) != 2:
+                return jsonify({"error": "Validade inválida. Use MM/AA"}), 400
+            
+            exp_month = int(validade_parts[0])
+            exp_year = int('20' + validade_parts[1])  # Assume 20XX
+            
+            # Verificar se é o primeiro cartão
+            is_default = data.get('is_default', False)
+            existing_count = PaymentMethod.query.filter_by(user_id=user_id).count()
+            
+            if existing_count == 0:
+                is_default = True
+            elif is_default:
+                PaymentMethod.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+            
+            # Criar método de pagamento sem Stripe
+            payment_method = PaymentMethod(
+                user_id=user_id,
+                apelido=data['apelido'].strip(),
+                stripe_payment_method_id=None,  # Sem integração Stripe
+                card_brand=brand,
+                card_last4=last4,
+                card_exp_month=exp_month,
+                card_exp_year=exp_year,
+                is_default=is_default
+            )
+            
+            db.session.add(payment_method)
+            db.session.commit()
+            
+            logger.info(f"✅ Método de pagamento adicionado (sem Stripe) - User: {user_id} - ID: {payment_method.id}")
+            
+            return jsonify({
+                "message": "Cartão salvo com sucesso",
+                "payment_method": payment_method.to_dict()
+            }), 201
+        
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao adicionar método de pagamento - User: {user_id}: {str(e)}")
+            return jsonify({"error": "Erro ao salvar cartão"}), 500
 
 
 @profile_bp.route('/api/payment-methods/<int:pm_id>', methods=['DELETE'])
