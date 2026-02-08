@@ -39,17 +39,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (!nome || !email || !senha) {
         if (msg) {
-          msg.textContent = 'Preencha todos os campos.';
-          msg.style.color = 'red';
+          msg.textContent = '⚠️ Preencha todos os campos.';
+          msg.style.color = '#ff9800';
         }
         return;
       }
 
+      // Validações básicas no frontend
+      if (nome.length < 3) {
+        if (msg) {
+          msg.textContent = '⚠️ Nome deve ter no mínimo 3 caracteres.';
+          msg.style.color = '#ff9800';
+        }
+        return;
+      }
+
+      if (senha.length < 8) {
+        if (msg) {
+          msg.textContent = '⚠️ Senha deve ter no mínimo 8 caracteres.';
+          msg.style.color = '#ff9800';
+        }
+        return;
+      }
+
+      // Desabilitar botão durante requisição
+      btnCad.disabled = true;
+      btnCad.textContent = 'Criando conta...';
+
       try {
+        // Obter CSRF token do meta tag ou input hidden
+        let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!csrfToken) {
+          csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
+        }
+        
+        if (!csrfToken) {
+          throw new Error('Token CSRF não encontrado. Recarregue a página.');
+        }
+        
         const res = await fetch('/api/register', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
           },
           body: JSON.stringify({ nome, email, senha })
         });
@@ -63,24 +95,35 @@ document.addEventListener('DOMContentLoaded', function() {
         if (res.ok) {
           if (msg) {
             msg.textContent = '✅ Cadastro realizado! Faça login agora.';
-            msg.style.color = 'green';
+            msg.style.color = '#4caf50';
           }
+          
+          // Limpar campos
+          document.getElementById('nome-cad').value = '';
+          document.getElementById('email-cad').value = '';
+          document.getElementById('senha-cad').value = '';
+          
           setTimeout(() => {
             cadC.style.display = "none";
             loginC.style.display = "block";
+            if (msg) msg.textContent = '';
           }, 2000);
         } else {
           if (msg) {
-            msg.textContent = j.message || 'Erro ao cadastrar.';
-            msg.style.color = 'red';
+            msg.textContent = '❌ ' + (j.message || 'Erro ao cadastrar.');
+            msg.style.color = '#f44336';
           }
         }
       } catch (error) {
         console.error('Erro ao cadastrar:', error);
         if (msg) {
-          msg.textContent = 'Erro de conexão. Tente novamente.';
-          msg.style.color = 'red';
+          msg.textContent = '❌ ' + (error.message || 'Erro de conexão. Tente novamente.');
+          msg.style.color = '#f44336';
         }
+      } finally {
+        // Reabilitar botão
+        btnCad.disabled = false;
+        btnCad.textContent = 'Criar conta';
       }
     };
   }
