@@ -137,33 +137,40 @@
   </footer>
 
   <script>
-    // Menu Mobile
-    const toggle = document.getElementById('menu-toggle');
-    const menu = document.getElementById('menu');
-    const menuLinks = menu.querySelectorAll('a');
-    
-    // Abrir/fechar menu ao clicar no toggle
-    toggle.addEventListener('click', () => {
-      menu.classList.toggle('ativo');
-      document.body.classList.toggle('menu-aberto');
-    });
-    
-    // Fechar menu ao clicar em um link
-    menuLinks.forEach(link => {
-      link.addEventListener('click', () => {
-        menu.classList.remove('ativo');
-        document.body.classList.remove('menu-aberto');
+    // Menu Mobile - Executar depois que o DOM carregar
+    document.addEventListener('DOMContentLoaded', function() {
+      const toggle = document.getElementById('menu-toggle');
+      const menu = document.getElementById('menu');
+      
+      if (!toggle || !menu) return; // Proteção se elementos não existirem
+      
+      const menuLinks = menu.querySelectorAll('a');
+      
+      // Abrir/fechar menu ao clicar no toggle
+      toggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        menu.classList.toggle('ativo');
+        document.body.classList.toggle('menu-aberto');
       });
-    });
-    
-    // Fechar menu ao clicar fora (no overlay)
-    document.addEventListener('click', (e) => {
-      if (menu.classList.contains('ativo') && 
-          !menu.contains(e.target) && 
-          !toggle.contains(e.target)) {
-        menu.classList.remove('ativo');
-        document.body.classList.remove('menu-aberto');
-      }
+      
+      // Fechar menu ao clicar em um link
+      menuLinks.forEach(link => {
+        link.addEventListener('click', function() {
+          menu.classList.remove('ativo');
+          document.body.classList.remove('menu-aberto');
+        });
+      });
+      
+      // Fechar menu ao clicar fora (no overlay)
+      document.addEventListener('click', function(e) {
+        if (menu.classList.contains('ativo') && 
+            !menu.contains(e.target) && 
+            !toggle.contains(e.target)) {
+          menu.classList.remove('ativo');
+          document.body.classList.remove('menu-aberto');
+        }
+      });
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
