@@ -168,9 +168,10 @@ def get_content_security_policy(app_config):
         'frame-ancestors': ["'self'"],
     }
     
-    # Em desenvolvimento, permitir 'unsafe-eval' para debugging
+    # Em desenvolvimento, permitir inline scripts e eval
     if is_development:
-        csp_directives['script-src'].append("'unsafe-eval'")
+        csp_directives['script-src'].extend(["'unsafe-inline'", "'unsafe-eval'", "'unsafe-hashes'"])
+        logger.info("🔓 CSP relaxado para desenvolvimento (unsafe-inline permitido)")
     
     # Converter para string
     csp_parts = []
