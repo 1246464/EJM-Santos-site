@@ -1,27 +1,43 @@
 # 🚀 Configuração no Render
 
-## ✅ Inicialização Automática
+## ⚠️ IMPORTANTE: SQLite não funciona no Render!
 
-O sistema agora **inicializa automaticamente** no primeiro deploy:
-- ✅ Cria todas as tabelas do banco
-- ✅ Cria usuário admin (admin@ejmsantos.com / admin123)
-- ✅ Gera SECRET_KEY temporária se não configurada
+O Render tem sistema de arquivos **efêmero** (apaga a cada deploy).  
+**Você PRECISA usar PostgreSQL** para dados persistentes.
 
-## 1. Deploy Básico (Funcional)
+## ✅ Passo 1: Adicionar PostgreSQL no Render
 
-Apenas faça o deploy normalmente! O app vai:
-1. Instalar dependências
-2. Executar `init_render.py` automaticamente
-3. Criar banco e admin
-4. Iniciar servidor
+### 1.1 No Dashboard do Render:
+1. Clique em **"New +"** → **"PostgreSQL"**
+2. Preencha:
+   - **Name**: `ejm-santos-db`
+   - **Database**: `ejm_santos`
+   - **User**: `ejm_santos_user`
+   - **Region**: Mesma do seu web service
+   - **Plan**: Free (adequado para começar)
+3. Clique em **"Create Database"**
 
-**⚠️ Limitação**: Sessões não persistem entre restarts sem SECRET_KEY configurada.
+### 1.2 Aguarde a criação (~2min):
+- Status ficará **"Available"**
+- Copie a **"Internal Database URL"** (começa com `postgres://`)
 
-## 2. Configuração Recomendada (Produção)
+### 1.3 Conectar ao Web Service:
+1. Vá no seu web service (`ejm-santos-site`)
+2. **Environment** → **Add Environment Variable**
+3. Nome: `DATABASE_URL`
+4. Valor: Cole a Internal Database URL
+5. **Save Changes**
 
-Para **persistir sessões** entre restarts, configure:
+O formato será:
+```
+postgres://ejm_santos_user:senha@dpg-xxxxx/ejm_santos
+```
 
-### Dashboard Render → Environment → Add Environment Variable
+## ✅ Passo 2: Configurar SECRET_KEY (Opcional mas Recomendado)
+
+Para **persistir sessões** entre restarts:
+
+### Dashboard Render → Web Service → Environment
 
 ```bash
 EJM_SECRET=<cole_a_chave_abaixo>
@@ -37,7 +53,86 @@ Exemplo:
 EJM_SECRET=5043a2b89a10c3d4b15a5858c566194ce3fee12d5f045103f1f0bb828ec78936
 ```
 
-## 3. Credenciais Padrão
+## 4. Testar o Login
+
+Acesse: `https://seu-app.onrender.com/login`
+
+**Credenciais:**
+- **Email**: admin@ejmsantos.com
+- **Senha**: admin123
+
+**⚠5. Diagnóstico
+
+Acesse: `https://seu-app.onrender.com/diagnostico`
+
+**Deve mostrar:**
+```json
+{
+  "sistema": "EJM Santos",
+  "status": "OK",
+  "checks": {
+    "database": {
+      "status": "✅ conectado",
+      "usuarios": 1,
+      "admin_cadastrado": "✅ sim",
+      "produtos": 0
+    }
+  }
+}
+```
+
+## 6. Troubleshooting
+
+### ❌ "unable to open database file"
+
+**Causa**: Tentando usar SQLite (não funciona no Render)
+
+**Solução**: 
+1. Adicione PostgreSQL (Passo 1)
+2. Configure `DATABASE_URL` (Passo 1.3)
+3. Faça novo deploy
+
+### ❌ "Erro ao processar login" após adicionar PostgreSQL
+
+**Causa**: Banco vazio, admin não existe
+
+**Solução**: Aguarde o build terminar. O `init_render.py` cria o admin automaticamente.
+
+### ⚠️ Logs mostram "SQLite" ao invés de "PostgreSQL"
+
+**Causa**: `DATABASE_URL` não foi configurada corretamente
+
+**Verificar**:
+1. Environment → Variável `DATABASE_URL` existe?
+2. Valor começa com `postgres://` ou `postgresql://`?
+3. Fez novo deploy após adicionar?
+
+### ⚠️ Sessão não mantém login
+
+**Causa**: `EJM_SECRET` não configurada
+
+**Solução**: Configure `EJM_SECRET` no Passo 2
+
+## 📋 Resumo Rápido
+
+1. ✅ Criar PostgreSQL no Render
+2. ✅ Copiar Internal Database URL  
+3. ✅ Adicionar `DATABASE_URL` no web service
+4. ✅ (Opcional) Adicionar `EJM_SECRET`
+5. ✅ Deploy
+6. ✅ Aguardar build (~3min)
+7. ✅ Testar login
+8. ✅ Verificar `/diagnostico`
+
+---
+
+## 📊 Variáveis de Ambiente CompletasgreSQL
+✅ PostgreSQL configurado
+✅ Tabelas criadas/verificadas
+✅ Admin criado: admin@ejmsantos.com / admin123
+```
+
+## 4. Testar o Login
 
 Após o deploy, use:
 - **Email**: admin@ejmsantos.com

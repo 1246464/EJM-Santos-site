@@ -22,14 +22,23 @@ print("="*60)
 print("🚀 INICIALIZAÇÃO AUTOMÁTICA - RENDER")
 print("="*60)
 
-# Verificar se é primeiro deploy
-if os.getenv("FLASK_ENV") != "production":
-    print("⚠️  Não é produção, pulando inicialização automática")
-    sys.exit(0)
+# Verificar ambiente
+flask_env = os.getenv("FLASK_ENV", "production")
+print(f"📌 Ambiente: {flask_env}")
 
-# Criar app Flask
+# Criar diretório instance com permissões corretas
 instance_dir = Path(__file__).resolve().parent / 'instance'
-instance_dir.mkdir(exist_ok=True)
+try:
+    instance_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
+    print(f"✅ Diretório instance criado: {instance_dir}")
+    print(f"   Permissões: {oct(instance_dir.stat().st_mode)[-3:]}")
+    print(f"   Existe: {instance_dir.exists()}")
+    print(f"   É diretório: {instance_dir.is_dir()}")
+    print(f"   Pode escrever: {os.access(instance_dir, os.W_OK)}")
+except Exception as e:
+    print(f"❌ Erro ao criar diretório instance: {e}")
+    import traceback
+    traceback.print_exc()
 
 app = Flask(__name__)
 
@@ -37,15 +46,31 @@ app = Flask(__name__)
 database_url = os.getenv("DATABASE_URL")
 if database_url:
     # Render PostgreSQL
+    print(f"🐘 DATABASE_URL detectada, usando PostgreSQL")
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print(f"✅ Usando PostgreSQL do Render")
+    print(f"✅ PostgreSQL configurado")
 else:
-    # SQLite local
+    # SQLite local - verificar se diretório é gravável
     db_path = instance_dir / 'ejm_dev.db'
+    print(f"💾 Usando SQLite: {db_path}")
+    print(f"   Diretório pai existe: {db_path.parent.exists()}")
+    print(f"   Diretório pai gravável: {os.access(db_path.parent, os.W_OK)}")
+    
+    # Tentar criar arquivo vazio para testar permissões
+    try:
+        test_file = instance_dir / 'test_write.tmp'
+        test_file.touch()
+        test_file.unlink()
+        print(f"✅ Teste de escrita: OK")
+    except Exception as e:
+        print(f"❌ Teste de escrita FALHOU: {e}")
+        print(f"⚠️  ATENÇÃO: SQLite pode não funcionar no Render!")
+        print(f"💡 Configure DATABASE_URL para usar PostgreSQL")
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-    print(f"✅ Usando SQLite local: {db_path}")
+    print(f"✅ SQLite configurado")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -70,12 +95,19 @@ with app.app_context():
             admin = User(
                 nome="Admin EJM",
                 email=admin_email,
-                senha_hash=generate_password_hash("admin123"),
-                is_admin=True
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print(f"✅ Admin criado: {admin_email} / admin123")
+                sen final
+        print("\n" + "="*60)
+        print("✅ INICIALIZAÇÃO COMPLETA!")
+        print(f"   • Banco: {'PostgreSQL' if database_url else 'SQLite'}")
+        print(f"   • Tabelas: OK")
+        print(f"   • Admin: {admin.email} / admin123")
+        print(f"   • Produtos: {product_count}")
+        
+        if not database_url:
+            print(f"\n⚠️  AVISO: Usando SQLite (efêmero no Render)")
+            print(f"   Banco será apagado a cada deploy!")
+            print(f"   Configure DATABASE_URL para PostgreSQL persistente")
+        } / admin123")
         else:
             print(f"\n✅ Admin já existe: {admin.email}")
         
