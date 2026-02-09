@@ -1,21 +1,83 @@
 # 🚀 Configuração no Render
 
-## 1. Variáveis de Ambiente Obrigatórias
+## ✅ Inicialização Automática
 
-Acesse: **Dashboard > Environment > Environment Variables**
+O sistema agora **inicializa automaticamente** no primeiro deploy:
+- ✅ Cria todas as tabelas do banco
+- ✅ Cria usuário admin (admin@ejmsantos.com / admin123)
+- ✅ Gera SECRET_KEY temporária se não configurada
 
-### SECRET_KEY
+## 1. Deploy Básico (Funcional)
+
+Apenas faça o deploy normalmente! O app vai:
+1. Instalar dependências
+2. Executar `init_render.py` automaticamente
+3. Criar banco e admin
+4. Iniciar servidor
+
+**⚠️ Limitação**: Sessões não persistem entre restarts sem SECRET_KEY configurada.
+
+## 2. Configuração Recomendada (Produção)
+
+Para **persistir sessões** entre restarts, configure:
+
+### Dashboard Render → Environment → Add Environment Variable
+
 ```bash
-EJM_SECRET=<gere com: python -c "import secrets; print(secrets.token_hex(32))">
+EJM_SECRET=<cole_a_chave_abaixo>
 ```
 
-### Banco de Dados
+**Gere uma chave segura:**
 ```bash
-FLASK_ENV=production
-DATABASE_URL=<automático do Render>
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-### Email (opcional)
+Exemplo:
+```
+EJM_SECRET=5043a2b89a10c3d4b15a5858c566194ce3fee12d5f045103f1f0bb828ec78936
+```
+
+## 3. Credenciais Padrão
+
+Após o deploy, use:
+- **Email**: admin@ejmsantos.com
+- **Senha**: admin123
+
+**⚠️ IMPORTANTE**: Altere a senha após primeiro login!
+
+## 4. Verificar Status
+
+Acesse o endpoint de diagnóstico:
+```
+https://seu-app.onrender.com/diagnostico
+```
+
+Mostra:
+- ✅ Status do banco de dados
+- ✅ Variáveis de ambiente configuradas
+- ✅ Quantidade de usuários e produtos
+- ✅ Se admin existe
+
+## 5. Comandos Úteis (Shell do Render)
+
+### Resetar senha do admin
+```bash
+python resetar_senha_admin.py
+```
+
+### Verificar banco
+```bash
+python testar_banco.py
+```
+
+### Criar admin manualmente (se necessário)
+```bash
+python garantir_admin.py
+```
+
+## 📋 Variáveis de Ambiente Opcionais
+
+### Email (para notificações)
 ```bash
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -24,83 +86,47 @@ EMAIL_PASSWORD=sua-senha-de-app
 EMAIL_FROM_NAME=EJM Santos - Mel Natural
 ```
 
-### Stripe (opcional)
+### Stripe (pagamentos)
 ```bash
 STRIPE_PUBLIC_KEY=pk_live_...
 STRIPE_SECRET_KEY=sk_live_...
 ```
 
-### URL Pública
+### URL Pública (já configurada no render.yaml)
 ```bash
-PUBLIC_BASE_URL=https://ejm-santos-site.onrender.com
+PUBLIC_BASE_URL=https://seu-app.onrender.com
 ```
 
-## 2. Comandos de Build
-
-```bash
-Build Command: pip install -r requirements.txt
-Start Command: gunicorn application:app
-```
-
-## 3. Criar Usuário Admin
-
-Após deploy, execute no Render Shell:
-
-```bash
-python garantir_admin.py
-```
-
-Isso criará o usuário admin se não existir:
-- Email: admin@ejmsantos.com
-- Senha: admin123
-
-## 4. Ver Logs
-
-```bash
-# No Render Dashboard > Logs
-# Procure por erros de:
-# - SECRET_KEY não configurada
-# - Banco de dados não encontrado
-# - Erro ao criar tabelas
-```
-
-## 5. Resetar Banco de Dados
-
-Se precisar resetar o banco:
-
-```bash
-python scripts/database/init_db.py
-python garantir_admin.py
-```
-
-## 6. Testar Login
-
-1. Acesse: https://ejm-santos-site.onrender.com/login
-2. Use: admin@ejmsantos.com / admin123
-3. Deve redirecionar para /admin
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### "Erro ao processar login"
 
-**Causa**: SECRET_KEY não configurada ou banco não inicializado
+**Causa**: Banco não inicializado ou SECRET_KEY mudando
 
 **Solução**:
-1. Verificar variável `EJM_SECRET` no Render
-2. Executar `python garantir_admin.py` no Shell
-3. Ver logs para erro específico
+1. Acesse `/diagnostico`
+2. Se admin não existe, execute no Shell: `python garantir_admin.py`
+3. Configure `EJM_SECRET` para persistir sessões
 
 ### "Email ou senha inválidos"
 
-**Causa**: Usuário admin não existe no banco
+**Causa**: Admin não existe ou senha incorreta
 
 **Solução**:
 ```bash
 python garantir_admin.py
 ```
 
-### Sessão não mantém login
+### Sessão não mantém login após restart
 
-**Causa**: SECRET_KEY mudando a cada deploy
+**Causa**: SECRET_KEY não configurada (gera nova a cada restart)
 
-**Solução**: Definir SECRET_KEY fixa como variável de ambiente
+**Solução**: Configure variável `EJM_SECRET`
+
+## 📊 Monitoramento
+
+### Ver logs em tempo real
+Dashboard Render → **Logs**
+
+### Reiniciar app
+Dashboard Render → **Manual Deploy** → **Clear build cache & deploy**

@@ -32,6 +32,17 @@ config_class = get_config(env)
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config.from_object(config_class)
 
+# Garantir que SECRET_KEY está configurada
+if not app.config.get('SECRET_KEY'):
+    import secrets
+    if env == 'production':
+        print("⚠️  SECRET_KEY não configurada em produção!")
+        print("⚠️  Gerando SECRET_KEY temporária - CONFIGURE EJM_SECRET para persistir sessões!")
+        app.config['SECRET_KEY'] = secrets.token_hex(32)
+    else:
+        app.config['SECRET_KEY'] = secrets.token_hex(32)
+        print("🔑 SECRET_KEY temporária gerada (desenvolvimento)")
+
 # Sobrescrever configurações de cookies em development para permitir HTTP
 if env == 'development':
     app.config['SESSION_COOKIE_SECURE'] = False

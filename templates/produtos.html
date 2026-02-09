@@ -256,6 +256,7 @@ function renderMobile(p, card) {
 
 // Função para carregar produtos com filtros
 function carregarProdutos() {
+  console.log('🔄 Iniciando carregamento de produtos...');
   const busca = document.getElementById('busca').value;
   const precoMin = document.getElementById('preco-min').value;
   const precoMax = document.getElementById('preco-max').value;
@@ -268,18 +269,29 @@ function carregarProdutos() {
   if (precoMax) params.append('preco_max', precoMax);
   params.append('ordenar', ordenar);
   
-  fetch(`/api/products/search?${params.toString()}`)
+  const url = `/api/products/search?${params.toString()}`;
+  console.log('📡 Fazendo request para:', url);
+  
+  fetch(url)
     .then(r => {
-      console.log('Resposta da API:', r.status);
+      console.log('✅ Resposta recebida - Status:', r.status);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     })
     .then(data => {
-      console.log('Produtos recebidos:', data.length);
+      console.log('📦 Produtos recebidos:', data.length, data);
       const grid = document.getElementById('produtos-grid');
       const semResultados = document.getElementById('sem-resultados');
+      
+      if (!grid) {
+        console.error('❌ Elemento produtos-grid não encontrado!');
+        return;
+      }
+      
       grid.innerHTML = '';
       
       if (data.length === 0) {
+        console.log('⚠️  Nenhum produto encontrado');
         grid.style.display = 'none';
         semResultados.style.display = 'block';
         return;
@@ -288,6 +300,7 @@ function carregarProdutos() {
       grid.style.display = 'grid';
       semResultados.style.display = 'none';
       const isMobile = window.innerWidth <= 768;
+      console.log('📱 Mobile?', isMobile);
 
       data.forEach(p => {
         const card = document.createElement('div');
@@ -301,10 +314,15 @@ function carregarProdutos() {
 
         grid.appendChild(card);
       });
+      
+      console.log('✅ Produtos renderizados com sucesso!');
     })
     .catch(error => {
-      console.error('Erro ao carregar produtos:', error);
-      alert('Erro ao carregar produtos. Verifique o console.');
+      console.error('❌ Erro ao carregar produtos:', error);
+      const grid = document.getElementById('produtos-grid');
+      if (grid) {
+        grid.innerHTML = '<p style="color:red;padding:20px;">Erro ao carregar produtos. Veja o console para detalhes.</p>';
+      }
     });
 }
 

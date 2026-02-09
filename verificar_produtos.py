@@ -1,10 +1,19 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""Verifica produtos no banco"""
+
 import sqlite3
 import os
 
-db_path = os.path.join('instance', 'loja.db')
+db_path = os.path.join('instance', 'ejm_dev.db')
+
+print("="*60)
+print("📦 VERIFICANDO PRODUTOS")
+print("="*60)
 
 if not os.path.exists(db_path):
-    print("❌ Banco de dados não encontrado!")
+    print(f"\n❌ Banco de dados não encontrado: {db_path}")
+    print("Execute: python inicializar_db.py")
 else:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -17,19 +26,24 @@ else:
         # Contar produtos
         cursor.execute("SELECT COUNT(*) FROM product")
         total = cursor.fetchone()[0]
-        print(f"Total de produtos no banco: {total}")
+        print(f"\n✅ Total de produtos no banco: {total}\n")
         
         # Listar produtos
         cursor.execute("SELECT id, titulo, preco, estoque, imagem FROM product")
         produtos = cursor.fetchall()
         
         if produtos:
-            print("\nProdutos cadastrados:")
             for p in produtos:
-                print(f"  - ID: {p[0]} | {p[1]} | Preço: R$ {p[2]} | Estoque: {p[3]} | Imagem: {p[4]}")
+                pid, titulo, preco, estoque, imagem = p
+                print(f"{pid}. {titulo}")
+                print(f"   Preço: R$ {preco:.2f}")
+                print(f"   Estoque: {estoque}")
+                print(f"   Imagem: {imagem}")
+                print()
         else:
-            print("\n❌ Nenhum produto cadastrado no banco de dados!")
-            print("\n💡 SOLUÇÃO: Você precisa cadastrar produtos através do painel admin.")
-            print("   Acesse: http://localhost:5000/admin e faça login para adicionar produtos.")
+            print("\n❌ Nenhum produto cadastrado!")
+            print("Execute: python inicializar_db.py")
     
     conn.close()
+
+print("="*60)

@@ -26,8 +26,18 @@
 </section>
 <script>
   // carrega produtos principais via API
-  fetch('/api/products').then(r=>r.json()).then(data=>{
+  console.log('🏠 Carregando produtos da home...');
+  fetch('/api/products').then(r=>{
+    console.log('✅ Status:', r.status);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }).then(data=>{
+    console.log('📦 Produtos recebidos:', data.length);
     const wrap = document.getElementById('produtos-list');
+    if (!wrap) {
+      console.error('❌ Elemento produtos-list não encontrado!');
+      return;
+    }
     data.slice(0,4).forEach(p=>{
       const card = document.createElement('div');
       card.className = 'card';
@@ -56,7 +66,8 @@
       `;
       wrap.appendChild(card);
     });
-  }).catch(err => console.error('Erro ao carregar produtos:', err));
+    console.log('✅ Produtos renderizados na home!');
+  }).catch(err => console.error('❌ Erro ao carregar produtos:', err));
   
   async function addToCart(id) {
     const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
