@@ -116,6 +116,48 @@ from app.models import init_models
 
 User, Product, Order, OrderItem, Review, CartItem, Address, PaymentMethod = init_models(db)
 
+# ============================================
+# CRIAR TABELAS AUTOMATICAMENTE
+# ============================================
+
+# Criar tabelas no banco de dados (funciona com SQLite e PostgreSQL)
+# IMPORTANTE: Isso deve executar sempre, mesmo quando importado pelo gunicorn
+with app.app_context():
+    try:
+        # Verificar se tabela user existe
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        
+        if 'user' not in existing_tables:
+            logger.info("🏗️ Criando tabelas no banco de dados...")
+            db.create_all()
+            logger.info("✅ Tabelas criadas com sucesso")
+            
+            # Criar usuário admin automaticamente
+            try:
+                from werkzeug.security import generate_password_hash
+                
+                admin = User.query.filter_by(email='admin@ejmsantos.com').first()
+                if not admin:
+                    admin = User(
+                        nome='Administrador',
+                        email='admin@ejmsantos.com',
+                        senha_hash=generate_password_hash('admin123'),
+                        is_admin=True
+                    )
+                    db.session.add(admin)
+                    db.session.commit()
+                    logger.info("✅ Usuário admin criado: admin@ejmsantos.com / admin123")
+                else:
+                    logger.info("ℹ️ Admin já existe")
+            except Exception as e:
+                logger.error(f"❌ Erro ao criar admin: {e}")
+        else:
+            logger.info("ℹ️ Tabelas já existem no banco de dados")
+    except Exception as e:
+        logger.error(f"❌ Erro ao verificar/criar tabelas: {e}")
+
 # Configurar diretório de upload
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -207,11 +249,6 @@ if __name__ == "__main__":
     os.makedirs(app.config['INSTANCE_DIR'], exist_ok=True)
     os.makedirs(app.config['LOGS_DIR'], exist_ok=True)
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    
-    # Criar tabelas do banco de dados
-    with app.app_context():
-        db.create_all()
-        logger.info("✅ Banco de dados inicializado")
     
     # Info de ambiente
     logger.info(f"🌍 Ambiente: {env}")
