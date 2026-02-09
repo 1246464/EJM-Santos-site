@@ -11,4 +11,7 @@ gunicorn>=20.1.0
 stripe>=5.4.0
 python-dotenv==1.0.1
 schedule>=1.2.0
-psycopg2-binary>=2.9.9
+
+# PostgreSQL drivers (tenta psycopg2-binary, fallback para psycopg3)
+psycopg2-binary>=2.9.9 ; python_version < '3.13'
+psycopg[binary]>=3.1.0 ; python_version >= '3.13'

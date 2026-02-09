@@ -2,7 +2,7 @@ services:
   - type: web
     name: ejm-santos-site
     env: python
-    buildCommand: pip install -r requirements.txt && python init_render.py
+    buildCommand: pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt && python init_render.py
     startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
     envVars:
       - key: EJM_SECRET
