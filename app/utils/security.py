@@ -198,8 +198,11 @@ def apply_security_headers(response, app_config):
     for header, value in headers.items():
         response.headers[header] = value
     
-    # Cache control para rotas sensíveis
-    if request.endpoint in ['auth.login', 'auth.register', 'admin.login']:
+    # Cache control em desenvolvimento (facilita debug) ou rotas sensíveis
+    is_development = app_config.get('ENV') == 'development'
+    is_sensitive_route = request.endpoint in ['auth.login', 'auth.register', 'admin.login']
+    
+    if is_development or is_sensitive_route:
         response.headers['Cache-Control'] = (
             'no-store, '
             'no-cache, '
