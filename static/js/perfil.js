@@ -10,6 +10,55 @@ document.addEventListener('DOMContentLoaded', function() {
       showTab(tabName, this);
     });
   });
+  
+  // Event listeners para botões de adicionar
+  const btnAdicionarEndereco = document.querySelector('.btn-adicionar[data-action="endereco"]');
+  if (btnAdicionarEndereco) {
+    btnAdicionarEndereco.addEventListener('click', abrirModalEndereco);
+  }
+  
+  const btnAdicionarCartao = document.querySelector('.btn-adicionar[data-action="cartao"]');
+  if (btnAdicionarCartao) {
+    btnAdicionarCartao.addEventListener('click', abrirModalCartao);
+  }
+  
+  // Event listeners para botões de fechar modais
+  document.querySelectorAll('.btn-fechar-modal').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const modal = this.closest('.modal-overlay');
+      if (modal) fecharModal(modal.id);
+    });
+  });
+  
+  document.querySelectorAll('.btn-cancelar').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const modal = this.closest('.modal-overlay');
+      if (modal) fecharModal(modal.id);
+    });
+  });
+  
+  // Event listeners para botões de editar/remover endereços
+  document.querySelectorAll('.btn-icon[data-action="editar"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.addressId;
+      editarEndereco(id);
+    });
+  });
+  
+  document.querySelectorAll('.btn-icon[data-action="remover-endereco"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.addressId;
+      removerEndereco(id);
+    });
+  });
+  
+  // Event listeners para botões de remover cartões
+  document.querySelectorAll('.btn-icon[data-action="remover-cartao"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.paymentId;
+      removerCartao(id);
+    });
+  });
 });
 
 function showTab(tabName, buttonElement) {

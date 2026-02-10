@@ -22,68 +22,8 @@
 
 <section id="produtos" class="produtos-preview">
   <h2>Nossos Produtos</h2>
-  <div id="produtos-list"></div>
+  <div id="produtos-destaque"></div>
 </section>
-<script>
-  // carrega produtos principais via API
-  console.log('🏠 Carregando produtos da home...');
-  fetch('/api/products').then(r=>{
-    console.log('✅ Status:', r.status);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-  }).then(data=>{
-    console.log('📦 Produtos recebidos:', data.length);
-    const wrap = document.getElementById('produtos-list');
-    if (!wrap) {
-      console.error('❌ Elemento produtos-list não encontrado!');
-      return;
-    }
-    data.slice(0,4).forEach(p=>{
-      const card = document.createElement('div');
-      card.className = 'card';
-      const esgotado = p.estoque <= 0;
-      
-      // Tornar card clicável
-      card.style.cursor = 'pointer';
-      card.onclick = (e) => {
-        // Evitar navegação se clicar nos botões
-        if (!e.target.classList.contains('botao-comprar')) {
-          window.location.href = `/produto/${p.id}`;
-        }
-      };
-      
-      const imagePath = p.imagem.startsWith('imagens/') ? p.imagem.substring(8) : p.imagem;
-      card.innerHTML = `
-        <img src="/static/imagens/${imagePath}" alt="${p.titulo}">
-        <h3>${p.titulo}</h3>
-        <p class="desc">${p.descricao}</p>
-        <span class="preco">R$ ${p.preco.toFixed(2)}</span>
-        <div class="produto-actions">
-          ${esgotado ? '<button class="botao-comprar" style="opacity:0.5" disabled>Esgotado</button>' :
-            `<button class="botao-comprar" onclick="event.stopPropagation(); addToCart(${p.id})">Adicionar</button>`}
-          <a class="botao-comprar" href="/produto/${p.id}" onclick="event.stopPropagation()">Detalhes</a>
-        </div>
-      `;
-      wrap.appendChild(card);
-    });
-    console.log('✅ Produtos renderizados na home!');
-  }).catch(err => console.error('❌ Erro ao carregar produtos:', err));
-  
-  async function addToCart(id) {
-    const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
-    if (response.ok) {
-      alert('✅ Produto adicionado ao carrinho!');
-      location.href = '/carrinho';
-    } else {
-      const text = await response.text();
-      if (text.includes('Esgotado')) {
-        alert('❌ Produto esgotado!');
-      } else if (text.includes('insuficiente')) {
-        alert('⚠️ Estoque insuficiente!');
-      } else {
-        alert('❌ Erro ao adicionar produto!');
-      }
-    }
-  }
-</script>
+
+<script src="/static/js/index.js"></script>
 {% endblock %}
