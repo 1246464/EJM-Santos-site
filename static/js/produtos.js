@@ -157,7 +157,13 @@ function limparFiltros() {
 }
 
 async function addToCart(id) {
-  const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+  const response = await fetch('/carrinho/add/' + id, { 
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrfToken
+    }
+  });
   if (response.ok) {
     alert('✅ Produto adicionado ao carrinho!');
     location.reload(); // Atualiza estoque

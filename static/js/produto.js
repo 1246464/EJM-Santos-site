@@ -17,15 +17,18 @@ function showProduct(p) {
   document.getElementById("titulo-produto").textContent = p.titulo;
   document.getElementById("preco-produto").textContent = "R$ " + p.preco.toFixed(2);
   document.getElementById("descricao-produto").textContent = p.descricao;
-  
-  // Event listeners para botões
-  document.getElementById("btn-add-cart").addEventListener('click', () => addToCart(p.id));
-  document.getElementById("btn-finalizar").addEventListener('click', () => buyNow(p.id));
+}
 }
 
 // Comprar agora
 async function buyNow(id) {
-  const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+  const response = await fetch('/carrinho/add/' + id, { 
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrfToken
+    }
+  });
   if (response.ok) {
     window.location.href = '/checkout';
   } else {
@@ -40,8 +43,18 @@ function scrollToReviews() {
 
 // Carrinho
 async function addToCart(id) {
-  const response = await fetch('/carrinho/add/' + id, { method: 'POST' });
-  if (response.ok) alert('✅ Adicionado ao carrinho!');
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+  const response = await fetch('/carrinho/add/' + id, { 
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrfToken
+    }
+  });
+  if (response.ok) {
+    alert('✅ Adicionado ao carrinho!');
+  } else {
+    alert('❌ Erro ao adicionar ao carrinho.');
+  }
 }
 
 // Avaliações
@@ -70,6 +83,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Obter productId do data attribute
   const produtoDetalhe = document.querySelector('.produto-detalhe');
   const productId = produtoDetalhe ? produtoDetalhe.dataset.productId : null;
+  
+  // Event listeners para botões de ação
+  const btnAddCart = document.getElementById("btn-add-cart");
+  const btnFinalizar = document.getElementById("btn-finalizar");
+  
+  if (btnAddCart && productId) {
+    btnAddCart.addEventListener('click', () => addToCart(productId));
+  }
+  
+  if (btnFinalizar && productId) {
+    btnFinalizar.addEventListener('click', () => buyNow(productId));
+  }
   
   // Inicializa produto
   if (productId) {
