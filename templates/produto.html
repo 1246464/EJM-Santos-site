@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="produto-detalhe">
+<section class="produto-detalhe" data-product-id="{{ product_id }}">
 
   <div class="produto-imagem">
     <img id="imagem-produto" src="" alt="Produto">
@@ -38,8 +38,5 @@
 
 </section>
 
-<script>
-window.productId = {{ product_id }};
-</script>
 <script src="/static/js/produto.js"></script>
 {% endblock %}

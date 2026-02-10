@@ -372,10 +372,10 @@ section {
   margin-bottom: 30px;
 }
 
-.produtos-preview #produtos-list {
+.produtos-preview #produtos-destaque {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 28px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
   max-width: 1200px;
   margin: 20px auto;
   padding: 20px;
@@ -431,6 +431,24 @@ section {
 
 .card:hover img {
   transform: scale(1.08);
+}
+
+/* Cards da página principal - tamanho menor */
+.produtos-preview .card img {
+  height: 220px;
+}
+
+.produtos-preview .card h3 {
+  padding: 12px 16px 6px;
+}
+
+.produtos-preview .card p.desc {
+  margin: 0 0 10px 0;
+}
+
+.produtos-preview .preco {
+  padding: 0 16px 12px;
+  font-size: 1.2rem;
 }
 
 .card h3 {

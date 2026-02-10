@@ -327,7 +327,7 @@
     <div id="tab-enderecos" class="tab-content">
       <div class="content-header">
         <h2>Meus Endereços</h2>
-        <button class="btn-adicionar" onclick="abrirModalEndereco()">
+        <button class="btn-adicionar" data-action="endereco">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 0v16M0 8h16" stroke="currentColor" stroke-width="2"/>
           </svg>
@@ -342,12 +342,12 @@
             <div class="endereco-header">
               <span class="endereco-tipo">{{ endereco.apelido }}{% if endereco.is_default %} (Padrão){% endif %}</span>
               <div class="endereco-acoes">
-                <button class="btn-icon" onclick="editarEndereco({{ endereco.id }})" title="Editar">
+                <button class="btn-icon" data-action="editar" data-address-id="{{ endereco.id }}" title="Editar">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M12 0l4 4-8 8H4v-4l8-8zm0 3l-1 1-1-1 1-1 1 1z"/>
                   </svg>
                 </button>
-                <button class="btn-icon" onclick="removerEndereco({{ endereco.id }})" title="Remover">
+                <button class="btn-icon" data-action="remover-endereco" data-address-id="{{ endereco.id }}" title="Remover">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M3 4h10v1H3V4zm1 2h8v7a1 1 0 01-1 1H5a1 1 0 01-1-1V6z"/>
                   </svg>
@@ -381,7 +381,7 @@
     <div id="tab-pagamento" class="tab-content">
       <div class="content-header">
         <h2>Formas de Pagamento</h2>
-        <button class="btn-adicionar" onclick="abrirModalCartao()">
+        <button class="btn-adicionar" data-action="cartao">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 0v16M0 8h16" stroke="currentColor" stroke-width="2"/>
           </svg>
@@ -407,7 +407,7 @@
               </p>
             </div>
             <div class="cartao-acoes">
-              <button class="btn-icon" style="color: white;" onclick="removerCartao({{ cartao.id }})" title="Remover">
+              <button class="btn-icon" style="color: white;" data-action="remover-cartao" data-payment-id="{{ cartao.id }}" title="Remover">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M3 4h10v1H3V4zm1 2h8v7a1 1 0 01-1 1H5a1 1 0 01-1-1V6z"/>
                 </svg>

@@ -1,7 +1,3 @@
-// Obter ID do produto da página
-const productId = document.body.dataset.productId || window.productId;
-const token = localStorage.getItem('token');
-
 // Atualiza UI com os dados do produto
 function showProduct(p) {
   console.log('Dados do produto:', p);
@@ -70,6 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnVerAvaliacoes) {
     btnVerAvaliacoes.addEventListener('click', scrollToReviews);
   }
+  
+  // Obter productId do data attribute
+  const produtoDetalhe = document.querySelector('.produto-detalhe');
+  const productId = produtoDetalhe ? produtoDetalhe.dataset.productId : null;
   
   // Inicializa produto
   if (productId) {
