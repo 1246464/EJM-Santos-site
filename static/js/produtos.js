@@ -30,11 +30,19 @@ function renderDesktop(p, card) {
     <div class="produto-actions">
       <a class="botao-comprar" href="/produto/${p.id}">Detalhes</a>
       ${esgotado ? '<button class="botao-comprar desabilitado" disabled>Esgotado</button>' :
-        `<button class="botao-comprar" onclick="addToCart(${p.id})">Adicionar</button>`}
+        `<button class="botao-comprar btn-adicionar-carrinho" data-product-id="${p.id}">Adicionar</button>`}
     </div>
 
     <div class="meta">Avaliação: ${p.media || 0} ⭐ (${p.n_reviews})</div>
   `;
+  
+  // Adicionar event listener ao botão (se não estiver esgotado)
+  if (!esgotado) {
+    const btnAdicionar = card.querySelector('.btn-adicionar-carrinho');
+    if (btnAdicionar) {
+      btnAdicionar.addEventListener('click', () => addToCart(p.id));
+    }
+  }
 }
 
 
