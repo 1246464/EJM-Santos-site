@@ -10,7 +10,7 @@
     </div>
     
     <!-- Botão para mostrar/esconder filtros no mobile -->
-    <button class="btn-toggle-filtros" onclick="toggleFiltros()">
+    <button class="btn-toggle-filtros" id="btn-toggle-filtros">
       <span id="filtro-icon">🔽</span> Filtros
     </button>
     
@@ -35,7 +35,7 @@
         </select>
       </div>
       
-      <button onclick="limparFiltros()" class="btn-limpar">🗑️ Limpar</button>
+      <button id="btn-limpar-filtros" class="btn-limpar">🗑️ Limpar</button>
     </div>
   </div>
   
@@ -337,6 +337,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('preco-min').addEventListener('change', carregarProdutos);
   document.getElementById('preco-max').addEventListener('change', carregarProdutos);
   document.getElementById('ordenar').addEventListener('change', carregarProdutos);
+  
+  // Toggle filtros
+  document.getElementById('btn-toggle-filtros').addEventListener('click', toggleFiltros);
+  
+  // Limpar filtros
+  document.getElementById('btn-limpar-filtros').addEventListener('click', limparFiltros);
 });
 
 function limparFiltros() {
