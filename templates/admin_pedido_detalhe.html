@@ -28,7 +28,7 @@
         <form method="POST" action="/admin/pedidos/{{ pedido.id }}/status" style="display:flex;gap:10px;justify-content:center;align-items:center;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
           <select name="status">
-            {% set ops = ['Pendente','Pago','Enviado','Entregue','Cancelado'] %}
+            {% set ops = ['Pendente','Pago','Agendado','Saiu para Entrega','Entregue','Cancelado'] %}
             {% for s in ops %}
               <option value="{{ s }}" {% if s == pedido.status %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
@@ -40,6 +40,55 @@
         <h3>Total</h3>
         <p style="font-size:22px;font-weight:800;">R$ {{ "%.2f"|format(pedido.total) }}</p>
       </div>
+    </div>
+
+    <!-- Agendamento de Entrega -->
+    <div class="agendamento-entrega">
+      <h3>🚚 Agendar Entrega</h3>
+      
+      {% if pedido.delivery_date %}
+      <div class="entrega-agendada">
+        <p><strong>✅ Entrega Agendada para:</strong></p>
+        <p class="data-agendada">{{ pedido.delivery_date.strftime('%d/%m/%Y às %H:%M') }}</p>
+        {% if pedido.delivery_notes %}
+        <p><strong>Observações:</strong> {{ pedido.delivery_notes }}</p>
+        {% endif %}
+        <p><em>Agendado em: {{ pedido.delivery_scheduled_at.strftime('%d/%m/%Y %H:%M') if pedido.delivery_scheduled_at }}</em></p>
+      </div>
+      {% endif %}
+      
+      <form method="POST" action="/admin/pedidos/{{ pedido.id }}/agendar-entrega" class="form-agendamento">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="delivery_date">📅 Data de Entrega *</label>
+            <input type="date" id="delivery_date" name="delivery_date" required
+                   value="{{ pedido.delivery_date.strftime('%Y-%m-%d') if pedido.delivery_date else '' }}"
+                   min="{{ (pedido.created_at + timedelta(days=0)).strftime('%Y-%m-%d') if pedido.created_at }}">
+          </div>
+          
+          <div class="form-group">
+            <label for="delivery_time">⏰ Horário *</label>
+            <input type="time" id="delivery_time" name="delivery_time"
+                   value="{{ pedido.delivery_date.strftime('%H:%M') if pedido.delivery_date else '14:00' }}">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="delivery_notes">📝 Observações</label>
+          <textarea id="delivery_notes" name="delivery_notes" rows="3" 
+                    placeholder="Ex: Entregar pela manhã, ligar antes de entregar...">{{ pedido.delivery_notes or '' }}</textarea>
+        </div>
+        
+        <button type="submit" class="botao-agendar">
+          {% if pedido.delivery_date %}
+            🔄 Reagendar Entrega
+          {% else %}
+            ✅ Agendar Entrega
+          {% endif %}
+        </button>
+      </form>
     </div>
 
     <div class="grafico-box">
@@ -98,6 +147,97 @@
   margin: 8px 0;
   color: #555;
   line-height: 1.6;
+}
+
+.agendamento-entrega {
+  background: #fff;
+  padding: 25px;
+  border-radius: 10px;
+  margin: 20px 0;
+  border: 2px solid #ff9800;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.agendamento-entrega h3 {
+  margin-top: 0;
+  color: #ff9800;
+  font-size: 1.3em;
+  margin-bottom: 20px;
+}
+
+.entrega-agendada {
+  background: #e8f5e9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #4caf50;
+}
+
+.entrega-agendada .data-agendada {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #2e7d32;
+  margin: 10px 0;
+}
+
+.form-agendamento .form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-agendamento .form-group {
+  flex: 1;
+}
+
+.form-agendamento label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.form-agendamento input[type="date"],
+.form-agendamento input[type="time"],
+.form-agendamento textarea {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1em;
+  transition: border-color 0.3s;
+}
+
+.form-agendamento input:focus,
+.form-agendamento textarea:focus {
+  outline: none;
+  border-color: #ff9800;
+}
+
+.form-agendamento textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.botao-agendar {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.botao-agendar:hover {
+  background: linear-gradient(135deg, #f57c00, #e65100);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 124, 0, 0.3);
 }
 </style>
 

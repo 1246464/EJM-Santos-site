@@ -82,6 +82,12 @@ class Config:
     RATELIMIT_STORAGE_URL = "memory://"
     RATELIMIT_STRATEGY = "fixed-window"
     RATELIMIT_HEADERS_ENABLED = True
+    
+    # Delivery / Entrega
+    DELIVERY_FEE_PER_KM = 1.50  # Taxa de entrega: R$ 1.50 por km
+    STORE_ADDRESS = "Rua Principal, 100, Centro, São Paulo, SP"  # Endereço da loja (origem)
+    STORE_COORDINATES = (-23.550520, -46.633308)  # Coordenadas da loja (lat, lng) - Exemplo: São Paulo
+    # Para obter coordenadas exatas, usar: https://www.google.com/maps -> clicar com botão direito -> copiar coordenadas
 
 
 class DevelopmentConfig(Config):

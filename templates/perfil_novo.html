@@ -37,10 +37,40 @@
 .pedido-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
 .badge-pendente { background: #fff3cd; color: #795548; }
 .badge-pago { background: #d1f7c4; color: #1b5e20; }
+.badge-agendado { background: #e3f2fd; color: #1976d2; }
+.badge-saiu-para-entrega { background: #fce4ec; color: #c2185b; }
 .badge-enviado { background: #cfe8ff; color: #0d47a1; }
 .badge-entregue { background: #e4f8e8; color: #2e7d32; }
 .badge-cancelado { background: #ffe4e4; color: #b71c1c; }
 .pedido-data-compra { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #666; margin-bottom: 16px; }
+.pedido-entrega-agendada { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  font-size: 0.9rem; 
+  color: #2e7d32; 
+  background: #e8f5e9; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  margin-bottom: 12px;
+  border-left: 3px solid #4caf50;
+}
+.pedido-entrega-agendada strong {
+  color: #1b5e20;
+}
+.pedido-aguardando-agendamento {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #f57c00;
+  background: #fff3e0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border-left: 3px solid #ff9800;
+  font-weight: 500;
+}
 .pedido-items { margin: 16px 0; padding: 16px; background: #fafafa; border-radius: 8px; }
 .pedido-item-linha { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
 .pedido-item-linha:last-child { border-bottom: none; }
@@ -287,6 +317,23 @@
             </svg>
             {{ pedido.created_at.strftime('%d/%m/%Y às %H:%M') }}
           </div>
+          
+          {% if pedido.delivery_date %}
+          <div class="pedido-entrega-agendada">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M12 4H9V1H5v3H2v9h10V4zM6 2h2v1H6V2zm5 10H3V5h8v7zm-6-4h4v1H5V8z"/>
+            </svg>
+            <strong>Entrega agendada:</strong> {{ pedido.delivery_date.strftime('%d/%m/%Y às %H:%M') }}
+          </div>
+          {% elif pedido.status == 'Pago' %}
+          <div class="pedido-aguardando-agendamento">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <circle cx="7" cy="7" r="6" stroke="currentColor" fill="none" stroke-width="1"/>
+              <path d="M7 4v4l2 2"/>
+            </svg>
+            Aguardando confirmação de prazo de entrega
+          </div>
+          {% endif %}
 
           <div class="pedido-items">
             {% for item in pedido.items[:2] %}

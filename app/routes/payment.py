@@ -34,6 +34,8 @@ def init_payment(database, models_dict, log, email_svc, cart_helper, order_helpe
 @payment_bp.route('/checkout')
 def checkout():
     """Exibe a página de checkout com formulário de cartão"""
+    from flask import current_app
+    
     user_id = session.get('user_id')
     if not user_id:
         session['redirect_after_login'] = "/checkout"
@@ -62,12 +64,16 @@ def checkout():
         PaymentMethod.created_at.desc()
     ).all()
     
+    # Configuração de entrega
+    fee_per_km = current_app.config.get('DELIVERY_FEE_PER_KM', 1.50)
+    
     return render_template("checkout.html", 
                          itens=carrinho_itens, 
                          total=total,
                          stripe_public_key=STRIPE_PUBLIC_KEY,
                          saved_addresses=saved_addresses,
-                         saved_payment_methods=saved_payment_methods)
+                         saved_payment_methods=saved_payment_methods,
+                         delivery_fee_per_km=fee_per_km)
 
 
 @payment_bp.route('/processar-pagamento', methods=['POST'])
@@ -140,8 +146,25 @@ def processar_pagamento():
             logger.warning(f"Tentativa de pagamento com carrinho vazio - User: {user_id}")
             return jsonify({"error": "Carrinho vazio"}), 400
 
-        # Calcular total (em centavos para Stripe)
-        total = sum(it["preco"] * it["quantidade"] for it in carrinho_itens)
+        # Calcular subtotal dos produtos
+        subtotal = sum(it["preco"] * it["quantidade"] for it in carrinho_itens)
+        
+        # Calcular taxa de entrega
+        from flask import current_app
+        from app.utils.distance import format_endereco_completo, calculate_delivery_fee
+        
+        endereco_completo = format_endereco_completo(endereco)
+        store_coords = current_app.config.get('STORE_COORDINATES', (-23.550520, -46.633308))
+        fee_per_km = current_app.config.get('DELIVERY_FEE_PER_KM', 1.50)
+        
+        distance_km, delivery_fee = calculate_delivery_fee(
+            store_coords,
+            endereco_completo,
+            fee_per_km
+        )
+        
+        # Total com entrega
+        total = subtotal + delivery_fee
         total_centavos = int(total * 100)
 
         try:
@@ -151,7 +174,7 @@ def processar_pagamento():
                 currency="brl",
                 payment_method=payment_method_id,
                 confirm=True,
-                description=f"Pedido EJM Santos - Usuario #{user_id}",
+                description=f"Pedido EJM Santos - Usuario #{user_id} - Entrega: {distance_km}km",
                 automatic_payment_methods={
                     'enabled': True,
                     'allow_redirects': 'never'
@@ -175,6 +198,10 @@ def processar_pagamento():
                 )
                 
                 pedido.status = "Pago"
+                pedido.subtotal = subtotal
+                pedido.delivery_fee = delivery_fee
+                pedido.delivery_distance_km = distance_km
+                pedido.total = total
                 pedido.endereco_rua = endereco.get('rua')
                 pedido.endereco_numero = endereco.get('numero')
                 pedido.endereco_complemento = endereco.get('complemento', '')
@@ -312,3 +339,68 @@ def ver_pedido(id):
     return render_template("pedido_detalhe.html", 
                          pedido=detalhes['pedido'], 
                          items=detalhes['itens'])
+
+
+@payment_bp.route('/calcular-entrega', methods=['POST'])
+def calcular_entrega():
+    """Calcula a taxa de entrega baseada no endereço"""
+    try:
+        from flask import current_app
+        from app.utils.distance import format_endereco_completo, calculate_delivery_fee
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Dados inválidos"}), 400
+        
+        # Buscar endereço salvo ou usar novo
+        saved_address_id = data.get('saved_address_id')
+        endereco_data = data.get('endereco', {})
+        
+        endereco = {}
+        if saved_address_id:
+            from app.models import Address
+            user_id = session.get('user_id')
+            saved_addr = Address.query.filter_by(id=saved_address_id, user_id=user_id).first()
+            if saved_addr:
+                endereco = {
+                    'rua': saved_addr.rua,
+                    'numero': saved_addr.numero,
+                    'bairro': saved_addr.bairro,
+                    'cidade': saved_addr.cidade,
+                    'estado': saved_addr.estado,
+                    'cep': saved_addr.cep
+                }
+        else:
+            endereco = endereco_data
+        
+        # Validar endereço mínimo
+        if not endereco.get('cidade'):
+            return jsonify({"error": "Endereço incompleto"}), 400
+        
+        # Formatar endereço completo
+        endereco_completo = format_endereco_completo(endereco)
+        
+        # Buscar coordenadas da loja e taxa por km da config
+        store_coords = current_app.config.get('STORE_COORDINATES', (-23.550520, -46.633308))
+        fee_per_km = current_app.config.get('DELIVERY_FEE_PER_KM', 1.50)
+        
+        # Calcular distância e taxa
+        distance_km, delivery_fee = calculate_delivery_fee(
+            store_coords,
+            endereco_completo,
+            fee_per_km
+        )
+        
+        logger.info(f"Cálculo de entrega - Distância: {distance_km}km - Taxa: R$ {delivery_fee}")
+        
+        return jsonify({
+            "success": True,
+            "distance_km": distance_km,
+            "delivery_fee": delivery_fee,
+            "fee_per_km": fee_per_km
+        })
+    
+    except Exception as e:
+        logger.error(f"Erro ao calcular entrega: {str(e)}", exc_info=True)
+        return jsonify({"error": "Erro ao calcular taxa de entrega"}), 500
+

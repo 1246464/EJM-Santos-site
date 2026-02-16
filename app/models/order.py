@@ -15,7 +15,12 @@ def create_order_model(db):
         user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
         total = db.Column(db.Float, nullable=False)
         status = db.Column(db.String(50), default="Pendente", index=True)
-        # Status: Pendente, Pago, Enviado, Entregue, Cancelado
+        # Status: Pendente, Pago, Agendado, Saiu para Entrega, Entregue, Cancelado
+        
+        # Valores de entrega
+        subtotal = db.Column(db.Float, nullable=False, default=0)  # Total dos produtos
+        delivery_fee = db.Column(db.Float, default=0)  # Taxa de entrega
+        delivery_distance_km = db.Column(db.Float)  # Distância em km
         
         # Endereço de entrega (entrega local)
         endereco_rua = db.Column(db.String(200))
@@ -24,6 +29,11 @@ def create_order_model(db):
         endereco_bairro = db.Column(db.String(100))
         endereco_cidade = db.Column(db.String(100))
         telefone = db.Column(db.String(20))
+        
+        # Agendamento de entrega
+        delivery_date = db.Column(db.DateTime)  # Data/hora agendada para entrega
+        delivery_scheduled_at = db.Column(db.DateTime)  # Quando foi agendado
+        delivery_notes = db.Column(db.Text)  # Observações sobre a entrega
         
         created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
         
@@ -39,6 +49,9 @@ def create_order_model(db):
                 'id': self.id,
                 'user_id': self.user_id,
                 'total': self.total,
+                'subtotal': self.subtotal,
+                'delivery_fee': self.delivery_fee,
+                'delivery_distance_km': self.delivery_distance_km,
                 'status': self.status,
                 'endereco': {
                     'rua': self.endereco_rua,
@@ -48,6 +61,9 @@ def create_order_model(db):
                     'cidade': self.endereco_cidade,
                     'telefone': self.telefone
                 },
+                'delivery_date': self.delivery_date.isoformat() if self.delivery_date else None,
+                'delivery_scheduled_at': self.delivery_scheduled_at.isoformat() if self.delivery_scheduled_at else None,
+                'delivery_notes': self.delivery_notes,
                 'created_at': self.created_at.isoformat() if self.created_at else None
             }
             

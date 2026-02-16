@@ -15,9 +15,21 @@
       </div>
       {% endfor %}
 
+      <div class="subtotal-line">
+        <span>Subtotal:</span>
+        <span id="subtotal-value">R$ {{ "%.2f"|format(total) }}</span>
+      </div>
+      
+      <div class="delivery-info" id="delivery-info" style="display: none;">
+        <div class="delivery-line">
+          <span>Entrega (<span id="distance-display">-</span> km × R$ {{ "%.2f"|format(delivery_fee_per_km) }}/km):</span>
+          <span id="delivery-fee-display">R$ 0,00</span>
+        </div>
+      </div>
+
       <div class="total-pedido">
         <strong>Total:</strong>
-        <strong>R$ {{ "%.2f"|format(total) }}</strong>
+        <strong id="total-value">R$ {{ "%.2f"|format(total) }}</strong>
       </div>
     </div>
 
@@ -252,6 +264,12 @@
   const stripe = Stripe('{{ stripe_public_key }}');
   const elements = stripe.elements();
   let cardElement = null;
+  
+  // Valores iniciais
+  const subtotal = {{ total }};
+  const deliveryFeePerKm = {{ delivery_fee_per_km }};
+  let currentDeliveryFee = 0;
+  let currentDistance = 0;
 
   // Controlar exibição de endereços salvos vs novo
   const addressOptions = document.querySelectorAll('input[name="address-option"]');
@@ -263,11 +281,137 @@
       if (e.target.value === 'saved') {
         if (savedAddressList) savedAddressList.style.display = 'block';
         if (newAddressForm) newAddressForm.style.display = 'none';
+        // Calcular entrega com endereço salvo
+        calculateDeliveryForSavedAddress();
       } else {
         if (savedAddressList) savedAddressList.style.display = 'none';
         if (newAddressForm) newAddressForm.style.display = 'block';
+        // Resetar entrega
+        resetDeliveryFee();
       }
     });
+  });
+  
+  // Calcular entrega quando endereço salvo for selecionado
+  const savedAddressRadios = document.querySelectorAll('input[name="saved-address-id"]');
+  savedAddressRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      calculateDeliveryForSavedAddress();
+    });
+  });
+  
+  // Calcular entrega quando campos de endereço novo forem preenchidos
+  const addressFields = ['cidade', 'bairro', 'rua'];
+  addressFields.forEach(fieldName => {
+    const field = document.getElementById(fieldName);
+    if (field) {
+      field.addEventListener('blur', () => {
+        calculateDeliveryForNewAddress();
+      });
+    }
+  });
+  
+  async function calculateDeliveryForSavedAddress() {
+    const selectedAddress = document.querySelector('input[name="saved-address-id"]:checked');
+    if (!selectedAddress) return;
+    
+    const savedAddressId = selectedAddress.value;
+    
+    try {
+      const response = await fetch('/calcular-entrega', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          saved_address_id: savedAddressId
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        updateDeliveryDisplay(data.distance_km, data.delivery_fee);
+      }
+    } catch (error) {
+      console.error('Erro ao calcular entrega:', error);
+    }
+  }
+  
+  async function calculateDeliveryForNewAddress() {
+    const cidade = document.getElementById('cidade')?.value;
+    const bairro = document.getElementById('bairro')?.value;
+    const rua = document.getElementById('rua')?.value;
+    const numero = document.getElementById('numero')?.value;
+    
+    if (!cidade) return; // Mínimo necessário
+    
+    try {
+      const response = await fetch('/calcular-entrega', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          endereco: {
+            rua: rua || '',
+            numero: numero || '',
+            bairro: bairro || '',
+            cidade: cidade
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        updateDeliveryDisplay(data.distance_km, data.delivery_fee);
+      }
+    } catch (error) {
+      console.error('Erro ao calcular entrega:', error);
+    }
+  }
+  
+  function updateDeliveryDisplay(distance, fee) {
+    currentDistance = distance;
+    currentDeliveryFee = fee;
+    
+    // Mostrar informações de entrega
+    const deliveryInfo = document.getElementById('delivery-info');
+    if (deliveryInfo) deliveryInfo.style.display = 'block';
+    
+    // Atualizar distância
+    const distanceDisplay = document.getElementById('distance-display');
+    if (distanceDisplay) distanceDisplay.textContent = distance.toFixed(1);
+    
+    // Atualizar taxa de entrega
+    const deliveryFeeDisplay = document.getElementById('delivery-fee-display');
+    if (deliveryFeeDisplay) deliveryFeeDisplay.textContent = `R$ ${fee.toFixed(2).replace('.', ',')}`;
+    
+    // Atualizar total
+    updateTotal();
+  }
+  
+  function resetDeliveryFee() {
+    currentDistance = 0;
+    currentDeliveryFee = 0;
+    
+    const deliveryInfo = document.getElementById('delivery-info');
+    if (deliveryInfo) deliveryInfo.style.display = 'none';
+    
+    updateTotal();
+  }
+  
+  function updateTotal() {
+    const total = subtotal + currentDeliveryFee;
+    const totalValue = document.getElementById('total-value');
+    if (totalValue) totalValue.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+  }
+  
+  // Calcular entrega inicial se houver endereço padrão selecionado
+  window.addEventListener('load', () => {
+    const defaultAddress = document.querySelector('input[name="saved-address-id"]:checked');
+    if (defaultAddress) {
+      calculateDeliveryForSavedAddress();
+    }
   });
 
   // Controlar exibição de cartões salvos vs novo
@@ -652,6 +796,36 @@
   justify-content: space-between;
   padding: 15px 0;
   border-bottom: 1px solid #eee;
+}
+
+.subtotal-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 0;
+  border-top: 1px solid #eee;
+  color: #666;
+}
+
+.delivery-info {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.delivery-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  color: #2c3e50;
+  font-size: 0.95em;
+}
+
+.delivery-line span:first-child {
+  color: #7f8c8d;
+}
+
+#delivery-fee-display {
+  color: #27ae60;
+  font-weight: 600;
 }
 
 .total-pedido {

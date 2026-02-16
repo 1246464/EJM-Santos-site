@@ -291,7 +291,7 @@ def admin_pedido_status(pedido_id):
         old_status = pedido.status
         novo_status = request.form.get("status")
         
-        status_validos = ["Pendente", "Pago", "Enviado", "Entregue", "Cancelado"]
+        status_validos = ["Pendente", "Pago", "Agendado", "Saiu para Entrega", "Entregue", "Cancelado"]
         if novo_status not in status_validos:
             logger.warning(f"Tentativa de status inválido: {novo_status}")
             return "Status inválido", 400
@@ -317,6 +317,61 @@ def admin_pedido_status(pedido_id):
                 logger.error(f"Erro ao enviar email de atualização para pedido {pedido_id}: {str(e)}")
         
         return redirect(f"/admin/pedidos/{pedido_id}")
+
+
+@admin_bp.route("/pedidos/<int:pedido_id>/agendar-entrega", methods=["POST"])
+@admin_required
+def admin_agendar_entrega(pedido_id):
+    """Agendar data de entrega para um pedido"""
+    try:
+        pedido = Order.query.get_or_404(pedido_id)
+        
+        # Receber data e hora
+        delivery_date_str = request.form.get("delivery_date")
+        delivery_time_str = request.form.get("delivery_time", "14:00")  # Padrão 14h
+        delivery_notes = request.form.get("delivery_notes", "")
+        
+        if not delivery_date_str:
+            logger.warning(f"Tentativa de agendar sem data - Pedido {pedido_id}")
+            return "Data de entrega obrigatória", 400
+        
+        # Combinar data e hora
+        from datetime import datetime
+        delivery_datetime = datetime.strptime(f"{delivery_date_str} {delivery_time_str}", "%Y-%m-%d %H:%M")
+        
+        # Atualizar pedido
+        pedido.delivery_date = delivery_datetime
+        pedido.delivery_scheduled_at = datetime.utcnow()
+        pedido.delivery_notes = delivery_notes
+        pedido.status = "Agendado"
+        
+        db.session.commit()
+        
+        logger.info(f"Entrega agendada para pedido {pedido_id}: {delivery_datetime} - Admin: {session.get('user_id')}")
+        
+        # Enviar email ao cliente
+        try:
+            user = User.query.get(pedido.user_id)
+            if user:
+                email_service.send_delivery_scheduled(
+                    user_name=user.nome,
+                    user_email=user.email,
+                    order_id=pedido.id,
+                    delivery_date=delivery_datetime,
+                    delivery_notes=delivery_notes
+                )
+        except Exception as e:
+            logger.error(f"Erro ao enviar email de agendamento para pedido {pedido_id}: {str(e)}")
+        
+        return redirect(f"/admin/pedidos/{pedido_id}")
+        
+    except ValueError:
+        logger.error(f"Formato de data/hora inválido - Pedido {pedido_id}")
+        return "Formato de data/hora inválido", 400
+    except Exception as e:
+        logger.error(f"Erro ao agendar entrega do pedido {pedido_id}: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return "Erro ao agendar entrega", 500
         
     except Exception as e:
         db.session.rollback()
