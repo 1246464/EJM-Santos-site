@@ -86,6 +86,65 @@ with app.app_context():
         db.create_all()
         print("✅ Tabelas criadas/verificadas")
         
+        # 1.5. Executar migração automática (adicionar colunas de entrega)
+        print("\n🔄 Verificando migrações necessárias...")
+        try:
+            inspector = db.inspect(db.engine)
+            
+            if inspector.has_table('order'):
+                existing_columns = [col['name'] for col in inspector.get_columns('order')]
+                
+                # Colunas que precisam existir
+                required_columns = {
+                    'subtotal': 'FLOAT DEFAULT 0',
+                    'delivery_fee': 'FLOAT DEFAULT 0',
+                    'delivery_distance_km': 'FLOAT',
+                    'delivery_date': 'TIMESTAMP',
+                    'delivery_scheduled_at': 'TIMESTAMP',
+                    'delivery_notes': 'TEXT'
+                }
+                
+                columns_to_add = []
+                for col_name in required_columns:
+                    if col_name not in existing_columns:
+                        columns_to_add.append(col_name)
+                
+                if columns_to_add:
+                    print(f"   📝 Adicionando {len(columns_to_add)} colunas em 'order': {', '.join(columns_to_add)}")
+                    
+                    with db.engine.connect() as conn:
+                        for col_name, col_type in required_columns.items():
+                            if col_name in columns_to_add:
+                                try:
+                                    conn.execute(db.text(f'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS {col_name} {col_type}'))
+                                    conn.commit()
+                                    print(f"   ✅ Coluna '{col_name}' adicionada")
+                                except Exception as e:
+                                    print(f"   ⚠️ Coluna '{col_name}': {str(e)[:50]}")
+                    
+                    # Atualizar pedidos existentes
+                    try:
+                        pedidos_antigos = Order.query.filter(
+                            (Order.subtotal == None) | (Order.subtotal == 0)
+                        ).all()
+                        
+                        if pedidos_antigos:
+                            for pedido in pedidos_antigos:
+                                pedido.subtotal = pedido.total
+                                pedido.delivery_fee = 0
+                            db.session.commit()
+                            print(f"   ✅ {len(pedidos_antigos)} pedidos antigos atualizados")
+                    except Exception as e:
+                        print(f"   ⚠️ Erro ao atualizar pedidos: {str(e)[:50]}")
+                else:
+                    print("   ✅ Todas as colunas já existem")
+            else:
+                print("   ℹ️ Tabela 'order' ainda não existe (será criada)")
+                
+        except Exception as e:
+            print(f"   ⚠️ Erro na migração: {str(e)}")
+            # Não falhar a inicialização por causa da migração
+        
         # 2. Verificar/criar usuário admin
         admin_email = "admin@ejmsantos.com"
         admin = User.query.filter_by(email=admin_email).first()
@@ -121,10 +180,16 @@ with app.app_context():
         # 4. Resumo
         print("\n" + "="*60)
         print("✅ INICIALIZAÇÃO COMPLETA!")
+        print(f"   • Banco: {'PostgreSQL' if database_url else 'SQLite'}")
         print(f"   • Tabelas: OK")
-        print(f"   • Admin: {admin.email}")
+        print(f"   • Migrações: OK")
+        print(f"   • Admin: {admin.email} / admin123")
         print(f"   • Produtos: {product_count}")
-        print("="*60)
+        
+        if not database_url:
+            print(f"\n⚠️  AVISO: Usando SQLite (efêmero no Render)")
+            print(f"   Banco será apagado a cada deploy!")
+            print(f"   Configure DATABASE_URL para PostgreSQL persistente")
         
     except Exception as e:
         print(f"\n❌ ERRO: {e}")
