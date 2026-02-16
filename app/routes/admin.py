@@ -317,6 +317,11 @@ def admin_pedido_status(pedido_id):
                 logger.error(f"Erro ao enviar email de atualização para pedido {pedido_id}: {str(e)}")
         
         return redirect(f"/admin/pedidos/{pedido_id}")
+    
+    except Exception as e:
+        logger.error(f"Erro ao atualizar status do pedido {pedido_id}: {str(e)}", exc_info=True)
+        db.session.rollback()
+        return "Erro ao atualizar status", 500
 
 
 @admin_bp.route("/pedidos/<int:pedido_id>/agendar-entrega", methods=["POST"])
