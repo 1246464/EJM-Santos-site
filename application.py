@@ -157,6 +157,58 @@ with app.app_context():
             logger.info("ℹ️ Tabelas já existem no banco de dados")
     except Exception as e:
         logger.error(f"❌ Erro ao verificar/criar tabelas: {e}")
+    
+    # ============================================
+    # MIGRAÇÃO AUTOMÁTICA - Adicionar colunas de entrega
+    # ============================================
+    try:
+        logger.info("🔄 Verificando migrações necessárias...")
+        
+        if 'order' in existing_tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('order')]
+            
+            # Colunas que precisam existir
+            required_columns = {
+                'subtotal': 'FLOAT DEFAULT 0',
+                'delivery_fee': 'FLOAT DEFAULT 0',
+                'delivery_distance_km': 'FLOAT',
+                'delivery_date': 'TIMESTAMP',
+                'delivery_scheduled_at': 'TIMESTAMP',
+                'delivery_notes': 'TEXT'
+            }
+            
+            columns_to_add = [col for col in required_columns if col not in existing_columns]
+            
+            if columns_to_add:
+                logger.info(f"📝 Adicionando {len(columns_to_add)} colunas em 'order': {', '.join(columns_to_add)}")
+                
+                with db.engine.connect() as conn:
+                    for col_name in columns_to_add:
+                        col_type = required_columns[col_name]
+                        try:
+                            conn.execute(db.text(f'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS {col_name} {col_type}'))
+                            conn.commit()
+                            logger.info(f"✅ Coluna '{col_name}' adicionada")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Coluna '{col_name}': {str(e)[:60]}")
+                
+                # Atualizar pedidos antigos
+                try:
+                    result = db.session.execute(db.text(
+                        'UPDATE "order" SET subtotal = total, delivery_fee = 0 WHERE subtotal IS NULL OR subtotal = 0'
+                    ))
+                    db.session.commit()
+                    logger.info(f"✅ Pedidos antigos atualizados (subtotal=total)")
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao atualizar pedidos: {str(e)[:60]}")
+            else:
+                logger.info("✅ Todas as colunas de entrega já existem")
+        else:
+            logger.info("ℹ️ Tabela 'order' ainda não existe")
+            
+    except Exception as e:
+        logger.warning(f"⚠️ Erro na migração (não crítico): {str(e)[:100]}")
+        # Não falhar a inicialização por causa da migração
 
 # Configurar diretório de upload
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
