@@ -48,19 +48,25 @@ public class CartRepository {
     }
 
     public synchronized boolean add(Product product) {
-        if (product.getStock() <= 0) return false;
+        return addQuantity(product, 1) == 1;
+    }
+
+    public synchronized int addQuantity(Product product, int requestedQuantity) {
+        if (requestedQuantity <= 0 || product.getStock() <= 0) return 0;
         List<Entry> items = getItems();
         for (Entry entry : items) {
             if (entry.product.getId() == product.getId()) {
-                if (entry.quantity >= product.getStock()) return false;
-                entry.quantity++;
+                int added = Math.min(requestedQuantity, product.getStock() - entry.quantity);
+                if (added <= 0) return 0;
+                entry.quantity += added;
                 save(items);
-                return true;
+                return added;
             }
         }
-        items.add(new Entry(product, 1));
+        int added = Math.min(requestedQuantity, product.getStock());
+        items.add(new Entry(product, added));
         save(items);
-        return true;
+        return added;
     }
 
     public synchronized void setQuantity(int productId, int quantity) {

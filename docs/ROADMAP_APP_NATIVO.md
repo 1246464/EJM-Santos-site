@@ -58,11 +58,13 @@ os controles básicos sobre sua conta e seus dados.
 
 ## Etapa 4 — Operação e pós-venda
 
+Status: **experiência inicial implementada; notificações push e regras operacionais ainda pendentes**.
+
 - [x] Enviar confirmação e mudanças de status por e-mail.
 - [ ] Adicionar notificações push no Android.
-- [ ] Exibir acompanhamento da entrega.
-- [ ] Adicionar contato rápido com o atendimento.
-- [ ] Permitir comprar novamente a partir do histórico.
+- [x] Exibir acompanhamento da entrega em uma linha do tempo nativa.
+- [x] Adicionar contato rápido com o atendimento, vinculado ao número do pedido.
+- [x] Permitir comprar novamente a partir do histórico com preço e estoque atualizados.
 - [ ] Definir regras de entrega, cancelamento, troca e estoque.
 - [ ] Configurar monitoramento de erros e rotina de restauração de backup.
 

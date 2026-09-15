@@ -175,7 +175,68 @@ def _order_payload(order):
             "titulo": item.product.titulo if item.product else "Produto indisponível",
             "imagem": item.product.imagem if item.product else "",
         }
+    data["tracking"] = _tracking_payload(order.status)
     return data
+
+
+def _tracking_payload(status):
+    """Converte os estados internos em uma linha do tempo estável para o app."""
+    steps = [
+        "Pedido recebido",
+        "Em preparação",
+        "Saiu para entrega",
+        "Entregue",
+    ]
+    progress = {
+        "Pendente": 0,
+        "Aguardando pagamento": 0,
+        "Pago": 1,
+        "Agendado": 1,
+        "Em preparação": 1,
+        "Saiu para Entrega": 2,
+        "Entregue": 3,
+    }
+    current_step = progress.get(status, 0)
+    state = "active"
+    message = "Seu pedido foi recebido e será atualizado durante a entrega."
+    if status == "Entregue":
+        state = "complete"
+        message = "Pedido entregue. Esperamos que você aproveite seu mel!"
+    elif status in {"Cancelado", "Pagamento recusado"}:
+        state = "canceled"
+        message = "Este pedido não seguirá para entrega. Fale com o atendimento se precisar de ajuda."
+    elif status == "Revisão necessária":
+        state = "attention"
+        message = "O pedido precisa de revisão pela equipe EJM Santos."
+    elif current_step == 1:
+        message = "Seu pedido está sendo preparado para a entrega."
+    elif current_step == 2:
+        message = "Seu pedido saiu para entrega."
+
+    return {
+        "current_step": current_step,
+        "state": state,
+        "message": message,
+        "steps": steps,
+    }
+
+
+def _current_product_payload(product):
+    """Representação compatível com Product.fromJson no aplicativo Android."""
+    average = db.session.query(db.func.avg(Review.nota)).filter(
+        Review.product_id == product.id
+    ).scalar() or 0
+    review_count = Review.query.filter_by(product_id=product.id).count()
+    return {
+        "id": product.id,
+        "titulo": product.titulo,
+        "descricao": product.descricao or "",
+        "preco": product.preco,
+        "imagem": product.imagem or "",
+        "estoque": product.estoque,
+        "media": round(float(average), 2),
+        "n_reviews": review_count,
+    }
 
 
 def _create_reserved_order(user, address, lines, subtotal, distance_km,
@@ -556,6 +617,51 @@ def orders(user):
     for order in user_orders:
         result.append(_order_payload(order))
     return jsonify({"orders": result})
+
+
+@mobile_bp.post("/orders/<int:order_id>/reorder")
+@token_required
+def reorder(user, order_id):
+    """Retorna uma cesta baseada no pedido, sempre com preço e estoque atuais."""
+    order = Order.query.filter_by(id=order_id, user_id=user.id).first()
+    if not order:
+        return jsonify({"message": "Pedido não encontrado"}), 404
+
+    available = []
+    unavailable = []
+    for item in order.items:
+        product = item.product
+        product_name = product.titulo if product else f"Produto #{item.product_id}"
+        if not product or product.estoque <= 0:
+            unavailable.append({
+                "product_id": item.product_id,
+                "title": product_name,
+                "reason": "Produto indisponível",
+            })
+            continue
+
+        quantity = min(item.quantidade, product.estoque)
+        available.append({
+            "product": _current_product_payload(product),
+            "quantity": quantity,
+            "requested_quantity": item.quantidade,
+        })
+        if quantity < item.quantidade:
+            unavailable.append({
+                "product_id": product.id,
+                "title": product.titulo,
+                "reason": f"Somente {quantity} unidade(s) disponível(is)",
+            })
+
+    if available:
+        message = "Itens disponíveis prontos para adicionar ao carrinho"
+    else:
+        message = "Nenhum item deste pedido está disponível no momento"
+    return jsonify({
+        "message": message,
+        "items": available,
+        "unavailable": unavailable,
+    })
 
 
 @mobile_bp.post("/checkout/quote")

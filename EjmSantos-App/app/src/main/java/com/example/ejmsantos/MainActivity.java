@@ -52,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private AuthRepository authRepository;
     private FavoriteRepository favoriteRepository;
     private AccountSecurityController accountSecurityController;
+    private OrderPostSaleController orderPostSaleController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +74,9 @@ public class MainActivity extends AppCompatActivity {
         favoriteRepository = new FavoriteRepository(this);
         accountSecurityController = new AccountSecurityController(
                 this, contentContainer, authRepository, this::showAccount);
+        orderPostSaleController = new OrderPostSaleController(
+                this, contentContainer, authRepository, cartRepository,
+                () -> bottomNavigation.setSelectedItemId(R.id.nav_cart));
         refreshSessionIfAvailable();
 
         bottomNavigation.setOnItemSelectedListener(item -> {
@@ -478,6 +482,13 @@ public class MainActivity extends AppCompatActivity {
             }
             ((TextView) item.findViewById(R.id.orderItems)).setText(
                     names.length() == 0 ? "Itens do pedido" : names.toString());
+            int orderId = order.optInt("id");
+            item.findViewById(R.id.trackOrderButton)
+                    .setOnClickListener(v -> orderPostSaleController.showTracking(order));
+            item.findViewById(R.id.reorderButton)
+                    .setOnClickListener(v -> orderPostSaleController.reorder(orderId));
+            item.findViewById(R.id.orderSupportButton)
+                    .setOnClickListener(v -> orderPostSaleController.contactSupport(orderId));
             container.addView(item);
         }
     }

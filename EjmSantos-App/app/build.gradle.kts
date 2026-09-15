@@ -5,6 +5,12 @@ plugins {
 val ejmApiBaseUrl = providers.gradleProperty("EJM_API_BASE_URL")
     .orElse("https://ejm-santos-site-1.onrender.com/")
     .get()
+val ejmSupportWhatsApp = providers.gradleProperty("EJM_SUPPORT_WHATSAPP")
+    .orElse("")
+    .get()
+val ejmSupportEmail = providers.gradleProperty("EJM_SUPPORT_EMAIL")
+    .orElse("contato@ejmsantos.com")
+    .get()
 
 android {
     namespace = "com.example.ejmsantos"
@@ -21,6 +27,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE_URL", "\"$ejmApiBaseUrl\"")
+        buildConfigField("String", "SUPPORT_WHATSAPP", "\"$ejmSupportWhatsApp\"")
+        buildConfigField("String", "SUPPORT_EMAIL", "\"$ejmSupportEmail\"")
     }
 
     buildFeatures {

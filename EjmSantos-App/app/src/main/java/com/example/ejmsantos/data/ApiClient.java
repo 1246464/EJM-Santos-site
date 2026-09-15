@@ -89,6 +89,11 @@ public final class ApiClient {
         request("GET", "api/mobile/orders", null, token, JSONObject::new, callback);
     }
 
+    public static void prepareReorder(String token, int orderId, Callback<JSONObject> callback) {
+        request("POST", "api/mobile/orders/" + orderId + "/reorder",
+                new JSONObject(), token, JSONObject::new, callback);
+    }
+
     public static void logout(String token, Callback<JSONObject> callback) {
         request("POST", "api/mobile/auth/logout", new JSONObject(),
                 token, JSONObject::new, callback);
