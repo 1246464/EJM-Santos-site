@@ -79,6 +79,14 @@
                 android:text="Ainda não tenho conta"
                 android:textAllCaps="false" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/forgotPasswordButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Esqueci minha senha"
+                android:textAllCaps="false" />
+
             <ProgressBar
                 android:id="@+id/authProgress"
                 android:layout_width="wrap_content"
@@ -146,6 +154,24 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="16dp" />
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:text="Segurança da conta"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/changePasswordButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Alterar senha"
+                android:textAllCaps="false" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/logoutButton"
                 style="@style/Widget.Material3.Button.OutlinedButton"
@@ -154,6 +180,16 @@
                 android:layout_marginTop="24dp"
                 android:text="Sair da conta"
                 android:textAllCaps="false" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/deleteAccountButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Excluir minha conta"
+                android:textAllCaps="false"
+                android:textColor="@color/error" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

@@ -27,6 +27,8 @@ def create_order_model(db):
         client_reference = db.Column(db.String(64), unique=True, nullable=True, index=True)
         payment_method = db.Column(db.String(30), default="cash_on_delivery")
         payment_status = db.Column(db.String(30), default="pending", index=True)
+        external_payment_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
+        inventory_released = db.Column(db.Boolean, default=False, nullable=False)
         
         # Endereço de entrega (entrega local)
         endereco_rua = db.Column(db.String(200))
@@ -63,6 +65,8 @@ def create_order_model(db):
                 'client_reference': self.client_reference,
                 'payment_method': self.payment_method,
                 'payment_status': self.payment_status,
+                'external_payment_id': self.external_payment_id,
+                'inventory_released': self.inventory_released,
                 'status': self.status,
                 'endereco': {
                     'rua': self.endereco_rua,

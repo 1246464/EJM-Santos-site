@@ -23,14 +23,18 @@ confirmar um pedido e encontrá-lo no histórico.
 
 ## Etapa 2 — Pagamento digital real
 
-Status: **planejada; depende da escolha e das credenciais do gateway**.
+Status: **integração Stripe implementada, mas pausada para ser concluída por último; aguardando credenciais, webhook e teste no modo sandbox**.
 
-- [ ] Escolher Stripe, Mercado Pago ou outro provedor com Pix e cartão.
-- [ ] Criar intenção de pagamento exclusivamente no servidor.
-- [ ] Integrar a tela nativa oficial do provedor.
-- [ ] Validar a assinatura do webhook.
-- [ ] Tornar o webhook a fonte do estado `paid`/`failed`.
-- [ ] Cancelar ou devolver estoque de pedidos não pagos conforme uma política definida.
+- [x] Escolher o Stripe como provedor de cartão.
+- [x] Criar intenção de pagamento exclusivamente no servidor.
+- [x] Integrar o Stripe PaymentSheet nativo.
+- [x] Validar a assinatura do webhook.
+- [x] Tornar o webhook a fonte do estado `paid`/`failed`.
+- [x] Devolver estoque quando um PaymentIntent é cancelado, sem duplicar a devolução.
+- [ ] Cadastrar as chaves e o webhook no ambiente de produção.
+- [ ] Validar cartão aprovado, recusado e autenticação 3DS no modo de teste.
+- [ ] Definir expiração automática para pedidos abandonados.
+- [ ] Habilitar Pix quando estiver disponível/configurado na conta Stripe.
 - [ ] Implementar reembolso e cancelamento administrativo.
 
 Critério de conclusão: nenhum dado bruto de cartão passa pelo backend da EJM Santos,
@@ -38,11 +42,15 @@ e o pedido só aparece como pago após confirmação autenticada do provedor.
 
 ## Etapa 3 — Conta, segurança e privacidade
 
-- [ ] Armazenar a sessão com criptografia apoiada pelo Android Keystore.
-- [ ] Criar renovação e revogação de tokens.
-- [ ] Adicionar recuperação de senha e verificação de e-mail.
-- [ ] Limitar tentativas de login e cadastro.
-- [ ] Permitir exclusão da conta e dos dados associados.
+Status: **controles essenciais implementados; aguardando verificação de e-mail e documentos públicos**.
+
+- [x] Armazenar o token com criptografia apoiada pelo Android Keystore.
+- [x] Criar renovação e revogação de tokens.
+- [x] Adicionar recuperação de senha por código com expiração e limite de tentativas.
+- [x] Permitir alteração de senha dentro do aplicativo.
+- [ ] Adicionar verificação de e-mail.
+- [x] Limitar tentativas de login, cadastro e renovação de sessão.
+- [x] Permitir exclusão e anonimização segura da conta, preservando pedidos operacionais.
 - [ ] Publicar política de privacidade e termos de compra.
 
 Critério de conclusão: sessões podem ser encerradas pelo servidor e o cliente possui
@@ -50,7 +58,8 @@ os controles básicos sobre sua conta e seus dados.
 
 ## Etapa 4 — Operação e pós-venda
 
-- [ ] Notificar mudanças de status do pedido.
+- [x] Enviar confirmação e mudanças de status por e-mail.
+- [ ] Adicionar notificações push no Android.
 - [ ] Exibir acompanhamento da entrega.
 - [ ] Adicionar contato rápido com o atendimento.
 - [ ] Permitir comprar novamente a partir do histórico.

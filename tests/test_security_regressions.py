@@ -108,6 +108,27 @@ class SecurityRegressionTests(unittest.TestCase):
         )
         self.assertEqual(len(addresses.get_json()["addresses"]), 1)
 
+        refreshed = self.client.post(
+            "/api/mobile/auth/refresh",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        self.assertEqual(refreshed.status_code, 200)
+        refreshed_token = refreshed.get_json()["token"]
+
+        logout = self.client.post(
+            "/api/mobile/auth/logout",
+            headers={"Authorization": f"Bearer {refreshed_token}"},
+        )
+        self.assertEqual(logout.status_code, 200)
+        self.assertEqual(self.client.get(
+            "/api/mobile/me",
+            headers={"Authorization": f"Bearer {token}"},
+        ).status_code, 401)
+        self.assertEqual(self.client.get(
+            "/api/mobile/me",
+            headers={"Authorization": f"Bearer {refreshed_token}"},
+        ).status_code, 401)
+
     def test_no_default_admin_password_in_provisioning_code(self):
         root = Path(__file__).resolve().parent.parent
         provisioning_files = [

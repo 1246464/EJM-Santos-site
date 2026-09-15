@@ -12,7 +12,13 @@ from application import Order, Product, app, db
 
 class MobileCheckoutTests(unittest.TestCase):
     def setUp(self):
-        app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
+        app.config.update(
+            TESTING=True,
+            WTF_CSRF_ENABLED=False,
+            STRIPE_PUBLIC_KEY="pk_test_mobile",
+            STRIPE_SECRET_KEY="sk_test_mobile",
+            STRIPE_WEBHOOK_SECRET="whsec_test_mobile",
+        )
         self.client = app.test_client()
         with app.app_context():
             db.drop_all()
@@ -112,6 +118,145 @@ class MobileCheckoutTests(unittest.TestCase):
         with app.app_context():
             self.assertEqual(db.session.get(Product, self.product_id).estoque, 5)
             self.assertEqual(Order.query.count(), 0)
+
+    @patch("app.routes.mobile.stripe.PaymentIntent.create")
+    @patch("app.utils.distance.calculate_delivery_fee", return_value=(5.0, 7.5))
+    def test_stripe_intent_reserves_stock_and_uses_server_total(self, _calculate, create_intent):
+        create_intent.return_value = {
+            "id": "pi_mobile_test",
+            "client_secret": "pi_mobile_test_secret",
+        }
+        response = self.client.post(
+            "/api/mobile/payments/stripe/intent",
+            headers=self.headers,
+            json={
+                "address_id": self.address_id,
+                "items": self.items,
+                "client_reference": "stripe-test-001",
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["publishable_key"], "pk_test_mobile")
+        self.assertEqual(response.get_json()["client_secret"], "pi_mobile_test_secret")
+        create_intent.assert_called_once()
+        self.assertEqual(create_intent.call_args.kwargs["amount"], 3250)
+        self.assertEqual(create_intent.call_args.kwargs["currency"], "brl")
+
+        with app.app_context():
+            order = Order.query.one()
+            self.assertEqual(order.payment_method, "stripe")
+            self.assertEqual(order.payment_status, "requires_payment")
+            self.assertEqual(order.status, "Aguardando pagamento")
+            self.assertEqual(db.session.get(Product, self.product_id).estoque, 3)
+
+        switched = self.client.post(
+            "/api/mobile/orders",
+            headers=self.headers,
+            json={
+                "address_id": self.address_id,
+                "items": self.items,
+                "payment_method": "cash_on_delivery",
+                "client_reference": "stripe-test-001",
+            },
+        )
+        self.assertEqual(switched.status_code, 409)
+
+    @patch("app.routes.mobile.stripe.Webhook.construct_event")
+    @patch("app.routes.mobile.stripe.PaymentIntent.create")
+    @patch("app.utils.distance.calculate_delivery_fee", return_value=(5.0, 7.5))
+    def test_stripe_webhook_marks_order_paid(self, _calculate, create_intent, construct_event):
+        create_intent.return_value = {
+            "id": "pi_mobile_paid",
+            "client_secret": "pi_mobile_paid_secret",
+        }
+        created = self.client.post(
+            "/api/mobile/payments/stripe/intent",
+            headers=self.headers,
+            json={
+                "address_id": self.address_id,
+                "items": self.items,
+                "client_reference": "stripe-test-paid",
+            },
+        )
+        order_id = created.get_json()["order"]["id"]
+        construct_event.return_value = {
+            "type": "payment_intent.succeeded",
+            "data": {"object": {
+                "id": "pi_mobile_paid",
+                "amount_received": 3250,
+                "currency": "brl",
+            }},
+        }
+
+        webhook = self.client.post(
+            "/api/mobile/payments/stripe/webhook",
+            data=b"raw-event",
+            headers={"Stripe-Signature": "valid-test-signature"},
+        )
+
+        self.assertEqual(webhook.status_code, 200)
+        construct_event.assert_called_once()
+        with app.app_context():
+            order = db.session.get(Order, order_id)
+            self.assertEqual(order.payment_status, "paid")
+            self.assertEqual(order.status, "Pago")
+            self.assertFalse(order.inventory_released)
+
+        # Webhooks podem chegar fora de ordem; um evento antigo não pode
+        # rebaixar nem cancelar um pedido já pago.
+        construct_event.return_value = {
+            "type": "payment_intent.canceled",
+            "data": {"object": {"id": "pi_mobile_paid"}},
+        }
+        delayed = self.client.post(
+            "/api/mobile/payments/stripe/webhook",
+            data=b"delayed-event",
+            headers={"Stripe-Signature": "valid-test-signature"},
+        )
+        self.assertEqual(delayed.status_code, 200)
+        with app.app_context():
+            order = db.session.get(Order, order_id)
+            self.assertEqual(order.payment_status, "paid")
+            self.assertEqual(order.status, "Pago")
+            self.assertEqual(db.session.get(Product, self.product_id).estoque, 3)
+
+    @patch("app.routes.mobile.stripe.Webhook.construct_event")
+    @patch("app.routes.mobile.stripe.PaymentIntent.create")
+    @patch("app.utils.distance.calculate_delivery_fee", return_value=(5.0, 7.5))
+    def test_canceled_stripe_payment_releases_inventory_only_once(
+            self, _calculate, create_intent, construct_event):
+        create_intent.return_value = {
+            "id": "pi_mobile_canceled",
+            "client_secret": "pi_mobile_canceled_secret",
+        }
+        self.client.post(
+            "/api/mobile/payments/stripe/intent",
+            headers=self.headers,
+            json={
+                "address_id": self.address_id,
+                "items": self.items,
+                "client_reference": "stripe-test-canceled",
+            },
+        )
+        construct_event.return_value = {
+            "type": "payment_intent.canceled",
+            "data": {"object": {"id": "pi_mobile_canceled"}},
+        }
+
+        for _ in range(2):
+            response = self.client.post(
+                "/api/mobile/payments/stripe/webhook",
+                data=b"raw-event",
+                headers={"Stripe-Signature": "valid-test-signature"},
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with app.app_context():
+            order = Order.query.one()
+            self.assertEqual(order.payment_status, "canceled")
+            self.assertTrue(order.inventory_released)
+            self.assertEqual(db.session.get(Product, self.product_id).estoque, 5)
 
 
 if __name__ == "__main__":

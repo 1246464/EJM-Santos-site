@@ -20,6 +20,13 @@ def create_user_model(db):
         email = db.Column(db.String(150), unique=True, nullable=False, index=True)
         senha_hash = db.Column(db.String(256), nullable=False)
         is_admin = db.Column(db.Boolean, default=False)
+        # Incrementado no logout móvel para invalidar tokens emitidos antes dele.
+        mobile_token_version = db.Column(db.Integer, default=0, nullable=False)
+        is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+        deleted_at = db.Column(db.DateTime)
+        password_reset_hash = db.Column(db.String(256))
+        password_reset_expires_at = db.Column(db.DateTime)
+        password_reset_attempts = db.Column(db.Integer, default=0, nullable=False)
         created_at = db.Column(db.DateTime, default=datetime.utcnow)
         
         # Relacionamentos
@@ -39,6 +46,8 @@ def create_user_model(db):
                 'nome': self.nome,
                 'email': self.email,
                 'is_admin': self.is_admin,
+                'is_active': self.is_active,
+                'deleted_at': self.deleted_at.isoformat() if self.deleted_at else None,
                 'created_at': self.created_at.isoformat() if self.created_at else None
             }
     

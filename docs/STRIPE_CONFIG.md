@@ -31,15 +31,34 @@
    ```
    STRIPE_PUBLIC_KEY=pk_test_sua_chave_aqui
    STRIPE_SECRET_KEY=sk_test_sua_chave_aqui
+   STRIPE_WEBHOOK_SECRET=whsec_seu_segredo_aqui
    ```
 
-### 4. Instalar dependências
+### 4. Configurar o webhook do aplicativo
+
+No Workbench/Dashboard do Stripe, crie um endpoint apontando para:
+
+```text
+https://SEU-DOMINIO/api/mobile/payments/stripe/webhook
+```
+
+Marque estes eventos:
+
+- `payment_intent.succeeded`
+- `payment_intent.payment_failed`
+- `payment_intent.canceled`
+
+Copie o segredo de assinatura desse endpoint, iniciado por `whsec_`, para
+`STRIPE_WEBHOOK_SECRET`. O segredo do webhook criado pelo Stripe CLI é diferente
+do segredo do endpoint de produção.
+
+### 5. Instalar dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Atualizar o banco de dados
+### 6. Atualizar o banco de dados
 
 Como removemos o campo `mercado_pago_link` da tabela `Product`, você precisa atualizar o banco:
 
@@ -58,7 +77,7 @@ python init_db.py
 ALTER TABLE product DROP COLUMN mercado_pago_link;
 ```
 
-### 6. Testar o sistema
+### 7. Testar o sistema
 
 1. Execute o servidor:
    ```bash
@@ -67,7 +86,8 @@ ALTER TABLE product DROP COLUMN mercado_pago_link;
 
 2. Acesse: http://127.0.0.1:5000
 
-3. Adicione produtos ao carrinho e clique em "Finalizar Compra"
+3. No aplicativo, adicione produtos ao carrinho, selecione "Cartão pelo Stripe"
+   e toque em "Pagar com cartão"
 
 4. Use cartões de teste do Stripe:
    - **Sucesso**: `4242 4242 4242 4242`
@@ -92,20 +112,25 @@ Mais cartões de teste: https://stripe.com/docs/testing#cards
 - ✅ Os dados sensíveis nunca passam pelo seu servidor
 - ✅ Conformidade PCI DSS automática
 - ✅ Criptografia SSL/TLS em todas as transações
+- ✅ O backend recalcula preço, frete e estoque antes de criar o PaymentIntent
+- ✅ Apenas o webhook com assinatura válida altera o pedido para `Pago`
+- ✅ A chave secreta e o segredo do webhook nunca são enviados ao aplicativo
 
 ## 🌐 Deploy em Produção
 
 1. Ative sua conta Stripe (adicione dados bancários)
 2. Obtenha as chaves de **produção** (começam com `pk_live_` e `sk_live_`)
 3. Atualize as variáveis de ambiente no servidor
-4. Configure HTTPS no seu domínio (obrigatório para Stripe)
+4. Crie um webhook de produção e configure seu novo `whsec_`
+5. Configure HTTPS no seu domínio
+6. Faça uma compra real de valor baixo e confirme o pedido no painel administrativo
 
 ## 📝 Observações
 
 - **Ambiente de teste**: Use chaves `pk_test_` e `sk_test_`
 - **Ambiente de produção**: Use chaves `pk_live_` e `sk_live_`
 - **Moeda**: Configurado para BRL (Real Brasileiro)
-- **Taxas Stripe no Brasil**: ~4.99% + R$0.39 por transação aprovada
+- **Taxas**: consulte a página de preços da sua conta Stripe; elas podem mudar
 
 ## 🆘 Problemas comuns
 

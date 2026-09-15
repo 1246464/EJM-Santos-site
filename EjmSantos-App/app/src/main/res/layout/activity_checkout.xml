@@ -79,13 +79,31 @@
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp">
 
-                <RadioButton
+                <RadioGroup
+                    android:id="@+id/paymentMethodGroup"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:padding="16dp"
-                    android:text="Pagamento no recebimento\nDinheiro, Pix ou cartão combinado na entrega"
-                    android:textColor="@color/text_primary" />
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <RadioButton
+                        android:id="@+id/cashPayment"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:padding="8dp"
+                        android:text="Pagamento no recebimento\nDinheiro, Pix ou cartão combinado na entrega"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/stripePayment"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="8dp"
+                        android:text="Cartão pelo Stripe\nPagamento seguro no aplicativo"
+                        android:textColor="@color/text_primary"
+                        android:visibility="gone" />
+                </RadioGroup>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView

@@ -51,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     private CartRepository cartRepository;
     private AuthRepository authRepository;
     private FavoriteRepository favoriteRepository;
+    private AccountSecurityController accountSecurityController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +71,9 @@ public class MainActivity extends AppCompatActivity {
         cartRepository = new CartRepository(this);
         authRepository = new AuthRepository(this);
         favoriteRepository = new FavoriteRepository(this);
+        accountSecurityController = new AccountSecurityController(
+                this, contentContainer, authRepository, this::showAccount);
+        refreshSessionIfAvailable();
 
         bottomNavigation.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
@@ -81,6 +85,19 @@ public class MainActivity extends AppCompatActivity {
 
         showHome();
         updateCartBadge();
+    }
+
+    private void refreshSessionIfAvailable() {
+        if (!authRepository.isLoggedIn()) return;
+        ApiClient.refreshSession(authRepository.getToken(), new ApiClient.Callback<>() {
+            @Override public void onSuccess(JSONObject result) {
+                authRepository.saveSession(result);
+            }
+
+            @Override public void onError(String message) {
+                // Manter a sessão local durante falhas temporárias de conexão.
+            }
+        });
     }
 
     @Override
@@ -279,9 +296,19 @@ public class MainActivity extends AppCompatActivity {
             ((TextView) screen.findViewById(R.id.profileName)).setText(authRepository.getName());
             ((TextView) screen.findViewById(R.id.profileEmail)).setText(authRepository.getEmail());
             screen.findViewById(R.id.addAddressButton).setOnClickListener(v -> showAddressDialog(screen));
+            screen.findViewById(R.id.changePasswordButton)
+                    .setOnClickListener(v -> accountSecurityController.showChangePassword());
+            screen.findViewById(R.id.deleteAccountButton)
+                    .setOnClickListener(v -> accountSecurityController.showDeleteAccount());
             screen.findViewById(R.id.logoutButton).setOnClickListener(v -> {
-                authRepository.logout();
-                showAccount();
+                String token = authRepository.getToken();
+                ApiClient.logout(token, new ApiClient.Callback<>() {
+                    @Override public void onSuccess(JSONObject result) { finishLogout(); }
+                    @Override public void onError(String message) {
+                        // O logout local deve funcionar mesmo quando o aparelho está offline.
+                        finishLogout();
+                    }
+                });
             });
             loadAccountData(screen);
             return;
@@ -289,6 +316,8 @@ public class MainActivity extends AppCompatActivity {
 
         loggedOut.setVisibility(View.VISIBLE);
         loggedIn.setVisibility(View.GONE);
+        screen.findViewById(R.id.forgotPasswordButton)
+                .setOnClickListener(v -> accountSecurityController.showPasswordReset());
         bindAuthForm(screen);
     }
 
@@ -324,7 +353,14 @@ public class MainActivity extends AppCompatActivity {
             authButton.setEnabled(false);
             ApiClient.Callback<JSONObject> callback = new ApiClient.Callback<>() {
                 @Override public void onSuccess(JSONObject result) {
-                    authRepository.saveSession(result);
+                    if (!authRepository.saveSession(result)) {
+                        progress.setVisibility(View.GONE);
+                        authButton.setEnabled(true);
+                        Snackbar.make(contentContainer,
+                                "Não foi possível proteger a sessão neste aparelho",
+                                Snackbar.LENGTH_LONG).show();
+                        return;
+                    }
                     showAccount();
                     Snackbar.make(contentContainer, "Bem-vindo à EJM Santos!", Snackbar.LENGTH_SHORT).show();
                 }
@@ -339,6 +375,12 @@ public class MainActivity extends AppCompatActivity {
             if (registerMode[0]) ApiClient.register(name, email, password, callback);
             else ApiClient.login(email, password, callback);
         });
+    }
+
+    private void finishLogout() {
+        authRepository.logout();
+        showAccount();
+        Snackbar.make(contentContainer, "Sessão encerrada", Snackbar.LENGTH_SHORT).show();
     }
 
     private void loadAccountData(View screen) {

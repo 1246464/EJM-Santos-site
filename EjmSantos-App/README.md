@@ -11,9 +11,14 @@ WebView: telas, navegação, catálogo, carrinho e autenticação são component
 - carrinho persistente e controle de estoque;
 - favoritos persistentes;
 - cadastro e login via JWT;
+- token de sessão criptografado com chave protegida pelo Android Keystore;
+- recuperação de senha por código enviado por e-mail;
+- alteração de senha com revogação das sessões anteriores;
+- exclusão e anonimização da conta, mantendo o histórico operacional de pedidos;
 - cadastro, seleção e remoção de endereços;
 - checkout com endereço, cálculo de entrega e total validado pelo servidor;
 - pedido com pagamento no recebimento, proteção contra duplicidade e baixa de estoque;
+- cartão pelo Stripe PaymentSheet, com confirmação por webhook no backend;
 - histórico de pedidos;
 - navegação inferior no estilo de aplicativos de marketplace.
 
@@ -45,10 +50,11 @@ pedidos. Esses recursos usam os endpoints `/api/mobile/*` adicionados ao backend
 
 ## Próximas etapas
 
-- pagamento digital com Pix/cartão e confirmação por webhook;
+- verificar o endereço de e-mail e publicar política de privacidade e termos;
 - notificações de status do pedido;
 - sincronização do carrinho entre dispositivos;
 - testes instrumentados em emulador e preparação para a Play Store.
+- por último, configurar as credenciais do Stripe e validar os pagamentos em modo de teste.
 
 O planejamento e os critérios de conclusão estão em
 [`docs/ROADMAP_APP_NATIVO.md`](../docs/ROADMAP_APP_NATIVO.md).

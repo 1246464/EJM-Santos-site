@@ -4,8 +4,11 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from functools import wraps
 import re
+import secrets
+from threading import Thread
 
 import jwt
+import stripe
 from flask import Blueprint, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -20,20 +23,29 @@ Order = None
 OrderItem = None
 Product = None
 Address = None
+CartItem = None
+Review = None
+PaymentMethod = None
 app_config = None
 logger = None
+email_service = None
 
 
-def init_mobile(database, models, config, log):
-    global db, User, Order, OrderItem, Product, Address, app_config, logger
+def init_mobile(database, models, config, log, email_svc=None):
+    global db, User, Order, OrderItem, Product, Address, CartItem, Review, PaymentMethod
+    global app_config, logger, email_service
     db = database
     User = models["User"]
     Order = models["Order"]
     OrderItem = models["OrderItem"]
     Product = models["Product"]
     Address = models["Address"]
+    CartItem = models["CartItem"]
+    Review = models["Review"]
+    PaymentMethod = models["PaymentMethod"]
     app_config = config
     logger = log
+    email_service = email_svc
 
 
 def _create_token(user):
@@ -41,6 +53,7 @@ def _create_token(user):
     payload = {
         "user_id": user.id,
         "type": "mobile",
+        "version": user.mobile_token_version or 0,
         "iat": now,
         "exp": now + timedelta(days=30),
     }
@@ -54,6 +67,21 @@ def _user_payload(user):
         "email": user.email,
         "is_admin": user.is_admin,
     }
+
+
+def _utcnow():
+    # Os modelos existentes usam DateTime sem fuso; mantenha a comparação
+    # consistente até a migração global para timestamps timezone-aware.
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _valid_password(password):
+    return (
+        len(password) >= 8
+        and re.search(r"[A-Z]", password)
+        and re.search(r"[a-z]", password)
+        and re.search(r"[0-9]", password)
+    )
 
 
 def _money(value):
@@ -150,6 +178,123 @@ def _order_payload(order):
     return data
 
 
+def _create_reserved_order(user, address, lines, subtotal, distance_km,
+                           delivery_fee, client_reference, payment_method,
+                           status, payment_status):
+    """Cria pedido e reserva estoque dentro da transação atual."""
+    order = Order(
+        user_id=user.id,
+        subtotal=float(subtotal),
+        delivery_fee=float(delivery_fee),
+        delivery_distance_km=distance_km,
+        total=float(subtotal + delivery_fee),
+        status=status,
+        client_reference=client_reference,
+        payment_method=payment_method,
+        payment_status=payment_status,
+        inventory_released=False,
+        endereco_rua=address.rua,
+        endereco_numero=address.numero,
+        endereco_complemento=address.complemento,
+        endereco_bairro=address.bairro,
+        endereco_cidade=address.cidade,
+        endereco_estado=address.estado,
+        endereco_cep=address.cep,
+        telefone=address.telefone,
+    )
+    db.session.add(order)
+    db.session.flush()
+
+    for line in lines:
+        product = line["product"]
+        quantity = line["quantity"]
+        # UPDATE condicional impede estoque negativo mesmo com duas compras
+        # concorrentes para a última unidade.
+        changed = Product.query.filter(
+            Product.id == product.id,
+            Product.estoque >= quantity,
+        ).update(
+            {Product.estoque: Product.estoque - quantity},
+            synchronize_session=False,
+        )
+        if changed != 1:
+            raise RuntimeError(f"Estoque insuficiente para {product.titulo}")
+        db.session.add(OrderItem(
+            order_id=order.id,
+            product_id=product.id,
+            quantidade=quantity,
+            preco_unitario=float(line["unit_price"]),
+        ))
+    return order
+
+
+def _release_inventory(order):
+    """Devolve uma reserva cancelada apenas uma vez."""
+    if order.inventory_released:
+        return
+    for item in order.items:
+        Product.query.filter(Product.id == item.product_id).update(
+            {Product.estoque: Product.estoque + item.quantidade},
+            synchronize_session=False,
+        )
+    order.inventory_released = True
+
+
+def _valid_client_reference(value):
+    return re.fullmatch(r"[A-Za-z0-9_-]{8,64}", str(value or "").strip()) is not None
+
+
+def _stripe_enabled():
+    return bool(
+        app_config.get("STRIPE_SECRET_KEY")
+        and app_config.get("STRIPE_PUBLIC_KEY")
+        and app_config.get("STRIPE_WEBHOOK_SECRET")
+    )
+
+
+def _notify_order_status(order, old_status, new_status):
+    if app_config.get("TESTING") or not email_service or old_status == new_status:
+        return
+    args = {
+        "user_name": order.user.nome,
+        "user_email": order.user.email,
+        "order_id": order.id,
+        "old_status": old_status,
+        "new_status": new_status,
+    }
+    Thread(
+        target=lambda: email_service.send_order_status_update(**args),
+        name=f"email-order-status-{order.id}",
+        daemon=True,
+    ).start()
+
+
+def _notify_order_created(order):
+    if app_config.get("TESTING") or not email_service:
+        return
+    items = [{
+        "titulo": item.product.titulo if item.product else f"Produto #{item.product_id}",
+        "quantidade": item.quantidade,
+        "preco": item.preco_unitario * item.quantidade,
+    } for item in order.items]
+    args = {
+        "user_name": order.user.nome,
+        "user_email": order.user.email,
+        "order_id": order.id,
+        "order_items": items,
+        "total": order.total,
+        "endereco_completo": (
+            f"{order.endereco_rua}, {order.endereco_numero} - "
+            f"{order.endereco_bairro}, {order.endereco_cidade}"
+        ),
+    }
+    Thread(
+        target=lambda: email_service.send_order_confirmation(**args),
+        name=f"email-order-created-{order.id}",
+        daemon=True,
+    ).start()
+
+
 def token_required(view):
     @wraps(view)
     def decorated(*args, **kwargs):
@@ -163,8 +308,10 @@ def token_required(view):
             if payload.get("type") != "mobile":
                 raise jwt.InvalidTokenError("tipo de token inválido")
             user = db.session.get(User, payload.get("user_id"))
-            if not user:
+            if not user or not user.is_active:
                 raise jwt.InvalidTokenError("usuário não encontrado")
+            if payload.get("version", 0) != (user.mobile_token_version or 0):
+                raise jwt.InvalidTokenError("sessão revogada")
         except jwt.ExpiredSignatureError:
             return jsonify({"message": "Sessão expirada"}), 401
         except jwt.InvalidTokenError:
@@ -190,7 +337,7 @@ def login():
         return jsonify({"message": "Email e senha são obrigatórios"}), 400
 
     user = User.query.filter_by(email=email).first()
-    if not user or not check_password_hash(user.senha_hash, password):
+    if not user or not user.is_active or not check_password_hash(user.senha_hash, password):
         return jsonify({"message": "Credenciais inválidas"}), 401
 
     logger.info("Login no aplicativo - User ID: %s", user.id)
@@ -210,8 +357,7 @@ def register():
         return jsonify({"message": name_error}), 400
     if not valid_email:
         return jsonify({"message": email_error}), 400
-    if (len(password) < 8 or not re.search(r"[A-Z]", password)
-            or not re.search(r"[a-z]", password) or not re.search(r"[0-9]", password)):
+    if not _valid_password(password):
         return jsonify({"message": "A senha deve ter 8 caracteres, maiúscula, minúscula e número"}), 400
     if User.query.filter_by(email=email).first():
         return jsonify({"message": "Email já cadastrado"}), 409
@@ -222,6 +368,7 @@ def register():
             email=email,
             senha_hash=generate_password_hash(password),
             is_admin=False,
+            is_active=True,
         )
         db.session.add(user)
         db.session.commit()
@@ -237,6 +384,168 @@ def register():
 @token_required
 def me(user):
     return jsonify({"user": _user_payload(user)})
+
+
+@mobile_bp.post("/auth/refresh")
+@token_required
+def refresh_token(user):
+    return jsonify({"token": _create_token(user), "user": _user_payload(user)})
+
+
+@mobile_bp.post("/auth/logout")
+@token_required
+def logout(user):
+    user.mobile_token_version = (user.mobile_token_version or 0) + 1
+    db.session.commit()
+    logger.info("Sessões móveis revogadas - User ID: %s", user.id)
+    return jsonify({"message": "Sessão encerrada"})
+
+
+@mobile_bp.post("/auth/password/reset/request")
+def request_password_reset():
+    data = request.get_json(silent=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    generic_response = {
+        "message": "Se o email estiver cadastrado, enviaremos um código de recuperação"
+    }
+
+    valid_email, _ = Validator.validate_email(email)
+    if not valid_email:
+        return jsonify(generic_response), 202
+
+    user = User.query.filter_by(email=email, is_active=True).first()
+    if not user:
+        # Mantém custo semelhante e não revela se o endereço está cadastrado.
+        generate_password_hash(f"{secrets.randbelow(1_000_000):06d}")
+        return jsonify(generic_response), 202
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    user.password_reset_hash = generate_password_hash(code)
+    user.password_reset_expires_at = _utcnow() + timedelta(minutes=15)
+    user.password_reset_attempts = 0
+    db.session.commit()
+
+    if email_service and not app_config.get("TESTING"):
+        reset_email_args = {
+            "user_name": user.nome,
+            "user_email": user.email,
+            "code": code,
+            "expires_minutes": 15,
+        }
+        Thread(
+            target=lambda: email_service.send_password_reset_code(**reset_email_args),
+            name=f"email-password-reset-{user.id}",
+            daemon=True,
+        ).start()
+    logger.info("Recuperação de senha solicitada - User ID: %s", user.id)
+    return jsonify(generic_response), 202
+
+
+@mobile_bp.post("/auth/password/reset/confirm")
+def confirm_password_reset():
+    data = request.get_json(silent=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    code = str(data.get("code", "")).strip()
+    new_password = str(data.get("new_password", ""))
+
+    if not _valid_password(new_password):
+        return jsonify({
+            "message": "A senha deve ter 8 caracteres, maiúscula, minúscula e número"
+        }), 400
+
+    user = User.query.filter_by(email=email, is_active=True).first()
+    invalid = (
+        not user
+        or not user.password_reset_hash
+        or not user.password_reset_expires_at
+        or user.password_reset_expires_at < _utcnow()
+        or user.password_reset_attempts >= 5
+    )
+    if invalid:
+        return jsonify({"message": "Código inválido ou expirado"}), 400
+
+    if not re.fullmatch(r"\d{6}", code) or not check_password_hash(
+            user.password_reset_hash, code):
+        user.password_reset_attempts = (user.password_reset_attempts or 0) + 1
+        if user.password_reset_attempts >= 5:
+            user.password_reset_hash = None
+            user.password_reset_expires_at = None
+        db.session.commit()
+        return jsonify({"message": "Código inválido ou expirado"}), 400
+
+    user.senha_hash = generate_password_hash(new_password)
+    user.password_reset_hash = None
+    user.password_reset_expires_at = None
+    user.password_reset_attempts = 0
+    user.mobile_token_version = (user.mobile_token_version or 0) + 1
+    db.session.commit()
+    logger.info("Senha recuperada pelo aplicativo - User ID: %s", user.id)
+    return jsonify({"message": "Senha atualizada. Entre novamente"})
+
+
+@mobile_bp.post("/auth/password/change")
+@token_required
+def change_password(user):
+    data = request.get_json(silent=True) or {}
+    current_password = str(data.get("current_password", ""))
+    new_password = str(data.get("new_password", ""))
+    if not check_password_hash(user.senha_hash, current_password):
+        return jsonify({"message": "Senha atual incorreta"}), 400
+    if not _valid_password(new_password):
+        return jsonify({
+            "message": "A nova senha deve ter 8 caracteres, maiúscula, minúscula e número"
+        }), 400
+    if check_password_hash(user.senha_hash, new_password):
+        return jsonify({"message": "Escolha uma senha diferente da atual"}), 400
+
+    user.senha_hash = generate_password_hash(new_password)
+    user.mobile_token_version = (user.mobile_token_version or 0) + 1
+    db.session.commit()
+    logger.info("Senha alterada pelo aplicativo - User ID: %s", user.id)
+    return jsonify({
+        "message": "Senha alterada",
+        "token": _create_token(user),
+        "user": _user_payload(user),
+    })
+
+
+@mobile_bp.post("/account/delete")
+@token_required
+def delete_account(user):
+    data = request.get_json(silent=True) or {}
+    password = str(data.get("password", ""))
+    confirmation = str(data.get("confirmation", "")).strip().upper()
+    if user.is_admin:
+        return jsonify({"message": "Uma conta administradora não pode ser excluída pelo app"}), 403
+    if confirmation != "EXCLUIR" or not check_password_hash(user.senha_hash, password):
+        return jsonify({"message": "Senha ou confirmação inválida"}), 400
+
+    try:
+        # Pedidos permanecem vinculados a um registro anonimizado para preservar
+        # a operação e o histórico financeiro. Dados de uso da conta são removidos.
+        Address.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        CartItem.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        Review.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        PaymentMethod.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+
+        user.nome = "Conta excluída"
+        user.email = f"deleted-{user.id}-{secrets.token_hex(8)}@deleted.invalid"
+        user.senha_hash = generate_password_hash(secrets.token_urlsafe(32))
+        user.is_active = False
+        user.deleted_at = _utcnow()
+        user.password_reset_hash = None
+        user.password_reset_expires_at = None
+        user.password_reset_attempts = 0
+        user.mobile_token_version = (user.mobile_token_version or 0) + 1
+        db.session.commit()
+        logger.info("Conta anonimizada pelo aplicativo - User ID: %s", user.id)
+        return jsonify({
+            "message": "Conta excluída. Dados necessários dos pedidos foram preservados"
+        })
+    except Exception:
+        db.session.rollback()
+        logger.exception("Falha ao excluir conta pelo aplicativo - User ID: %s", user.id)
+        return jsonify({"message": "Não foi possível excluir a conta"}), 500
 
 
 @mobile_bp.get("/orders")
@@ -283,7 +592,10 @@ def checkout_quote(user):
         "delivery_distance_km": distance_km,
         "delivery_fee": float(delivery_fee),
         "total": float(subtotal + delivery_fee),
-        "payment_methods": ["cash_on_delivery"],
+        "payment_methods": (
+            ["cash_on_delivery", "stripe"] if _stripe_enabled()
+            else ["cash_on_delivery"]
+        ),
     })
 
 
@@ -292,22 +604,26 @@ def checkout_quote(user):
 def create_order(user):
     data = request.get_json(silent=True) or {}
     client_reference = str(data.get("client_reference", "")).strip()
-    if not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", client_reference):
+    if not _valid_client_reference(client_reference):
         return jsonify({"message": "Identificador da compra inválido"}), 400
+
+    payment_method = str(data.get("payment_method", "")).strip()
+    if payment_method != "cash_on_delivery":
+        return jsonify({"message": "Forma de pagamento indisponível"}), 400
 
     existing = Order.query.filter_by(
         user_id=user.id, client_reference=client_reference
     ).first()
     if existing:
+        if existing.payment_method != payment_method:
+            return jsonify({
+                "message": "Já existe um pagamento iniciado para esta compra"
+            }), 409
         return jsonify({
             "message": "Pedido já recebido",
             "duplicate": True,
             "order": _order_payload(existing),
         })
-
-    payment_method = str(data.get("payment_method", "")).strip()
-    if payment_method != "cash_on_delivery":
-        return jsonify({"message": "Forma de pagamento indisponível"}), 400
 
     address = _address_for_user(user, data.get("address_id"))
     if not address:
@@ -319,54 +635,17 @@ def create_order(user):
         distance_km, delivery_fee = _delivery_for(address)
         lines, subtotal = _cart_snapshot(data.get("items"))
 
-        order = Order(
-            user_id=user.id,
-            subtotal=float(subtotal),
-            delivery_fee=float(delivery_fee),
-            delivery_distance_km=distance_km,
-            total=float(subtotal + delivery_fee),
-            status="Pendente",
-            client_reference=client_reference,
-            payment_method=payment_method,
-            payment_status="pending",
-            endereco_rua=address.rua,
-            endereco_numero=address.numero,
-            endereco_complemento=address.complemento,
-            endereco_bairro=address.bairro,
-            endereco_cidade=address.cidade,
-            endereco_estado=address.estado,
-            endereco_cep=address.cep,
-            telefone=address.telefone,
+        order = _create_reserved_order(
+            user, address, lines, subtotal, distance_km, delivery_fee,
+            client_reference, payment_method, "Pendente", "pending",
         )
-        db.session.add(order)
-        db.session.flush()
-
-        for line in lines:
-            product = line["product"]
-            quantity = line["quantity"]
-            # UPDATE condicional impede estoque negativo mesmo com duas compras
-            # concorrentes para a última unidade.
-            changed = Product.query.filter(
-                Product.id == product.id,
-                Product.estoque >= quantity,
-            ).update(
-                {Product.estoque: Product.estoque - quantity},
-                synchronize_session=False,
-            )
-            if changed != 1:
-                raise RuntimeError(f"Estoque insuficiente para {product.titulo}")
-            db.session.add(OrderItem(
-                order_id=order.id,
-                product_id=product.id,
-                quantidade=quantity,
-                preco_unitario=float(line["unit_price"]),
-            ))
 
         db.session.commit()
         logger.info(
             "Pedido móvel criado - ID: %s - User: %s - Total: R$ %.2f",
             order.id, user.id, order.total,
         )
+        _notify_order_created(order)
         return jsonify({
             "message": "Pedido realizado com sucesso",
             "duplicate": False,
@@ -396,6 +675,160 @@ def create_order(user):
             })
         logger.exception("Falha ao criar pedido móvel")
         return jsonify({"message": "Não foi possível concluir o pedido"}), 500
+
+
+def _stripe_intent_payload(order, intent):
+    return {
+        "publishable_key": app_config["STRIPE_PUBLIC_KEY"],
+        "client_secret": intent["client_secret"],
+        "order": _order_payload(order),
+    }
+
+
+@mobile_bp.post("/payments/stripe/intent")
+@token_required
+def create_stripe_intent(user):
+    if not _stripe_enabled():
+        return jsonify({
+            "message": "Pagamento por cartão ainda não está configurado"
+        }), 503
+
+    data = request.get_json(silent=True) or {}
+    client_reference = str(data.get("client_reference", "")).strip()
+    if not _valid_client_reference(client_reference):
+        return jsonify({"message": "Identificador da compra inválido"}), 400
+
+    existing = Order.query.filter_by(
+        user_id=user.id, client_reference=client_reference
+    ).first()
+    if existing:
+        if existing.payment_method != "stripe" or not existing.external_payment_id:
+            return jsonify({"message": "Esta compra já foi utilizada"}), 409
+        if existing.payment_status == "paid":
+            return jsonify({"message": "Este pedido já está pago", "order": _order_payload(existing)}), 409
+        if existing.payment_status == "canceled":
+            return jsonify({
+                "message": "Este pagamento expirou. Volte ao carrinho e tente novamente"
+            }), 409
+        try:
+            intent = stripe.PaymentIntent.retrieve(existing.external_payment_id)
+            return jsonify(_stripe_intent_payload(existing, intent))
+        except stripe.error.StripeError:
+            logger.exception("Falha ao recuperar PaymentIntent %s", existing.external_payment_id)
+            return jsonify({"message": "Não foi possível retomar o pagamento"}), 502
+
+    address = _address_for_user(user, data.get("address_id"))
+    if not address:
+        return jsonify({"message": "Selecione um endereço válido"}), 404
+
+    intent = None
+    try:
+        distance_km, delivery_fee = _delivery_for(address)
+        lines, subtotal = _cart_snapshot(data.get("items"))
+        order = _create_reserved_order(
+            user, address, lines, subtotal, distance_km, delivery_fee,
+            client_reference, "stripe", "Aguardando pagamento", "requires_payment",
+        )
+
+        total_cents = int(_money(subtotal + delivery_fee) * 100)
+        intent = stripe.PaymentIntent.create(
+            amount=total_cents,
+            currency="brl",
+            automatic_payment_methods={"enabled": True},
+            description=f"Pedido EJM Santos #{order.id}",
+            receipt_email=user.email,
+            metadata={
+                "order_id": str(order.id),
+                "user_id": str(user.id),
+                "client_reference": client_reference,
+            },
+            idempotency_key=f"ejm-mobile-{client_reference}",
+        )
+        order.external_payment_id = intent["id"]
+        db.session.commit()
+        logger.info("PaymentIntent criado - Pedido: %s - Intent: %s", order.id, intent["id"])
+        return jsonify(_stripe_intent_payload(order, intent)), 201
+    except ValueError as error:
+        db.session.rollback()
+        return jsonify({"message": str(error)}), 400
+    except LookupError as error:
+        db.session.rollback()
+        return jsonify({"message": str(error)}), 404
+    except RuntimeError as error:
+        db.session.rollback()
+        return jsonify({"message": str(error)}), 409
+    except stripe.error.StripeError:
+        db.session.rollback()
+        logger.exception("Falha do Stripe ao iniciar pagamento móvel")
+        return jsonify({"message": "O Stripe não conseguiu iniciar o pagamento"}), 502
+    except Exception:
+        db.session.rollback()
+        if intent is not None:
+            try:
+                stripe.PaymentIntent.cancel(intent["id"])
+            except Exception:
+                logger.exception("Não foi possível cancelar PaymentIntent órfão")
+        logger.exception("Falha ao preparar pagamento móvel")
+        return jsonify({"message": "Não foi possível preparar o pagamento"}), 500
+
+
+@mobile_bp.post("/payments/stripe/webhook")
+def stripe_webhook():
+    webhook_secret = app_config.get("STRIPE_WEBHOOK_SECRET")
+    if not webhook_secret:
+        logger.error("Webhook Stripe chamado sem STRIPE_WEBHOOK_SECRET configurado")
+        return jsonify({"message": "Webhook indisponível"}), 503
+
+    try:
+        event = stripe.Webhook.construct_event(
+            request.get_data(cache=False),
+            request.headers.get("Stripe-Signature", ""),
+            webhook_secret,
+        )
+    except (ValueError, stripe.error.SignatureVerificationError):
+        logger.warning("Webhook Stripe rejeitado por assinatura inválida")
+        return jsonify({"message": "Assinatura inválida"}), 400
+
+    event_type = event["type"]
+    intent = event["data"]["object"]
+    if event_type not in {
+        "payment_intent.succeeded",
+        "payment_intent.payment_failed",
+        "payment_intent.canceled",
+    }:
+        return jsonify({"received": True})
+
+    order = Order.query.filter_by(external_payment_id=intent.get("id")).first()
+    if not order:
+        logger.warning("Webhook para PaymentIntent desconhecido: %s", intent.get("id"))
+        return jsonify({"received": True})
+
+    old_status = order.status
+    if event_type == "payment_intent.succeeded":
+        expected_amount = int(_money(order.total) * 100)
+        paid_amount = int(intent.get("amount_received") or intent.get("amount") or 0)
+        if intent.get("currency") != "brl" or paid_amount != expected_amount:
+            order.payment_status = "amount_mismatch"
+            order.status = "Revisão necessária"
+            logger.error(
+                "Pagamento divergente - Pedido: %s - esperado: %s - recebido: %s %s",
+                order.id, expected_amount, paid_amount, intent.get("currency"),
+            )
+        else:
+            order.payment_status = "paid"
+            order.status = "Pago"
+    elif event_type == "payment_intent.payment_failed" and order.payment_status != "paid":
+        order.payment_status = "failed"
+        order.status = "Pagamento recusado"
+    elif event_type == "payment_intent.canceled" and order.payment_status != "paid":
+        _release_inventory(order)
+        order.payment_status = "canceled"
+        order.status = "Cancelado"
+
+    db.session.commit()
+    _notify_order_status(order, old_status, order.status)
+    logger.info("Webhook Stripe processado - Pedido: %s - Evento: %s", order.id, event_type)
+    return jsonify({"received": True})
 
 
 @mobile_bp.get("/addresses")

@@ -4,6 +4,7 @@
 
 import smtplib
 import os
+from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
@@ -118,6 +119,34 @@ class EmailService:
         """
         
         return self._send_email(user_email, subject, html_content)
+
+    def send_password_reset_code(self, user_name, user_email, code, expires_minutes=15):
+        """Envia o código temporário de recuperação usado pelo aplicativo."""
+        safe_name = escape(str(user_name))
+        safe_code = escape(str(code))
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #241a0e;">
+            <div style="max-width: 560px; margin: 0 auto; padding: 24px;">
+                <h1 style="color: #7a4e00;">Recuperação de senha</h1>
+                <p>Olá, <strong>{safe_name}</strong>.</p>
+                <p>Use o código abaixo no aplicativo EJM Santos:</p>
+                <p style="font-size: 30px; font-weight: bold; letter-spacing: 8px;
+                          background: #fff2bf; padding: 18px; text-align: center;">
+                    {safe_code}
+                </p>
+                <p>O código expira em {int(expires_minutes)} minutos.</p>
+                <p>Se você não solicitou a recuperação, ignore este email.</p>
+            </div>
+        </body>
+        </html>
+        """
+        return self._send_email(
+            user_email,
+            "Código de recuperação — EJM Santos",
+            html_content,
+        )
     
     def send_order_confirmation(self, user_name, user_email, order_id, order_items, total, 
                                 endereco_completo=None):

@@ -192,6 +192,8 @@ with app.app_context():
                 'client_reference': 'VARCHAR(64)',
                 'payment_method': "VARCHAR(30) DEFAULT 'cash_on_delivery'",
                 'payment_status': "VARCHAR(30) DEFAULT 'pending'",
+                'external_payment_id': 'VARCHAR(100)',
+                'inventory_released': 'BOOLEAN DEFAULT FALSE',
                 'endereco_estado': 'VARCHAR(2)',
                 'endereco_cep': 'VARCHAR(10)'
             }
@@ -220,6 +222,8 @@ with app.app_context():
                     logger.info(f"✅ Pedidos antigos atualizados (subtotal=total)")
                 except Exception as e:
                     logger.warning(f"⚠️ Erro ao atualizar pedidos: {str(e)[:60]}")
+            else:
+                logger.info("✅ Todas as colunas do pedido já existem")
 
             # Índice único para o identificador idempotente enviado pelo app.
             # WHERE permite vários pedidos antigos com valor nulo.
@@ -232,14 +236,48 @@ with app.app_context():
                     ))
             except Exception as e:
                 logger.warning(f"⚠️ Índice de idempotência: {str(e)[:60]}")
-            else:
-                logger.info("✅ Todas as colunas de entrega já existem")
+
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(db.text(
+                        'CREATE UNIQUE INDEX IF NOT EXISTS '
+                        'ix_order_external_payment_id_unique ON "order" (external_payment_id) '
+                        'WHERE external_payment_id IS NOT NULL'
+                    ))
+            except Exception as e:
+                logger.warning(f"⚠️ Índice de pagamento externo: {str(e)[:60]}")
         else:
             logger.info("ℹ️ Tabela 'order' ainda não existe")
             
     except Exception as e:
         logger.warning(f"⚠️ Erro na migração (não crítico): {str(e)[:100]}")
         # Não falhar a inicialização por causa da migração
+
+    # Versão de sessão móvel para permitir revogação no logout.
+    try:
+        if 'user' in existing_tables:
+            user_columns = [col['name'] for col in inspector.get_columns('user')]
+            user_required_columns = {
+                'mobile_token_version': 'INTEGER DEFAULT 0 NOT NULL',
+                'is_active': 'BOOLEAN DEFAULT TRUE NOT NULL',
+                'deleted_at': 'TIMESTAMP',
+                'password_reset_hash': 'VARCHAR(256)',
+                'password_reset_expires_at': 'TIMESTAMP',
+                'password_reset_attempts': 'INTEGER DEFAULT 0 NOT NULL',
+            }
+            missing_user_columns = [
+                name for name in user_required_columns if name not in user_columns
+            ]
+            if missing_user_columns:
+                with db.engine.begin() as conn:
+                    for name in missing_user_columns:
+                        conn.execute(db.text(
+                            f'ALTER TABLE "user" ADD COLUMN {name} '
+                            f'{user_required_columns[name]}'
+                        ))
+                logger.info("✅ Colunas de segurança da conta móvel adicionadas")
+    except Exception as e:
+        logger.warning(f"⚠️ Migração de sessão móvel: {str(e)[:100]}")
 
 # Configurar diretório de upload
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
@@ -315,9 +353,33 @@ logger.info("✅ Blueprint de diagnóstico registrado")
 
 # API do aplicativo usa JWT Bearer, não cookies de sessão; por isso não está
 # sujeita a CSRF de navegador.
-init_mobile(db, models_dict, app.config, logger)
+init_mobile(db, models_dict, app.config, logger, email_service)
 app.register_blueprint(mobile_bp)
 csrf.exempt(mobile_bp)
+# Limites específicos para reduzir força bruta e criação automatizada de contas.
+# A aplicação dos decorators ocorre após o registro para evitar dependência
+# circular entre o blueprint móvel e esta instância do Limiter.
+app.view_functions['mobile.login'] = limiter.limit("5 per minute")(app.view_functions['mobile.login'])
+app.view_functions['mobile.register'] = limiter.limit("3 per hour")(app.view_functions['mobile.register'])
+app.view_functions['mobile.refresh_token'] = limiter.limit("30 per hour")(
+    app.view_functions['mobile.refresh_token']
+)
+app.view_functions['mobile.request_password_reset'] = limiter.limit("3 per hour")(
+    app.view_functions['mobile.request_password_reset']
+)
+app.view_functions['mobile.confirm_password_reset'] = limiter.limit("10 per hour")(
+    app.view_functions['mobile.confirm_password_reset']
+)
+app.view_functions['mobile.change_password'] = limiter.limit("5 per hour")(
+    app.view_functions['mobile.change_password']
+)
+app.view_functions['mobile.delete_account'] = limiter.limit("3 per hour")(
+    app.view_functions['mobile.delete_account']
+)
+# O Stripe já autentica o webhook por assinatura e pode reenviar eventos; não
+# deixe o limite global impedir confirmações legítimas de pagamento.
+limiter.exempt(app.view_functions['mobile.stripe_webhook'])
+limiter.exempt(app.view_functions['mobile.health'])
 logger.info("✅ Blueprint do aplicativo móvel registrado")
 
 # ============================================

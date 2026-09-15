@@ -89,6 +89,57 @@ public final class ApiClient {
         request("GET", "api/mobile/orders", null, token, JSONObject::new, callback);
     }
 
+    public static void logout(String token, Callback<JSONObject> callback) {
+        request("POST", "api/mobile/auth/logout", new JSONObject(),
+                token, JSONObject::new, callback);
+    }
+
+    public static void refreshSession(String token, Callback<JSONObject> callback) {
+        request("POST", "api/mobile/auth/refresh", new JSONObject(),
+                token, JSONObject::new, callback);
+    }
+
+    public static void requestPasswordReset(String email, Callback<JSONObject> callback) {
+        JSONObject body = new JSONObject();
+        try { body.put("email", email); } catch (Exception ignored) {}
+        request("POST", "api/mobile/auth/password/reset/request",
+                body, null, JSONObject::new, callback);
+    }
+
+    public static void confirmPasswordReset(String email, String code, String newPassword,
+                                            Callback<JSONObject> callback) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("email", email);
+            body.put("code", code);
+            body.put("new_password", newPassword);
+        } catch (Exception ignored) {}
+        request("POST", "api/mobile/auth/password/reset/confirm",
+                body, null, JSONObject::new, callback);
+    }
+
+    public static void changePassword(String token, String currentPassword, String newPassword,
+                                      Callback<JSONObject> callback) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("current_password", currentPassword);
+            body.put("new_password", newPassword);
+        } catch (Exception ignored) {}
+        request("POST", "api/mobile/auth/password/change",
+                body, token, JSONObject::new, callback);
+    }
+
+    public static void deleteAccount(String token, String password, String confirmation,
+                                     Callback<JSONObject> callback) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("password", password);
+            body.put("confirmation", confirmation);
+        } catch (Exception ignored) {}
+        request("POST", "api/mobile/account/delete",
+                body, token, JSONObject::new, callback);
+    }
+
     public static void getCheckoutQuote(String token, int addressId, JSONArray items,
                                         Callback<JSONObject> callback) {
         JSONObject body = new JSONObject();
@@ -109,6 +160,19 @@ public final class ApiClient {
             body.put("client_reference", clientReference);
         } catch (Exception ignored) {}
         request("POST", "api/mobile/orders", body, token, JSONObject::new, callback);
+    }
+
+    public static void createStripePaymentIntent(String token, int addressId, JSONArray items,
+                                                 String clientReference,
+                                                 Callback<JSONObject> callback) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("address_id", addressId);
+            body.put("items", items);
+            body.put("client_reference", clientReference);
+        } catch (Exception ignored) {}
+        request("POST", "api/mobile/payments/stripe/intent",
+                body, token, JSONObject::new, callback);
     }
 
     private static <T> void request(String method, String path, JSONObject jsonBody,
