@@ -85,13 +85,13 @@ class ProjectCleanup:
         """Verifica arquivos duplicados"""
         print("📄 Arquivos Duplicados/Obsoletos")
         
-        # app_refatorado.py (substituído por app_new.py)
+        # app_refatorado.py (substituído por application.py)
         app_refatorado = os.path.join(self.base_dir, "app_refatorado.py")
         if os.path.exists(app_refatorado):
             self.to_remove.append({
                 'path': app_refatorado,
                 'type': 'file',
-                'reason': 'Versão antiga - substituída por app_new.py',
+                'reason': 'Versão antiga - substituída por application.py',
                 'safe': True,
                 'gitignored': False
             })

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/detailToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="60dp"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="Detalhes do produto" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingBottom="24dp">
+            <ImageView android:id="@+id/detailImage" android:layout_width="match_parent" android:layout_height="310dp" android:background="@color/surface_variant" android:contentDescription="Imagem do produto" android:scaleType="centerCrop" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView android:id="@+id/detailTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" android:textSize="27sp" android:textStyle="bold" />
+                <TextView android:id="@+id/detailRating" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textColor="@color/honey_dark" android:textSize="15sp" />
+                <TextView android:id="@+id/detailPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textColor="@color/text_primary" android:textSize="30sp" android:textStyle="bold" />
+                <TextView android:id="@+id/detailStock" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/success" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="Sobre este produto" android:textColor="@color/text_primary" android:textSize="19sp" android:textStyle="bold" />
+                <TextView android:id="@+id/detailDescription" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:lineSpacingExtra="4dp" android:textColor="@color/text_secondary" android:textSize="16sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/detailAddButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text="Adicionar ao carrinho"
+        android:textAllCaps="false"
+        app:cornerRadius="20dp" />
+</LinearLayout>

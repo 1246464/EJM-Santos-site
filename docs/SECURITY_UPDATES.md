@@ -112,12 +112,12 @@ pip install -r requirements.txt
 
 ### Development
 ```bash
-FLASK_ENV=development .\.venv\Scripts\python.exe app_new.py
+$env:FLASK_ENV='development'; .\.venv\Scripts\python.exe application.py
 ```
 
 ### Production (valida configurações)
 ```bash
-FLASK_ENV=production .\.venv\Scripts\python.exe app_new.py
+$env:FLASK_ENV='production'; .\.venv\Scripts\python.exe application.py
 ```
 
 ---

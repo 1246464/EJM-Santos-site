@@ -212,7 +212,7 @@ def admin_editar_produto(pid):
     return render_template("admin_editar.html", produto=p)
 
 
-@admin_bp.route("/remover/<int:pid>")
+@admin_bp.route("/remover/<int:pid>", methods=["POST"])
 @admin_required
 def admin_remover_produto(pid):
     """Remover produto"""

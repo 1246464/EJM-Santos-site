@@ -21,6 +21,12 @@ def create_order_model(db):
         subtotal = db.Column(db.Float, nullable=False, default=0)  # Total dos produtos
         delivery_fee = db.Column(db.Float, default=0)  # Taxa de entrega
         delivery_distance_km = db.Column(db.Float)  # Distância em km
+
+        # Controle do checkout móvel. client_reference torna a criação do
+        # pedido idempotente e evita pedidos duplicados em reenvios de rede.
+        client_reference = db.Column(db.String(64), unique=True, nullable=True, index=True)
+        payment_method = db.Column(db.String(30), default="cash_on_delivery")
+        payment_status = db.Column(db.String(30), default="pending", index=True)
         
         # Endereço de entrega (entrega local)
         endereco_rua = db.Column(db.String(200))
@@ -28,6 +34,8 @@ def create_order_model(db):
         endereco_complemento = db.Column(db.String(100))
         endereco_bairro = db.Column(db.String(100))
         endereco_cidade = db.Column(db.String(100))
+        endereco_estado = db.Column(db.String(2))
+        endereco_cep = db.Column(db.String(10))
         telefone = db.Column(db.String(20))
         
         # Agendamento de entrega
@@ -52,6 +60,9 @@ def create_order_model(db):
                 'subtotal': self.subtotal,
                 'delivery_fee': self.delivery_fee,
                 'delivery_distance_km': self.delivery_distance_km,
+                'client_reference': self.client_reference,
+                'payment_method': self.payment_method,
+                'payment_status': self.payment_status,
                 'status': self.status,
                 'endereco': {
                     'rua': self.endereco_rua,
@@ -59,6 +70,8 @@ def create_order_model(db):
                     'complemento': self.endereco_complemento,
                     'bairro': self.endereco_bairro,
                     'cidade': self.endereco_cidade,
+                    'estado': self.endereco_estado,
+                    'cep': self.endereco_cep,
                     'telefone': self.telefone
                 },
                 'delivery_date': self.delivery_date.isoformat() if self.delivery_date else None,

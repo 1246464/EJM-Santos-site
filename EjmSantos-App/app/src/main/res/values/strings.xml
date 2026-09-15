@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">EJM Santos</string>
+    <string name="loading">Carregando...</string>
+    <string name="error_loading">Erro ao carregar. Verifique sua conexão.</string>
+    <string name="home">Início</string>
+    <string name="cart">Carrinho</string>
+    <string name="account">Conta</string>
+    <string name="search_hint">O que você procura hoje?</string>
+    <string name="featured_products">Produtos em destaque</string>
+    <string name="add_to_cart">Adicionar</string>
+    <string name="try_again">Tentar novamente</string>
+</resources>

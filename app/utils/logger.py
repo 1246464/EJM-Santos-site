@@ -65,7 +65,13 @@ def setup_logger(app):
     # Log inicial
     app.logger.info('=' * 80)
     app.logger.info(f'🍯 EJM Santos iniciado - {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-    app.logger.info(f'Ambiente: {"Desenvolvimento" if app.debug else "Produção"}')
+    if app.testing:
+        environment_name = "Testes"
+    elif app.debug:
+        environment_name = "Desenvolvimento"
+    else:
+        environment_name = "Produção"
+    app.logger.info(f'Ambiente: {environment_name}')
     app.logger.info('=' * 80)
     
     return app.logger

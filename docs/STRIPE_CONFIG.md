@@ -62,7 +62,7 @@ ALTER TABLE product DROP COLUMN mercado_pago_link;
 
 1. Execute o servidor:
    ```bash
-   python app.py
+   python application.py
    ```
 
 2. Acesse: http://127.0.0.1:5000

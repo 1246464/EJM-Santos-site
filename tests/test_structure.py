@@ -47,7 +47,7 @@ def main():
     print("=" * 70)
     print()
     
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     results = []
     
     # 1. Verificar exceções customizadas
@@ -82,7 +82,7 @@ def main():
     
     # 4. Verificar documentação
     print("📁 Documentação")
-    filepath = os.path.join(base_dir, "TRATAMENTO_ERROS.md")
+    filepath = os.path.join(base_dir, "docs", "TRATAMENTO_ERROS.md")
     results.append(check_file_content(
         filepath,
         ["Sistema de Tratamento de Erros", "Exceções", "Logging", "Boas Práticas"],
@@ -90,20 +90,20 @@ def main():
     ))
     print()
     
-    filepath = os.path.join(base_dir, "RESUMO_TRATAMENTO_ERROS.md")
+    filepath = os.path.join(base_dir, "docs", "RESUMO_TRATAMENTO_ERROS.md")
     results.append(check_file_exists(
         filepath,
         "   Resumo de implementação"
     ))
     print()
     
-    # 5. Verificar modificações no app.py
-    print("📁 Integração no app.py")
-    filepath = os.path.join(base_dir, "app.py")
+    # 5. Verificar integração na aplicação principal
+    print("📁 Integração em application.py")
+    filepath = os.path.join(base_dir, "application.py")
     results.append(check_file_content(
         filepath,
         ["setup_logger", "register_error_handlers", "try:", "except", "logger."],
-        "   app.py com imports e tratamento de erros"
+        "   application.py com imports e tratamento de erros"
     ))
     print()
     
@@ -157,9 +157,9 @@ def main():
         print()
         print("📝 Próximos passos:")
         print("   1. Instale as dependências: pip install -r requirements.txt")
-        print("   2. Execute a aplicação: python app.py")
+        print("   2. Execute a aplicação: python application.py")
         print("   3. Teste as rotas e verifique os logs em: logs/")
-        print("   4. Consulte TRATAMENTO_ERROS.md para documentação completa")
+        print("   4. Consulte docs/TRATAMENTO_ERROS.md para documentação completa")
         return 0
     else:
         print("⚠️ Alguns arquivos estão faltando ou incompletos.")

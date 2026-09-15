@@ -70,10 +70,10 @@ export FLASK_ENV=development  # ou production
 ### Executar com Configuração Correta
 ```bash
 # Development
-FLASK_ENV=development python app_new.py
+FLASK_ENV=development python application.py
 
 # Production (valida configurações)
-FLASK_ENV=production python app_new.py
+FLASK_ENV=production python application.py
 ```
 
 ---

@@ -11,8 +11,10 @@ from pathlib import Path
 from datetime import datetime
 import shutil
 
-# Adicionar diretório raiz ao path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Adicionar a raiz e o diretório dos scripts de backup ao path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "scripts" / "backup"))
 
 def test_imports():
     """Verifica se todos os módulos podem ser importados"""

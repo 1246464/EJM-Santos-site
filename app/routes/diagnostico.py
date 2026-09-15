@@ -5,7 +5,8 @@ Endpoint de diagnóstico do sistema
 Acesse /diagnostico para ver o status
 """
 
-from flask import Blueprint, jsonify
+from functools import wraps
+from flask import Blueprint, jsonify, session
 import os
 from pathlib import Path
 
@@ -26,7 +27,24 @@ def init_diagnostico(database, user_model, product_model, config):
     app_config = config
 
 
+def admin_required(f):
+    """Restringe diagnósticos a administradores autenticados."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_id = session.get("user_id")
+        if not user_id:
+            return jsonify({"erro": "Autenticação necessária"}), 401
+
+        user = db.session.get(User, user_id)
+        if not user or not user.is_admin:
+            return jsonify({"erro": "Acesso restrito a administradores"}), 403
+
+        return f(*args, **kwargs)
+    return decorated
+
+
 @diagnostico_bp.route("/diagnostico")
+@admin_required
 def diagnostico():
     """Endpoint de diagnóstico do sistema"""
     
@@ -45,9 +63,6 @@ def diagnostico():
     
     # 2. Verificar banco de dados
     try:
-        # Tentar criar tabelas se não existirem
-        db.create_all()
-        
         # Contar usuários
         user_count = User.query.count()
         admin_exists = User.query.filter_by(is_admin=True).first() is not None
@@ -70,7 +85,7 @@ def diagnostico():
         resultado["status"] = "ERRO"
         resultado["checks"]["database"] = {
             "status": "❌ erro",
-            "erro": str(e)
+            "erro": "Falha ao consultar o banco de dados"
         }
     
     # 3. Verificar diretórios
@@ -85,14 +100,14 @@ def diagnostico():
     except Exception as e:
         resultado["checks"]["diretorios"] = {
             "status": "❌ erro",
-            "erro": str(e)
+            "erro": "Falha ao verificar os diretórios"
         }
     
     # 4. Verificar configurações críticas
     resultado["checks"]["config"] = {
-        "SECRET_KEY": "✅ configurada" if app_config.SECRET_KEY else "❌ faltando",
-        "CSRF": "✅ habilitado" if app_config.WTF_CSRF_ENABLED else "⚠️  desabilitado",
-        "SESSION_SECURE": "✅ sim" if app_config.SESSION_COOKIE_SECURE else "⚠️  não (dev only)"
+        "SECRET_KEY": "✅ configurada" if app_config.get("SECRET_KEY") else "❌ faltando",
+        "CSRF": "✅ habilitado" if app_config.get("WTF_CSRF_ENABLED") else "⚠️  desabilitado",
+        "SESSION_SECURE": "✅ sim" if app_config.get("SESSION_COOKIE_SECURE") else "⚠️  não (dev only)"
     }
     
     # Determinar status final
@@ -104,8 +119,9 @@ def diagnostico():
 
 
 @diagnostico_bp.route("/diagnostico/usuarios")
+@admin_required
 def diagnostico_usuarios():
-    """Lista usuários sem informações sensíveis"""
+    """Lista metadados de usuários para administradores."""
     try:
         users = User.query.all()
         return jsonify({
@@ -123,5 +139,5 @@ def diagnostico_usuarios():
         })
     except Exception as e:
         return jsonify({
-            "erro": str(e)
+            "erro": "Falha ao consultar usuários"
         }), 500

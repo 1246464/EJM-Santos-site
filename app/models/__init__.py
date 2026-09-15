@@ -10,8 +10,7 @@ from .cart import create_cart_model
 from .address import create_address_model
 from .payment_method import create_payment_method_model
 
-# Importar db do app_new para criar os models
-# Será sobrescrito quando importado de app_new
+# O objeto db é injetado por application.py ao inicializar os modelos.
 User = None
 Product = None
 Order = None

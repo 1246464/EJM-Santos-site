@@ -428,7 +428,7 @@ Ctrl+C
 python backup_manager.py create
 
 # 3. Reiniciar aplicação
-python app_new.py
+python application.py
 ```
 
 ### Problema: Backup muito grande

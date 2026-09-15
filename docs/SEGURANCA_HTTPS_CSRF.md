@@ -246,7 +246,7 @@ WTF_CSRF_COOKIE_SECURE = False
 **Executar:**
 ```bash
 $env:FLASK_ENV="development"
-python app_new.py
+python application.py
 ```
 
 ### Production (prod)
@@ -269,7 +269,7 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 **Executar:**
 ```bash
 $env:FLASK_ENV="production"
-gunicorn app_new:app
+gunicorn wsgi:app
 ```
 
 ### Testing
@@ -377,7 +377,7 @@ services:
     name: ejm-santos
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app_new:app"
+    startCommand: "gunicorn wsgi:app"
     envVars:
       - key: FLASK_ENV
         value: production

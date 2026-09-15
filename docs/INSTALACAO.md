@@ -37,7 +37,7 @@ python init_db.py
 
 ### 4️⃣ Executar o Servidor
 ```powershell
-python app.py
+python application.py
 ```
 
 ### 5️⃣ Testar

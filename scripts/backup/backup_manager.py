@@ -13,6 +13,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import json
 import argparse
+from contextlib import closing
 from typing import List, Dict, Optional
 import logging
 
@@ -77,7 +78,8 @@ class BackupManager:
         Returns:
             Path: Caminho do arquivo de backup criado
         """
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Microssegundos evitam sobrescrever backups criados no mesmo segundo.
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         backup_name = f"ejm_backup_{timestamp}.zip"
         backup_path = self.backup_dir / backup_name
         
@@ -137,7 +139,7 @@ class BackupManager:
                         for img_file in images_dir.rglob('*'):
                             if img_file.is_file() and img_file.suffix.lower() in image_extensions:
                                 rel_path = img_file.relative_to(self.static_dir)
-                                arcname = f"static/{rel_path}"
+                                arcname = f"static/{rel_path.as_posix()}"
                                 zipf.write(img_file, arcname=arcname)
                                 size = img_file.stat().st_size
                                 files_added += 1
@@ -279,7 +281,7 @@ class BackupManager:
                     
                     for file_info in manifest['files']:
                         if file_info['type'] == 'database':
-                            source = file_info['path']
+                            source = file_info['path'].replace('\\', '/')
                             filename = Path(source).name
                             dest = self.instance_dir / filename
                             
@@ -296,10 +298,10 @@ class BackupManager:
                     
                     for file_info in manifest['files']:
                         if file_info['type'] == 'image':
-                            source = file_info['path']
+                            source = file_info['path'].replace('\\', '/')
                             # Remover prefixo 'static/' para obter caminho relativo
-                            rel_path = Path(source).relative_to('static')
-                            dest = self.static_dir / rel_path
+                            rel_parts = source.split('/')[1:]
+                            dest = self.static_dir.joinpath(*rel_parts)
                             
                             # Criar diretórios se necessário
                             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -318,7 +320,7 @@ class BackupManager:
                     
                     for file_info in manifest['files']:
                         if file_info['type'] == 'log':
-                            source = file_info['path']
+                            source = file_info['path'].replace('\\', '/')
                             filename = Path(source).name
                             dest = self.logs_dir / filename
                             
@@ -422,11 +424,10 @@ class BackupManager:
     def _validate_db(self, db_path: Path) -> bool:
         """Valida integridade do banco de dados SQLite."""
         try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA integrity_check")
-            result = cursor.fetchone()
-            conn.close()
+            with closing(sqlite3.connect(db_path)) as conn:
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA integrity_check")
+                result = cursor.fetchone()
             return result[0] == 'ok'
         except Exception as e:
             logger.warning(f"⚠️ Erro ao validar {db_path.name}: {e}")

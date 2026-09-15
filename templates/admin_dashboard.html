@@ -45,8 +45,11 @@
           </td>
           <td class="acoes">
             <a href="/admin/editar/{{ p.id }}" class="btn-editar">✏️</a>
-            <a href="/admin/remover/{{ p.id }}" class="btn-excluir"
-               onclick="return confirm('Deseja remover este produto?')">🗑️</a>
+            <form method="post" action="/admin/remover/{{ p.id }}" style="display: inline"
+                  onsubmit="return confirm('Deseja remover este produto?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+              <button type="submit" class="btn-excluir" aria-label="Remover {{ p.titulo }}">🗑️</button>
+            </form>
           </td>
         </tr>
         {% endfor %}
@@ -115,6 +118,15 @@
   .tabela-admin img { width: 60px; border-radius: 8px; }
 
   .acoes a { font-size: 18px; margin-right: 8px; text-decoration: none; }
+  .btn-excluir {
+    appearance: none;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: 18px;
+    padding: 0;
+  }
 
   .badge-estoque-admin {
     padding: 4px 10px;

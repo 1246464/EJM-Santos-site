@@ -4,8 +4,16 @@ Script para recriar o banco de dados com dados iniciais
 import os
 os.environ['FLASK_ENV'] = 'production'  # Força production
 
-from app_new import app, db, User, Product
+from application import app, db, User, Product
 from werkzeug.security import generate_password_hash
+
+admin_email = os.getenv("EJM_ADMIN_EMAIL")
+admin_password = os.getenv("EJM_ADMIN_PASSWORD")
+
+if not admin_email or not admin_password or len(admin_password) < 12:
+    raise RuntimeError(
+        "Defina EJM_ADMIN_EMAIL e uma EJM_ADMIN_PASSWORD com pelo menos 12 caracteres"
+    )
 
 with app.app_context():
     # Recriar todas as tabelas
@@ -17,8 +25,8 @@ with app.app_context():
     print("👤 Criando usuário administrador...")
     admin = User(
         nome="Administrador",
-        email="admin@ejmsantos.com",
-        senha_hash=generate_password_hash("admin123"),
+        email=admin_email.strip().lower(),
+        senha_hash=generate_password_hash(admin_password),
         is_admin=True
     )
     db.session.add(admin)
@@ -62,5 +70,4 @@ with app.app_context():
     print(f"📦 {Product.query.count()} produtos adicionados")
     print(f"👤 {User.query.count()} usuário criado")
     print("\n🔑 Login Admin:")
-    print("   Email: admin@ejmsantos.com")
-    print("   Senha: admin123")
+    print(f"   Email: {admin_email.strip().lower()}")

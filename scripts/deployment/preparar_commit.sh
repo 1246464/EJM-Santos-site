@@ -24,7 +24,7 @@ echo ""
 
 # 3. Adicionar novos arquivos importantes
 echo "➕ Adicionando novos arquivos..."
-git add app_new.py
+git add application.py
 git add app/models/
 git add app/helpers/
 git add app/routes/payment.py
@@ -38,9 +38,9 @@ git add test_*.py
 git add cleanup_project.py
 echo ""
 
-# 4. Adicionar modificações no app.py e outros
+# 4. Adicionar ponto de entrada e outros arquivos modificados
 echo "✏️  Adicionando modificações..."
-git add app.py
+git add wsgi.py
 git add email_service.py
 echo ""
 

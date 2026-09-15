@@ -58,7 +58,7 @@ ejm-santos/
   - APIs: ~187 linhas
 
 ### Depois (Modular)
-- **app_new.py**: ~150 linhas (apenas config)
+- **application.py**: configuração, extensões e registro dos blueprints
 - **models/**: 6 arquivos (~40 linhas cada)
 - **routes/**: 4 blueprints (auth, admin, products, payment)
 - **helpers/**: 2 helpers (cart, order)
@@ -91,40 +91,23 @@ ejm-santos/
 - ✅ Single Responsibility Principle
 - ✅ Código mais limpo
 
-## 🔄 Como Migrar
+## 🔄 Estado Atual
 
-### Opção 1: Usar app_new.py (Recomendado)
-
-```bash
-# 1. Fazer backup do app.py atual
-cp app.py app_old.py
-
-# 2. Renomear app_new.py
-mv app_new.py app.py
-
-# 3. Testar
-python app.py
-```
-
-### Opção 2: Migração Gradual
-
-1. Manter app.py funcionando
-2. Usar app_new.py em paralelo
-3. Testar completamente
-4. Trocar quando estável
+A migração modular está concluída. Use `python application.py` em desenvolvimento
+e `gunicorn wsgi:app` em produção.
 
 ## 📋 Checklist de Migração
 
 - [x] ✅ Modelos separados em `app/models/`
 - [x] ✅ Helpers criados em `app/helpers/`
 - [x] ✅ Blueprint de pagamento em `app/routes/payment.py`
-- [x] ✅ app_new.py criado e configurado
+- [x] ✅ `application.py` criado e configurado
 - [ ] ⏳ Testar todas as rotas
 - [ ] ⏳ Verificar autenticação
 - [ ] ⏳ Testar carrinho e checkout
 - [ ] ⏳ Testar área admin
 - [ ] ⏳ Verificar emails
-- [ ] ⏳ Substituir app.py antigo
+- [x] ✅ Ponto de entrada de produção definido em `wsgi.py`
 
 ## 🎓 Padrões Utilizados
 
@@ -145,7 +128,7 @@ Blueprints recebem dependências via `init_*()`.
 
 ## 🚀 Próximos Passos
 
-1. **Testar app_new.py completamente**
+1. **Expandir os testes de `application.py`**
 2. **Criar testes automatizados** para cada módulo
 3. **Documentar APIs** (Swagger/OpenAPI)
 4. **Adicionar type hints** (Python 3.10+)

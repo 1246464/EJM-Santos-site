@@ -19,7 +19,7 @@ Write-Host ""
 
 # 3. Adicionar novos arquivos importantes
 Write-Host "➕ Adicionando novos arquivos e diretórios..." -ForegroundColor Green
-git add app_new.py
+git add application.py
 git add app/models/
 git add app/helpers/
 git add app/routes/payment.py
@@ -37,7 +37,7 @@ Write-Host ""
 
 # 4. Adicionar modificações
 Write-Host "✏️  Adicionando modificações..." -ForegroundColor Green
-git add app.py
+git add wsgi.py
 git add email_service.py
 Write-Host ""
 
@@ -62,7 +62,7 @@ Write-Host '   git commit -m "Adicionar sistema completo de tratamento de erros"
 Write-Host '   Arquivos: app/utils/exceptions.py, error_handlers.py, templates/erro.html' -ForegroundColor DarkGray
 Write-Host ""
 Write-Host '   git commit -m "Implementar separação de responsabilidades"' -ForegroundColor Cyan
-Write-Host '   Arquivos: app/models/, app/helpers/, app/routes/payment.py, app_new.py' -ForegroundColor DarkGray
+Write-Host '   Arquivos: app/models/, app/helpers/, app/routes/payment.py, application.py' -ForegroundColor DarkGray
 Write-Host ""
 Write-Host '   git commit -m "Melhorias e limpeza: .gitignore e documentação"' -ForegroundColor Cyan
 Write-Host '   Arquivos: .gitignore, *.md, scripts de limpeza' -ForegroundColor DarkGray
@@ -72,7 +72,7 @@ Write-Host "   git push" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "📋 Resumo das mudanças:" -ForegroundColor Yellow
 Write-Host "   ✅ Sistema de tratamento de erros implementado" -ForegroundColor Green
-Write-Host "   ✅ Separação de responsabilidades (app.py: 1050 → 155 linhas)" -ForegroundColor Green
+Write-Host "   ✅ Separação de responsabilidades em application.py" -ForegroundColor Green
 Write-Host "   ✅ .gitignore atualizado com boas práticas" -ForegroundColor Green
 Write-Host "   ✅ Arquivos desnecessários removidos" -ForegroundColor Green
 Write-Host "   ✅ Documentação completa criada" -ForegroundColor Green

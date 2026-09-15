@@ -6,6 +6,7 @@ from .auth import auth_bp, init_auth
 from .admin import admin_bp, init_admin
 from .products import products_bp, init_products
 from .payment import payment_bp, init_payment
+from .mobile import mobile_bp, init_mobile
 
 __all__ = [
     'auth_bp',
@@ -15,5 +16,7 @@ __all__ = [
     'products_bp',
     'init_products',
     'payment_bp',
-    'init_payment'
+    'init_payment',
+    'mobile_bp',
+    'init_mobile'
 ]

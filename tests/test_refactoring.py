@@ -30,7 +30,7 @@ def main():
     print("=" * 70)
     print()
     
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     results = []
     total_lines = 0
     
@@ -81,8 +81,8 @@ def main():
     # App principal
     print("⚙️  APLICAÇÃO PRINCIPAL")
     files = [
-        (os.path.join(base_dir, "app.py"), "app.py (original - 1037 linhas)"),
-        (os.path.join(base_dir, "app_new.py"), "app_new.py (refatorado - ~150 linhas)")
+        (os.path.join(base_dir, "application.py"), "application.py (aplicação principal)"),
+        (os.path.join(base_dir, "wsgi.py"), "wsgi.py (entrada de produção)")
     ]
     for filepath, desc in files:
         success, lines = check_file(filepath, f"   {desc}")
@@ -92,8 +92,8 @@ def main():
     # Documentação
     print("📖 DOCUMENTAÇÃO")
     files = [
-        (os.path.join(base_dir, "SEPARACAO_RESPONSABILIDADES.md"), "Guia de Separação de Responsabilidades"),
-        (os.path.join(base_dir, "TRATAMENTO_ERROS.md"), "Guia de Tratamento de Erros")
+        (os.path.join(base_dir, "docs", "SEPARACAO_RESPONSABILIDADES.md"), "Guia de Separação de Responsabilidades"),
+        (os.path.join(base_dir, "docs", "TRATAMENTO_ERROS.md"), "Guia de Tratamento de Erros")
     ]
     for filepath, desc in files:
         success, lines = check_file(filepath, f"   {desc}")
@@ -116,23 +116,14 @@ def main():
         print("🎉 SUCESSO! Separação de responsabilidades implementada!")
         print()
         print("📋 Próximos passos:")
-        print("   1. Revisar app_new.py")
+        print("   1. Revisar application.py")
         print("   2. Testar todas as funcionalidades")
-        print("   3. Quando estável: mv app_new.py app.py")
+        print("   3. Executar a suíte de regressão")
         print("   4. Consultar: SEPARACAO_RESPONSABILIDADES.md")
         print()
         
         # Comparação
-        old_app = os.path.join(base_dir, "app.py")
-        if os.path.exists(old_app):
-            with open(old_app, 'r', encoding='utf-8') as f:
-                old_lines = len(f.readlines())
-            print(f"📉 Redução no arquivo principal:")
-            print(f"   Antes: {old_lines} linhas (app.py)")
-            print(f"   Depois: ~150 linhas (app_new.py)")
-            print(f"   Redução: {old_lines - 150} linhas ({((old_lines - 150) / old_lines * 100):.1f}%)")
-            print()
-            print(f"   Código agora distribuído em {total} arquivos modulares!")
+        print(f"   Código distribuído em {total} arquivos modulares verificados.")
         
         return 0
     else:

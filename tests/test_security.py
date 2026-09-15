@@ -13,7 +13,8 @@ if 'EJM_SECRET' not in os.environ:
     os.environ['EJM_SECRET'] = 'test_secret_key_for_security_testing_only_32chars_minimum'
 
 # Adicionar diretório raiz ao path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
 
 def test_imports():
     """Verifica se todos os módulos de segurança podem ser importados"""
@@ -71,7 +72,7 @@ def test_config_csrf():
     print("  ✅ Configuração base CSRF OK")
     
     # Development
-    assert DevelopmentConfig.WTF_CSRF_ENABLED == False, "Dev deve ter CSRF desabilitado"
+    assert DevelopmentConfig.WTF_CSRF_ENABLED == True, "Dev deve manter CSRF habilitado"
     print("  ✅ Configuração Development CSRF OK")
     
     # Production
@@ -179,7 +180,7 @@ def test_csrf_exempt_routes():
 
 
 def test_app_integration():
-    """Verifica integração com app_new.py"""
+    """Verifica integração com application.py"""
     print("\n🧪 Testando integração com aplicação...")
     
     # Configurar ambiente de teste
@@ -191,7 +192,7 @@ def test_app_integration():
         # Testar desenvolvimento
         dev_config = get_config('development')
         assert dev_config.FORCE_HTTPS == False, "Dev deve ter HTTPS desabilitado"
-        assert dev_config.WTF_CSRF_ENABLED == False, "Dev deve ter CSRF desabilitado"
+        assert dev_config.WTF_CSRF_ENABLED == True, "Dev deve manter CSRF habilitado"
         print("  ✅ Configuração de desenvolvimento OK")
         
         # Testar que production validação existe (sem executar)
@@ -210,7 +211,7 @@ def test_csrf_meta_tag():
     """Verifica se meta tag CSRF está no template base"""
     print("\n🧪 Testando meta tag CSRF no template...")
     
-    template_path = Path(__file__).parent / 'templates' / 'base.html'
+    template_path = ROOT_DIR / 'templates' / 'base.html'
     
     if not template_path.exists():
         print("  ⚠️ Template base.html não encontrado")
@@ -230,7 +231,7 @@ def test_javascript_csrf():
     """Verifica se JavaScript tem funções CSRF"""
     print("\n🧪 Testando helpers CSRF no JavaScript...")
     
-    js_path = Path(__file__).parent / 'static' / 'js' / 'main.js'
+    js_path = ROOT_DIR / 'static' / 'js' / 'main.js'
     
     if not js_path.exists():
         print("  ⚠️ main.js não encontrado")

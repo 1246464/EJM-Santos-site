@@ -37,7 +37,8 @@ ejm-santos/
 ├── logs/                     # Logs da aplicação
 ├── backups/                  # Backups automáticos
 │
-├── app_new.py               # 🚀 Aplicação principal
+├── application.py           # 🚀 Aplicação principal
+├── wsgi.py                  # Entrada do servidor de produção
 ├── config.py                # Configurações por ambiente
 └── requirements.txt         # Dependências
 ```
@@ -99,12 +100,17 @@ cp .env.example .env
 **Variáveis principais:**
 ```env
 EJM_SECRET=sua_chave_secreta_32_chars
+EJM_ADMIN_EMAIL=admin@seu-dominio.com
+EJM_ADMIN_PASSWORD=uma_senha_inicial_forte
 STRIPE_PUBLIC_KEY=pk_test_...
 STRIPE_SECRET_KEY=sk_test_...
 EMAIL_USER=seu@email.com
 EMAIL_PASSWORD=senha_de_app
 PUBLIC_BASE_URL=https://seu-dominio.com
 ```
+
+As variáveis `EJM_ADMIN_EMAIL` e `EJM_ADMIN_PASSWORD` são usadas somente
+quando ainda não existe administrador. Remova-as do ambiente após o primeiro acesso.
 
 ### 3. Inicializar Banco de Dados
 
@@ -116,13 +122,11 @@ python scripts/database/init_db.py
 
 ```bash
 # Desenvolvimento
-python app_new.py
+python application.py
 
 # Produção
-gunicorn app_new:app
+gunicorn wsgi:app
 ```
-
-Acesse: http://localhost:5000
 
 Acesse: http://localhost:5000
 
@@ -200,7 +204,7 @@ services:
   - type: web
     name: ejm-santos
     env: python
-    startCommand: "gunicorn app_new:app"
+    startCommand: "gunicorn wsgi:app"
 ```
 
 ### VPS (Nginx + Gunicorn)
@@ -210,9 +214,12 @@ Veja [docs/INSTALACAO.md](docs/INSTALACAO.md) seção de produção.
 ## 🧪 Testes
 
 ```bash
-python tests/test_security.py   # Segurança
-python tests/test_backups.py    # Backups
-python tests/test_structure.py  # Estrutura
+python -m unittest discover -s tests -p "test_*.py"
+
+# Verificações legadas completas
+python tests/test_security.py
+python tests/test_backups.py
+python tests/test_structure.py
 ```
 
 ## 🚀 Tecnologias

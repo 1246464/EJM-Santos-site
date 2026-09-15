@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from app_new import app, db
+from application import app, db
 from app.models import Address, PaymentMethod
 
 def migrate_database():

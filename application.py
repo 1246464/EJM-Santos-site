@@ -1,5 +1,5 @@
 # ============================================
-# app_new.py — EJM SANTOS - Versão Refatorada
+# application.py — EJM SANTOS - Aplicação Flask
 # Loja de Mel Natural 🍯
 # ============================================
 
@@ -53,14 +53,11 @@ if env == 'development':
 # Inicializar extensões de segurança
 db = SQLAlchemy(app)
 
-# Inicializar CSRF apenas se habilitado na configuração
-if app.config.get('WTF_CSRF_ENABLED', True):
-    csrf = CSRFProtect(app)
-    # Configurar cookie CSRF
-    app.config.setdefault('WTF_CSRF_COOKIE_HTTPONLY', False)
-    app.config.setdefault('WTF_CSRF_COOKIE_SAMESITE', 'Lax')
-else:
-    csrf = None
+# Inicializar a extensão sempre. A opção WTF_CSRF_ENABLED controla apenas a
+# validação, preservando csrf_token() nos templates durante testes.
+csrf = CSRFProtect(app)
+app.config.setdefault('WTF_CSRF_COOKIE_HTTPONLY', False)
+app.config.setdefault('WTF_CSRF_COOKIE_SAMESITE', 'Lax')
     
 limiter = Limiter(
     app=app,
@@ -133,28 +130,45 @@ with app.app_context():
             logger.info("🏗️ Criando tabelas no banco de dados...")
             db.create_all()
             logger.info("✅ Tabelas criadas com sucesso")
-            
-            # Criar usuário admin automaticamente
-            try:
-                from werkzeug.security import generate_password_hash
-                
-                admin = User.query.filter_by(email='admin@ejmsantos.com').first()
-                if not admin:
+        else:
+            logger.info("ℹ️ Tabelas já existem no banco de dados")
+
+        # Criar o primeiro administrador somente quando credenciais explícitas
+        # e fortes forem fornecidas, inclusive em um banco já inicializado.
+        try:
+            from werkzeug.security import generate_password_hash
+
+            admin_exists = User.query.filter_by(is_admin=True).first() is not None
+            admin_email = os.getenv('EJM_ADMIN_EMAIL')
+            admin_password = os.getenv('EJM_ADMIN_PASSWORD')
+
+            if not admin_exists and admin_email and admin_password:
+                if len(admin_password) < 12:
+                    raise ValueError("EJM_ADMIN_PASSWORD deve ter pelo menos 12 caracteres")
+
+                normalized_email = admin_email.strip().lower()
+                admin = User.query.filter_by(email=normalized_email).first()
+                if admin:
+                    admin.senha_hash = generate_password_hash(admin_password)
+                    admin.is_admin = True
+                else:
                     admin = User(
                         nome='Administrador',
-                        email='admin@ejmsantos.com',
-                        senha_hash=generate_password_hash('admin123'),
+                        email=normalized_email,
+                        senha_hash=generate_password_hash(admin_password),
                         is_admin=True
                     )
                     db.session.add(admin)
-                    db.session.commit()
-                    logger.info("✅ Usuário admin criado: admin@ejmsantos.com / admin123")
-                else:
-                    logger.info("ℹ️ Admin já existe")
-            except Exception as e:
-                logger.error(f"❌ Erro ao criar admin: {e}")
-        else:
-            logger.info("ℹ️ Tabelas já existem no banco de dados")
+                db.session.commit()
+                logger.info("✅ Usuário administrador inicial configurado")
+            elif not admin_exists:
+                logger.warning(
+                    "⚠️ Nenhum administrador cadastrado. Execute garantir_admin.py "
+                    "ou configure EJM_ADMIN_EMAIL e EJM_ADMIN_PASSWORD no primeiro deploy."
+                )
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"❌ Erro ao criar admin: {e}")
     except Exception as e:
         logger.error(f"❌ Erro ao verificar/criar tabelas: {e}")
     
@@ -174,7 +188,12 @@ with app.app_context():
                 'delivery_distance_km': 'FLOAT',
                 'delivery_date': 'TIMESTAMP',
                 'delivery_scheduled_at': 'TIMESTAMP',
-                'delivery_notes': 'TEXT'
+                'delivery_notes': 'TEXT',
+                'client_reference': 'VARCHAR(64)',
+                'payment_method': "VARCHAR(30) DEFAULT 'cash_on_delivery'",
+                'payment_status': "VARCHAR(30) DEFAULT 'pending'",
+                'endereco_estado': 'VARCHAR(2)',
+                'endereco_cep': 'VARCHAR(10)'
             }
             
             columns_to_add = [col for col in required_columns if col not in existing_columns]
@@ -186,7 +205,7 @@ with app.app_context():
                     for col_name in columns_to_add:
                         col_type = required_columns[col_name]
                         try:
-                            conn.execute(db.text(f'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS {col_name} {col_type}'))
+                            conn.execute(db.text(f'ALTER TABLE "order" ADD COLUMN {col_name} {col_type}'))
                             conn.commit()
                             logger.info(f"✅ Coluna '{col_name}' adicionada")
                         except Exception as e:
@@ -201,6 +220,18 @@ with app.app_context():
                     logger.info(f"✅ Pedidos antigos atualizados (subtotal=total)")
                 except Exception as e:
                     logger.warning(f"⚠️ Erro ao atualizar pedidos: {str(e)[:60]}")
+
+            # Índice único para o identificador idempotente enviado pelo app.
+            # WHERE permite vários pedidos antigos com valor nulo.
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(db.text(
+                        'CREATE UNIQUE INDEX IF NOT EXISTS '
+                        'ix_order_client_reference_unique ON "order" (client_reference) '
+                        'WHERE client_reference IS NOT NULL'
+                    ))
+            except Exception as e:
+                logger.warning(f"⚠️ Índice de idempotência: {str(e)[:60]}")
             else:
                 logger.info("✅ Todas as colunas de entrega já existem")
         else:
@@ -234,7 +265,8 @@ from app.routes import (
     auth_bp, init_auth,
     admin_bp, init_admin,
     products_bp, init_products,
-    payment_bp, init_payment
+    payment_bp, init_payment,
+    mobile_bp, init_mobile
 )
 from app.routes.profile import profile_bp, init_profile
 from app.routes.diagnostico import diagnostico_bp, init_diagnostico
@@ -280,6 +312,13 @@ logger.info("✅ Blueprint de perfil registrado")
 init_diagnostico(db, User, Product, app.config)
 app.register_blueprint(diagnostico_bp)
 logger.info("✅ Blueprint de diagnóstico registrado")
+
+# API do aplicativo usa JWT Bearer, não cookies de sessão; por isso não está
+# sujeita a CSRF de navegador.
+init_mobile(db, models_dict, app.config, logger)
+app.register_blueprint(mobile_bp)
+csrf.exempt(mobile_bp)
+logger.info("✅ Blueprint do aplicativo móvel registrado")
 
 # ============================================
 # HEADERS DE SEGURANÇA

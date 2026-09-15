@@ -11,7 +11,8 @@ import sys
 import os
 
 # Adicionar o diretório raiz ao path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT_DIR)
 
 def test_exceptions():
     """Testa as exceções customizadas"""
@@ -126,7 +127,7 @@ def test_error_template():
     
     try:
         template_path = os.path.join(
-            os.path.dirname(__file__), 
+            ROOT_DIR,
             "templates", 
             "erro.html"
         )
@@ -156,7 +157,8 @@ def test_documentation():
     
     try:
         doc_path = os.path.join(
-            os.path.dirname(__file__), 
+            ROOT_DIR,
+            "docs",
             "TRATAMENTO_ERROS.md"
         )
         

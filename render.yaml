@@ -7,6 +7,10 @@ services:
     envVars:
       - key: EJM_SECRET
         sync: false
+      - key: EJM_ADMIN_EMAIL
+        sync: false
+      - key: EJM_ADMIN_PASSWORD
+        sync: false
       - key: FLASK_ENV
         value: production
       - key: STRIPE_PUBLIC_KEY

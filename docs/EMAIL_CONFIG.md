@@ -75,7 +75,7 @@ Para outros provedores (Yahoo, iCloud, etc), você precisa descobrir:
 ### 1. Testar Email de Cadastro
 ```bash
 # Inicie o servidor
-python app.py
+python application.py
 
 # Acesse http://127.0.0.1:5000/login
 # Clique em "Criar conta"
