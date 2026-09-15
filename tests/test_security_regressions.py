@@ -129,10 +129,17 @@ class SecurityRegressionTests(unittest.TestCase):
             headers={"Authorization": f"Bearer {refreshed_token}"},
         ).status_code, 401)
 
+    def test_mobile_health_verifies_database_schema(self):
+        response = self.client.get("/api/mobile/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["database"], "ok")
+        self.assertEqual(response.get_json()["version"], 2)
+
     def test_no_default_admin_password_in_provisioning_code(self):
         root = Path(__file__).resolve().parent.parent
         provisioning_files = [
             root / "application.py",
+            root / "init_render.py",
             root / "garantir_admin.py",
             root / "scripts" / "database" / "recriar_db.py",
         ]

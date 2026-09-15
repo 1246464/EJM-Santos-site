@@ -133,42 +133,6 @@ with app.app_context():
         else:
             logger.info("ℹ️ Tabelas já existem no banco de dados")
 
-        # Criar o primeiro administrador somente quando credenciais explícitas
-        # e fortes forem fornecidas, inclusive em um banco já inicializado.
-        try:
-            from werkzeug.security import generate_password_hash
-
-            admin_exists = User.query.filter_by(is_admin=True).first() is not None
-            admin_email = os.getenv('EJM_ADMIN_EMAIL')
-            admin_password = os.getenv('EJM_ADMIN_PASSWORD')
-
-            if not admin_exists and admin_email and admin_password:
-                if len(admin_password) < 12:
-                    raise ValueError("EJM_ADMIN_PASSWORD deve ter pelo menos 12 caracteres")
-
-                normalized_email = admin_email.strip().lower()
-                admin = User.query.filter_by(email=normalized_email).first()
-                if admin:
-                    admin.senha_hash = generate_password_hash(admin_password)
-                    admin.is_admin = True
-                else:
-                    admin = User(
-                        nome='Administrador',
-                        email=normalized_email,
-                        senha_hash=generate_password_hash(admin_password),
-                        is_admin=True
-                    )
-                    db.session.add(admin)
-                db.session.commit()
-                logger.info("✅ Usuário administrador inicial configurado")
-            elif not admin_exists:
-                logger.warning(
-                    "⚠️ Nenhum administrador cadastrado. Execute garantir_admin.py "
-                    "ou configure EJM_ADMIN_EMAIL e EJM_ADMIN_PASSWORD no primeiro deploy."
-                )
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"❌ Erro ao criar admin: {e}")
     except Exception as e:
         logger.error(f"❌ Erro ao verificar/criar tabelas: {e}")
     
@@ -278,6 +242,45 @@ with app.app_context():
                 logger.info("✅ Colunas de segurança da conta móvel adicionadas")
     except Exception as e:
         logger.warning(f"⚠️ Migração de sessão móvel: {str(e)[:100]}")
+
+    # Só consulte o modelo User depois que todas as suas colunas existirem.
+    # Isso é essencial em bancos criados por versões anteriores do aplicativo.
+    try:
+        from werkzeug.security import generate_password_hash
+
+        admin_exists = User.query.filter_by(is_admin=True).first() is not None
+        admin_email = os.getenv('EJM_ADMIN_EMAIL')
+        admin_password = os.getenv('EJM_ADMIN_PASSWORD')
+
+        if not admin_exists and admin_email and admin_password:
+            if len(admin_password) < 12:
+                raise ValueError("EJM_ADMIN_PASSWORD deve ter pelo menos 12 caracteres")
+
+            normalized_email = admin_email.strip().lower()
+            admin = User.query.filter_by(email=normalized_email).first()
+            if admin:
+                admin.senha_hash = generate_password_hash(admin_password)
+                admin.is_admin = True
+                admin.is_active = True
+            else:
+                admin = User(
+                    nome='Administrador',
+                    email=normalized_email,
+                    senha_hash=generate_password_hash(admin_password),
+                    is_admin=True,
+                    is_active=True,
+                )
+                db.session.add(admin)
+            db.session.commit()
+            logger.info("✅ Usuário administrador inicial configurado")
+        elif not admin_exists:
+            logger.warning(
+                "⚠️ Nenhum administrador cadastrado. Execute garantir_admin.py "
+                "ou configure EJM_ADMIN_EMAIL e EJM_ADMIN_PASSWORD no primeiro deploy."
+            )
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Erro ao configurar admin após as migrações: {e}")
 
 # Configurar diretório de upload
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']

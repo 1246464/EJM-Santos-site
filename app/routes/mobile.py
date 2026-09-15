@@ -10,6 +10,7 @@ from threading import Thread
 import jwt
 import stripe
 from flask import Blueprint, jsonify, request
+from sqlalchemy import inspect
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.utils.validators import Validator
@@ -384,7 +385,42 @@ def token_required(view):
 
 @mobile_bp.get("/health")
 def health():
-    return jsonify({"status": "ok", "api": "mobile", "version": 1})
+    try:
+        schema = inspect(db.engine)
+        tables = set(schema.get_table_names())
+        expected_user_columns = {
+            "id", "email", "mobile_token_version", "is_active",
+            "password_reset_hash", "password_reset_expires_at",
+            "password_reset_attempts",
+        }
+        user_columns = (
+            {column["name"] for column in schema.get_columns("user")}
+            if "user" in tables else set()
+        )
+        ready = (
+            {"user", "product", "review"}.issubset(tables)
+            and expected_user_columns.issubset(user_columns)
+        )
+        if not ready:
+            return jsonify({
+                "status": "error",
+                "api": "mobile",
+                "database": "schema_outdated",
+                "version": 2,
+            }), 503
+        db.session.execute(db.text("SELECT 1"))
+        return jsonify({
+            "status": "ok", "api": "mobile", "database": "ok", "version": 2
+        })
+    except Exception:
+        db.session.rollback()
+        logger.exception("Falha no health check do banco móvel")
+        return jsonify({
+            "status": "error",
+            "api": "mobile",
+            "database": "unavailable",
+            "version": 2,
+        }), 503
 
 
 @mobile_bp.post("/login")

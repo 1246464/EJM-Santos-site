@@ -1,198 +1,136 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Script de inicialização automática para Render
-Executa automaticamente na primeira vez que o app sobe
-"""
+"""Prepara o banco usado pelo Render antes de iniciar uma nova versão."""
 
 import os
-import sys
 from pathlib import Path
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dotenv import load_dotenv
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash
+
 
 load_dotenv()
 
-print("="*60)
-print("🚀 INICIALIZAÇÃO AUTOMÁTICA - RENDER")
-print("="*60)
+base_dir = Path(__file__).resolve().parent
+instance_dir = base_dir / "instance"
+instance_dir.mkdir(parents=True, exist_ok=True)
 
-# Verificar ambiente
-flask_env = os.getenv("FLASK_ENV", "production")
-print(f"📌 Ambiente: {flask_env}")
-
-# Criar diretório instance com permissões corretas
-instance_dir = Path(__file__).resolve().parent / 'instance'
-try:
-    instance_dir.mkdir(parents=True, exist_ok=True, mode=0o755)
-    print(f"✅ Diretório instance criado: {instance_dir}")
-    print(f"   Permissões: {oct(instance_dir.stat().st_mode)[-3:]}")
-    print(f"   Existe: {instance_dir.exists()}")
-    print(f"   É diretório: {instance_dir.is_dir()}")
-    print(f"   Pode escrever: {os.access(instance_dir, os.W_OK)}")
-except Exception as e:
-    print(f"❌ Erro ao criar diretório instance: {e}")
-    import traceback
-    traceback.print_exc()
+database_url = os.getenv("DATABASE_URL")
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+if not database_url:
+    database_url = f"sqlite:///{instance_dir / 'ejm.db'}"
 
 app = Flask(__name__)
-
-# Usar DATABASE_URL do Render ou SQLite local
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    # Render PostgreSQL
-    print(f"🐘 DATABASE_URL detectada, usando PostgreSQL")
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print(f"✅ PostgreSQL configurado")
-else:
-    # SQLite local - verificar se diretório é gravável
-    db_path = instance_dir / 'ejm_dev.db'
-    print(f"💾 Usando SQLite: {db_path}")
-    print(f"   Diretório pai existe: {db_path.parent.exists()}")
-    print(f"   Diretório pai gravável: {os.access(db_path.parent, os.W_OK)}")
-    
-    # Tentar criar arquivo vazio para testar permissões
-    try:
-        test_file = instance_dir / 'test_write.tmp'
-        test_file.touch()
-        test_file.unlink()
-        print(f"✅ Teste de escrita: OK")
-    except Exception as e:
-        print(f"❌ Teste de escrita FALHOU: {e}")
-        print(f"⚠️  ATENÇÃO: SQLite pode não funcionar no Render!")
-        print(f"💡 Configure DATABASE_URL para usar PostgreSQL")
-    
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-    print(f"✅ SQLite configurado")
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config.update(
+    SQLALCHEMY_DATABASE_URI=database_url,
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+)
 db = SQLAlchemy(app)
 
-# Importar modelos
 from app.models import init_models
+
+
 User, Product, Order, OrderItem, Review, CartItem, Address, PaymentMethod = init_models(db)
 
+ORDER_COLUMNS = {
+    "subtotal": "FLOAT DEFAULT 0",
+    "delivery_fee": "FLOAT DEFAULT 0",
+    "delivery_distance_km": "FLOAT",
+    "delivery_date": "TIMESTAMP",
+    "delivery_scheduled_at": "TIMESTAMP",
+    "delivery_notes": "TEXT",
+    "client_reference": "VARCHAR(64)",
+    "payment_method": "VARCHAR(30) DEFAULT 'cash_on_delivery'",
+    "payment_status": "VARCHAR(30) DEFAULT 'pending'",
+    "external_payment_id": "VARCHAR(100)",
+    "inventory_released": "BOOLEAN DEFAULT FALSE",
+    "endereco_estado": "VARCHAR(2)",
+    "endereco_cep": "VARCHAR(10)",
+}
+
+USER_COLUMNS = {
+    "mobile_token_version": "INTEGER DEFAULT 0 NOT NULL",
+    "is_active": "BOOLEAN DEFAULT TRUE NOT NULL",
+    "deleted_at": "TIMESTAMP",
+    "password_reset_hash": "VARCHAR(256)",
+    "password_reset_expires_at": "TIMESTAMP",
+    "password_reset_attempts": "INTEGER DEFAULT 0 NOT NULL",
+}
+
+
+def ensure_columns(table_name, required_columns):
+    """Adiciona uma coluna por transação para permitir reexecução após falhas."""
+    current = {column["name"] for column in inspect(db.engine).get_columns(table_name)}
+    for name, definition in required_columns.items():
+        if name in current:
+            continue
+        with db.engine.begin() as connection:
+            connection.execute(text(
+                f'ALTER TABLE "{table_name}" ADD COLUMN "{name}" {definition}'
+            ))
+        print(f"  + {table_name}.{name}")
+        current.add(name)
+
+
+def configure_admin():
+    """Cria o primeiro administrador somente com credenciais explícitas."""
+    admin_email = os.getenv("EJM_ADMIN_EMAIL")
+    admin_password = os.getenv("EJM_ADMIN_PASSWORD")
+    if not admin_email or not admin_password:
+        print("Administrador não alterado: credenciais não informadas.")
+        return
+    if len(admin_password) < 12:
+        raise ValueError("EJM_ADMIN_PASSWORD deve ter pelo menos 12 caracteres")
+
+    normalized_email = admin_email.strip().lower()
+    admin = User.query.filter_by(email=normalized_email).first()
+    if admin:
+        admin.senha_hash = generate_password_hash(admin_password)
+        admin.is_admin = True
+        admin.is_active = True
+    elif not User.query.filter_by(is_admin=True).first():
+        db.session.add(User(
+            nome="Administrador",
+            email=normalized_email,
+            senha_hash=generate_password_hash(admin_password),
+            is_admin=True,
+            is_active=True,
+        ))
+    else:
+        print("Administrador não alterado: já existe outra conta administrativa.")
+        return
+    db.session.commit()
+    print("Administrador configurado por variáveis de ambiente.")
+
+
 with app.app_context():
-    try:
-        # 1. Criar todas as tabelas
-        print("\n📦 Criando tabelas no banco...")
-        db.create_all()
-        print("✅ Tabelas criadas/verificadas")
-        
-        # 1.5. Executar migração automática (adicionar colunas de entrega)
-        print("\n🔄 Verificando migrações necessárias...")
-        try:
-            inspector = db.inspect(db.engine)
-            
-            if inspector.has_table('order'):
-                existing_columns = [col['name'] for col in inspector.get_columns('order')]
-                
-                # Colunas que precisam existir
-                required_columns = {
-                    'subtotal': 'FLOAT DEFAULT 0',
-                    'delivery_fee': 'FLOAT DEFAULT 0',
-                    'delivery_distance_km': 'FLOAT',
-                    'delivery_date': 'TIMESTAMP',
-                    'delivery_scheduled_at': 'TIMESTAMP',
-                    'delivery_notes': 'TEXT'
-                }
-                
-                columns_to_add = []
-                for col_name in required_columns:
-                    if col_name not in existing_columns:
-                        columns_to_add.append(col_name)
-                
-                if columns_to_add:
-                    print(f"   📝 Adicionando {len(columns_to_add)} colunas em 'order': {', '.join(columns_to_add)}")
-                    
-                    with db.engine.connect() as conn:
-                        for col_name, col_type in required_columns.items():
-                            if col_name in columns_to_add:
-                                try:
-                                    conn.execute(db.text(f'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS {col_name} {col_type}'))
-                                    conn.commit()
-                                    print(f"   ✅ Coluna '{col_name}' adicionada")
-                                except Exception as e:
-                                    print(f"   ⚠️ Coluna '{col_name}': {str(e)[:50]}")
-                    
-                    # Atualizar pedidos existentes
-                    try:
-                        pedidos_antigos = Order.query.filter(
-                            (Order.subtotal == None) | (Order.subtotal == 0)
-                        ).all()
-                        
-                        if pedidos_antigos:
-                            for pedido in pedidos_antigos:
-                                pedido.subtotal = pedido.total
-                                pedido.delivery_fee = 0
-                            db.session.commit()
-                            print(f"   ✅ {len(pedidos_antigos)} pedidos antigos atualizados")
-                    except Exception as e:
-                        print(f"   ⚠️ Erro ao atualizar pedidos: {str(e)[:50]}")
-                else:
-                    print("   ✅ Todas as colunas já existem")
-            else:
-                print("   ℹ️ Tabela 'order' ainda não existe (será criada)")
-                
-        except Exception as e:
-            print(f"   ⚠️ Erro na migração: {str(e)}")
-            # Não falhar a inicialização por causa da migração
-        
-        # 2. Verificar/criar usuário admin
-        admin_email = "admin@ejmsantos.com"
-        admin = User.query.filter_by(email=admin_email).first()
-        
-        if not admin:
-            print(f"\n👤 Criando usuário admin...")
-            admin = User(
-                nome="Admin EJM",
-                email=admin_email,
-                sen final
-        print("\n" + "="*60)
-        print("✅ INICIALIZAÇÃO COMPLETA!")
-        print(f"   • Banco: {'PostgreSQL' if database_url else 'SQLite'}")
-        print(f"   • Tabelas: OK")
-        print(f"   • Admin: {admin.email} / admin123")
-        print(f"   • Produtos: {product_count}")
-        
-        if not database_url:
-            print(f"\n⚠️  AVISO: Usando SQLite (efêmero no Render)")
-            print(f"   Banco será apagado a cada deploy!")
-            print(f"   Configure DATABASE_URL para PostgreSQL persistente")
-        } / admin123")
-        else:
-            print(f"\n✅ Admin já existe: {admin.email}")
-        
-        # 3. Verificar produtos (opcional - criar samples para dev)
-        product_count = Product.query.count()
-        print(f"\n📦 Produtos no banco: {product_count}")
-        
-        if product_count == 0 and os.getenv("FLASK_ENV") == "development":
-            print("⚠️  Banco vazio - execute inicializar_db.py para adicionar produtos")
-        
-        # 4. Resumo
-        print("\n" + "="*60)
-        print("✅ INICIALIZAÇÃO COMPLETA!")
-        print(f"   • Banco: {'PostgreSQL' if database_url else 'SQLite'}")
-        print(f"   • Tabelas: OK")
-        print(f"   • Migrações: OK")
-        print(f"   • Admin: {admin.email} / admin123")
-        print(f"   • Produtos: {product_count}")
-        
-        if not database_url:
-            print(f"\n⚠️  AVISO: Usando SQLite (efêmero no Render)")
-            print(f"   Banco será apagado a cada deploy!")
-            print(f"   Configure DATABASE_URL para PostgreSQL persistente")
-        
-    except Exception as e:
-        print(f"\n❌ ERRO: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    print("Preparando banco de dados da EJM Santos...")
+    db.create_all()
+    tables = set(inspect(db.engine).get_table_names())
+    if "order" in tables:
+        ensure_columns("order", ORDER_COLUMNS)
+    if "user" in tables:
+        ensure_columns("user", USER_COLUMNS)
+
+    with db.engine.begin() as connection:
+        connection.execute(text(
+            'UPDATE "order" SET subtotal = total, delivery_fee = 0 '
+            'WHERE subtotal IS NULL OR subtotal = 0'
+        ))
+        connection.execute(text(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_order_client_reference_unique '
+            'ON "order" (client_reference) WHERE client_reference IS NOT NULL'
+        ))
+        connection.execute(text(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_order_external_payment_id_unique '
+            'ON "order" (external_payment_id) WHERE external_payment_id IS NOT NULL'
+        ))
+
+    configure_admin()
+    print(
+        "Banco pronto: "
+        f"{User.query.count()} usuário(s), {Product.query.count()} produto(s)."
+    )
