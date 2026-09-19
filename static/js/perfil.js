@@ -63,12 +63,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showTab(tabName, buttonElement) {
   // Remove active de todos os botões e conteúdos
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+    btn.setAttribute('aria-selected', 'false');
+  });
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
   
   // Adiciona active no botão e conteúdo selecionado
   if (buttonElement) {
     buttonElement.classList.add('active');
+    buttonElement.setAttribute('aria-selected', 'true');
   }
   document.getElementById('tab-' + tabName).classList.add('active');
 }

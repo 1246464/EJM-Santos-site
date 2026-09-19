@@ -31,8 +31,12 @@ print("="*60)
 print("🔐 TESTE DE LOGIN")
 print("="*60)
 
-email_teste = "admin@ejmsantos.com"
-senha_teste = "admin123"
+email_teste = os.getenv("EJM_TEST_ADMIN_EMAIL")
+senha_teste = os.getenv("EJM_TEST_ADMIN_PASSWORD")
+if not email_teste or not senha_teste:
+    raise SystemExit(
+        "Defina EJM_TEST_ADMIN_EMAIL e EJM_TEST_ADMIN_PASSWORD para executar este teste"
+    )
 
 with app.app_context():
     try:

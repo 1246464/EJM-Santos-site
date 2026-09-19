@@ -43,6 +43,12 @@ class Config:
     
     # URLs
     PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:5000")
+
+    # Dados públicos da loja (configure no ambiente de produção)
+    BUSINESS_NAME = os.getenv("EJM_BUSINESS_NAME", "EJM Santos")
+    CONTACT_EMAIL = os.getenv("EJM_CONTACT_EMAIL", "")
+    WHATSAPP_NUMBER = os.getenv("EJM_WHATSAPP_NUMBER", "")
+    WHATSAPP_DISPLAY = os.getenv("EJM_WHATSAPP_DISPLAY", "")
     
     # HTTPS e Proxy
     FORCE_HTTPS = False  # Será True em production

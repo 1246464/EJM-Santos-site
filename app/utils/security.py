@@ -74,7 +74,7 @@ class HTTPSRedirectMiddleware:
         return redirect(url, code=301)
 
 
-def get_security_headers(app_config):
+def get_security_headers(app_config, script_nonce=None):
     """
     Retorna headers de segurança otimizados baseados no ambiente.
     
@@ -118,13 +118,13 @@ def get_security_headers(app_config):
         )
     
     # Content Security Policy
-    csp = get_content_security_policy(app_config)
+    csp = get_content_security_policy(app_config, script_nonce)
     headers['Content-Security-Policy'] = csp
     
     return headers
 
 
-def get_content_security_policy(app_config):
+def get_content_security_policy(app_config, script_nonce=None):
     """
     Gera Content Security Policy otimizado para a aplicação.
     
@@ -167,6 +167,9 @@ def get_content_security_policy(app_config):
         'form-action': ["'self'"],
         'frame-ancestors': ["'self'"],
     }
+
+    if script_nonce:
+        csp_directives['script-src'].append(f"'nonce-{script_nonce}'")
     
     # Em desenvolvimento, permitir inline scripts e eval
     if is_development:
@@ -182,7 +185,7 @@ def get_content_security_policy(app_config):
     return '; '.join(csp_parts) + ';'
 
 
-def apply_security_headers(response, app_config):
+def apply_security_headers(response, app_config, script_nonce=None):
     """
     Aplica headers de segurança à resposta.
     
@@ -193,7 +196,7 @@ def apply_security_headers(response, app_config):
     Returns:
         Response com headers de segurança
     """
-    headers = get_security_headers(app_config)
+    headers = get_security_headers(app_config, script_nonce)
     
     for header, value in headers.items():
         response.headers[header] = value

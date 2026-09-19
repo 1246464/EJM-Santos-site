@@ -21,3 +21,9 @@ services:
         sync: false
       - key: PUBLIC_BASE_URL
         value: https://ejm-santos-site-1.onrender.com
+      - key: EJM_CONTACT_EMAIL
+        sync: false
+      - key: EJM_WHATSAPP_NUMBER
+        sync: false
+      - key: EJM_WHATSAPP_DISPLAY
+        sync: false

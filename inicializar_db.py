@@ -46,7 +46,7 @@ produtos_exemplo = [
     },
     {
         "titulo": "Mel de Eucalipto 500g",
-        "descricao": "Mel com propriedades terapêuticas, sabor marcante e aroma forte. Excelente para gripes e resfriados.",
+        "descricao": "Mel de sabor marcante e aroma característico do eucalipto. Uma opção intensa para bebidas e receitas.",
         "preco": 42.90,
         "imagem": "mel_eucalipto.jpg",
         "estoque": 30
@@ -60,7 +60,7 @@ produtos_exemplo = [
     },
     {
         "titulo": "Mel de Abelha Jataí 250g",
-        "descricao": "Mel de abelha sem ferrão, raro e especial. Sabor único e propriedades medicinais excepcionais.",
+        "descricao": "Mel de abelha sem ferrão, raro e especial, com sabor levemente ácido e características próprias.",
         "preco": 89.90,
         "imagem": "mel_jatai.jpg",
         "estoque": 15
@@ -74,7 +74,7 @@ produtos_exemplo = [
     },
     {
         "titulo": "Mel com Própolis 300g",
-        "descricao": "Combinação poderosa de mel puro com própolis. Fortalece a imunidade e tem ação antibacteriana.",
+        "descricao": "Combinação de mel com própolis, de sabor intenso. Confira os ingredientes e o modo de uso no rótulo.",
         "preco": 52.90,
         "imagem": "mel_propolis.jpg",
         "estoque": 35

@@ -50,7 +50,7 @@
   </div>
 </section>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function filtrarTabela() {
   const val = document.getElementById('filtro-status').value;
   document.querySelectorAll('#tbody-pedidos tr').forEach(tr => {

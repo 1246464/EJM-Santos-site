@@ -57,9 +57,8 @@ EJM_SECRET=5043a2b89a10c3d4b15a5858c566194ce3fee12d5f045103f1f0bb828ec78936
 
 Acesse: `https://seu-app.onrender.com/login`
 
-**Credenciais:**
-- **Email**: admin@ejmsantos.com
-- **Senha**: admin123
+Use os valores seguros definidos em `EJM_ADMIN_EMAIL` e
+`EJM_ADMIN_PASSWORD`. Nunca registre a senha no repositório ou neste guia.
 
 **⚠5. Diagnóstico
 
@@ -129,16 +128,14 @@ Acesse: `https://seu-app.onrender.com/diagnostico`
 ## 📊 Variáveis de Ambiente CompletasgreSQL
 ✅ PostgreSQL configurado
 ✅ Tabelas criadas/verificadas
-✅ Admin criado: admin@ejmsantos.com / admin123
+✅ Administrador configurado pelas variáveis de ambiente
 ```
 
 ## 4. Testar o Login
 
-Após o deploy, use:
-- **Email**: admin@ejmsantos.com
-- **Senha**: admin123
-
-**⚠️ IMPORTANTE**: Altere a senha após primeiro login!
+Após o deploy, entre com as credenciais definidas nas variáveis de ambiente.
+Use uma senha exclusiva com pelo menos 12 caracteres e remova
+`EJM_ADMIN_PASSWORD` do ambiente depois de confirmar o primeiro acesso.
 
 ## 4. Verificar Status
 

@@ -57,6 +57,9 @@ class RenderStartupTests(unittest.TestCase):
                 order_columns = {
                     row[1] for row in connection.execute('PRAGMA table_info("order")')
                 }
+                product_columns = {
+                    row[1] for row in connection.execute('PRAGMA table_info("product")')
+                }
             finally:
                 connection.close()
 
@@ -68,6 +71,9 @@ class RenderStartupTests(unittest.TestCase):
                 "subtotal", "delivery_fee", "client_reference", "payment_status",
                 "external_payment_id", "inventory_released",
             }.issubset(order_columns))
+            self.assertTrue({
+                "categoria", "origem", "beneficios", "sem_adicao_acucar", "destaque",
+            }.issubset(product_columns))
 
 
 if __name__ == "__main__":

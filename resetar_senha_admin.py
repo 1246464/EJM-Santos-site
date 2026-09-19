@@ -46,12 +46,12 @@ with app.app_context():
     print(f"   Email: {admin.email}")
     
     print("\n" + "-"*60)
-    print("Digite a nova senha (ou pressione Enter para usar 'admin123'):")
-    nova_senha = input("Nova senha: ").strip()
-    
-    if not nova_senha:
-        nova_senha = "admin123"
-        print("   → Usando senha padrão: admin123")
+    nova_senha = getpass("Nova senha (mínimo de 12 caracteres): ")
+    if len(nova_senha) < 12:
+        raise SystemExit("❌ A senha deve ter pelo menos 12 caracteres")
+    confirmacao = getpass("Confirme a nova senha: ")
+    if nova_senha != confirmacao:
+        raise SystemExit("❌ As senhas não coincidem")
     
     # Atualizar senha
     admin.senha_hash = generate_password_hash(nova_senha)
@@ -62,6 +62,6 @@ with app.app_context():
     print("="*60)
     print("\n📋 CREDENCIAIS DE LOGIN:")
     print(f"   Email: {admin.email}")
-    print(f"   Senha: {nova_senha}")
+    print("   Senha: atualizada com segurança (não exibida)")
     print("\n🌐 Acesse: http://localhost:5000/admin")
     print("="*60)

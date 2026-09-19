@@ -7,7 +7,7 @@ from pathlib import Path
 os.environ["FLASK_ENV"] = "testing"
 os.environ.setdefault("EJM_SECRET", "test_secret_key_with_at_least_32_characters")
 
-from application import Product, User, app, db
+from application import PaymentMethod, Product, User, app, db
 
 
 class SecurityRegressionTests(unittest.TestCase):
@@ -64,6 +64,21 @@ class SecurityRegressionTests(unittest.TestCase):
 
         with app.app_context():
             self.assertIsNone(db.session.get(Product, product_id))
+
+    def test_raw_card_data_is_rejected(self):
+        user_id = self.create_user(is_admin=False)
+        self.login_as(user_id)
+        response = self.client.post("/api/payment-methods", json={
+            "apelido": "Teste",
+            "numero": "4111111111111111",
+            "validade": "12/30",
+            "cvv": "123",
+            "nome_titular": "Cliente Teste",
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Stripe", response.get_json()["error"])
+        with app.app_context():
+            self.assertEqual(PaymentMethod.query.count(), 0)
 
     def test_mobile_registration_login_and_bearer_auth(self):
         registration = self.client.post("/api/mobile/register", json={
@@ -141,6 +156,9 @@ class SecurityRegressionTests(unittest.TestCase):
             root / "application.py",
             root / "init_render.py",
             root / "garantir_admin.py",
+            root / "resetar_senha_admin.py",
+            root / "testar_login.py",
+            root / "testar_login_web.py",
             root / "scripts" / "database" / "recriar_db.py",
         ]
         for path in provisioning_files:

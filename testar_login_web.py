@@ -16,6 +16,12 @@ print("🌐 TESTE DE LOGIN WEB")
 print("="*60)
 
 base_url = "http://localhost:5000"
+email_teste = os.getenv("EJM_TEST_ADMIN_EMAIL")
+senha_teste = os.getenv("EJM_TEST_ADMIN_PASSWORD")
+if not email_teste or not senha_teste:
+    raise SystemExit(
+        "Defina EJM_TEST_ADMIN_EMAIL e EJM_TEST_ADMIN_PASSWORD para executar este teste"
+    )
 
 try:
     # 1. Acesso inicial para pegar CSRF token
@@ -41,8 +47,8 @@ try:
     # 2. Fazer login
     print(f"\n2️⃣ Enviando credenciais de login...")
     login_data = {
-        "email": "admin@ejmsantos.com",
-        "senha": "admin123",
+        "email": email_teste,
+        "senha": senha_teste,
         "csrf_token": csrf_token
     }
     

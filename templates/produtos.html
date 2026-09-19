@@ -1,206 +1,120 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="produtos">
-  <h2>Produtos</h2>
-  
-  <!-- Barra de Busca e Filtros -->
-  <div class="filtros-container">
-    <div class="busca-box">
-      <input type="text" id="busca" placeholder="🔍 Buscar produtos..." />
-    </div>
-    
-    <!-- Botão para mostrar/esconder filtros no mobile -->
-    <button class="btn-toggle-filtros" id="btn-toggle-filtros">
-      <span id="filtro-icon">🔽</span> Filtros
-    </button>
-    
-    <div class="filtros-box" id="filtros-avancados">
-      <div class="filtro-grupo">
-        <label>Preço Mínimo:</label>
-        <input type="number" id="preco-min" placeholder="R$ 0" step="0.01" />
-      </div>
-      
-      <div class="filtro-grupo">
-        <label>Preço Máximo:</label>
-        <input type="number" id="preco-max" placeholder="R$ 100" step="0.01" />
-      </div>
-      
-      <div class="filtro-grupo">
-        <label>Ordenar por:</label>
-        <select id="ordenar">
-          <option value="nome">Nome (A-Z)</option>
-          <option value="preco_asc">Menor Preço</option>
-          <option value="preco_desc">Maior Preço</option>
-          <option value="estoque">Maior Estoque</option>
-        </select>
-      </div>
-      
-      <button id="btn-limpar-filtros" class="btn-limpar">🗑️ Limpar</button>
-    </div>
+<section class="catalog-hero">
+  <div class="catalog-hero__content">
+    <span class="eyebrow">Produtos da colmeia</span>
+    <h1>Encontre o produto ideal para a sua rotina</h1>
+    <p>Compare tipos, origens e formas de uso em uma vitrine simples, segura e feita para você.</p>
   </div>
-  
-  <div id="produtos-grid" class="produtos-grid"></div>
-  <div id="sem-resultados" style="display:none; text-align:center; padding:40px; color:#999;">
-    <p style="font-size:1.2em;">🔍 Nenhum produto encontrado</p>
+  <div class="catalog-hero__seal" aria-label="Produtos selecionados">
+    <span>🐝</span>
+    <strong>Origem e qualidade</strong>
+    <small>informações claras em cada produto</small>
   </div>
 </section>
 
-<style>
-.filtros-container {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
+<section class="market-benefits" aria-label="Vantagens da loja">
+  <div><span>🔒</span><p><strong>Compra segura</strong><small>Seus dados protegidos</small></p></div>
+  <div><span>📦</span><p><strong>Envio acompanhado</strong><small>Acompanhe seu pedido</small></p></div>
+  <div><span>💬</span><p><strong>Atendimento direto</strong><small>Tire dúvidas pelo WhatsApp</small></p></div>
+  <div><span>🍯</span><p><strong>Seleção especializada</strong><small>Produtos de origem apícola</small></p></div>
+</section>
 
-.busca-box {
-  margin-bottom: 10px;
-}
+<section class="catalog-page">
+  <div class="catalog-heading">
+    <div>
+      <span class="eyebrow">Explore por categoria</span>
+      <h2>Nossa seleção</h2>
+    </div>
+    <span id="resultado-contagem" class="result-count" aria-live="polite">Carregando produtos...</span>
+  </div>
 
-.busca-box input {
-  width: 100%;
-  padding: 12px 20px;
-  border: 2px solid #ddd;
-  border-radius: 25px;
-  font-size: 1em;
-  transition: all 0.3s;
-}
+  <div class="category-scroller" id="categorias" aria-label="Categorias de produto">
+    <button class="category-chip is-active" type="button" data-category=""><span>✨</span><strong>Todos</strong></button>
+    <button class="category-chip" type="button" data-category="mel"><span>🍯</span><strong>Méis</strong></button>
+    <button class="category-chip" type="button" data-category="propolis"><span>🌿</span><strong>Própolis</strong></button>
+    <button class="category-chip" type="button" data-category="geleia-real"><span>👑</span><strong>Geleia real</strong></button>
+    <button class="category-chip" type="button" data-category="polen"><span>🌼</span><strong>Pólen</strong></button>
+    <button class="category-chip" type="button" data-category="combos"><span>🎁</span><strong>Kits e combos</strong></button>
+  </div>
 
-.busca-box input:focus {
-  outline: none;
-  border-color: #ff9800;
-  box-shadow: 0 0 10px rgba(255,152,0,0.2);
-}
+  <div class="catalog-search">
+    <span aria-hidden="true">⌕</span>
+    <input type="search" id="busca" placeholder="Busque por mel, própolis, florada ou finalidade..." autocomplete="off">
+    <button type="button" id="limpar-busca" class="search-clear" aria-label="Limpar busca">×</button>
+  </div>
 
-/* Botão toggle filtros */
-.btn-toggle-filtros {
-  display: none;
-  width: 100%;
-  padding: 10px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.95em;
-  font-weight: 600;
-  color: #555;
-  margin-bottom: 10px;
-  transition: all 0.3s;
-}
+  <button class="mobile-filter-button" id="btn-toggle-filtros" type="button" aria-expanded="false">
+    <span>☰ Filtros</span><span id="filtro-icon">+</span>
+  </button>
 
-.btn-toggle-filtros:hover {
-  background: #f0f0f0;
-}
+  <div class="catalog-layout">
+    <aside class="filter-panel" id="filtros-avancados">
+      <div class="filter-panel__title">
+        <h3>Filtrar produtos</h3>
+        <button id="btn-limpar-filtros" type="button">Limpar tudo</button>
+      </div>
 
-.filtros-box {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  align-items: end;
-}
+      <div class="filter-group">
+        <label for="finalidade">Como pretende usar?</label>
+        <select id="finalidade">
+          <option value="">Todas as opções</option>
+          <option value="uso-diario">Uso diário</option>
+          <option value="bebidas">Adoçar bebidas</option>
+          <option value="culinaria">Receitas e culinária</option>
+          <option value="extrato">Extratos e sprays</option>
+          <option value="presente">Presentes e kits</option>
+        </select>
+      </div>
 
-.filtro-grupo {
-  display: flex;
-  flex-direction: column;
-}
+      <div class="filter-group">
+        <span class="filter-label">Faixa de preço</span>
+        <div class="price-fields">
+          <label><span>Mínimo</span><input type="number" id="preco-min" placeholder="R$ 0" min="0" step="0.01"></label>
+          <label><span>Máximo</span><input type="number" id="preco-max" placeholder="R$ 200" min="0" step="0.01"></label>
+        </div>
+      </div>
 
-.filtro-grupo label {
-  font-size: 0.9em;
-  color: #555;
-  margin-bottom: 5px;
-  font-weight: 600;
-}
+      <div class="filter-group filter-checks">
+        <label><input type="checkbox" id="sem-acucar"> <span>Sem adição de açúcares</span></label>
+        <label><input type="checkbox" id="disponiveis"> <span>Somente disponíveis</span></label>
+      </div>
 
-.filtro-grupo input,
-.filtro-grupo select {
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 0.95em;
-}
+      <div class="filter-note">
+        <strong>Importante</strong>
+        <p>Mel contém açúcares naturalmente. Pessoas com diabetes devem seguir orientação de profissional de saúde.</p>
+      </div>
+    </aside>
 
-.btn-limpar {
-  padding: 10px 20px;
-  background: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.95em;
-  transition: background 0.3s;
-}
+    <div class="catalog-results">
+      <div class="catalog-toolbar">
+        <div id="filtros-ativos" class="active-filters" aria-live="polite"></div>
+        <label class="sort-control">Ordenar por
+          <select id="ordenar">
+            <option value="nome">Nome (A–Z)</option>
+            <option value="preco_asc">Menor preço</option>
+            <option value="preco_desc">Maior preço</option>
+            <option value="estoque">Mais disponíveis</option>
+          </select>
+        </label>
+      </div>
 
-.btn-limpar:hover {
-  background: #5a6268;
-}
+      <div id="produtos-grid" class="market-product-grid" aria-live="polite"></div>
 
-.badge-esgotado, .badge-estoque, .badge-disponivel {
-  display: inline-block;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.85em;
-  font-weight: 600;
-  margin: 10px 0;
-}
+      <div id="sem-resultados" class="empty-state" hidden>
+        <span>🔍</span>
+        <h3>Nenhum produto encontrado</h3>
+        <p>Tente remover algum filtro ou buscar por outro termo.</p>
+        <button type="button" id="btn-empty-clear">Ver todos os produtos</button>
+      </div>
+    </div>
+  </div>
 
-.badge-esgotado {
-  background: #fee;
-  color: #c00;
-  border: 1px solid #fcc;
-}
+  <div class="wellness-disclaimer">
+    <span>ℹ️</span>
+    <p><strong>Informação responsável:</strong> produtos apícolas são alimentos ou suplementos e não substituem medicamentos, diagnóstico ou acompanhamento profissional.</p>
+  </div>
+</section>
 
-.badge-estoque {
-  background: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffeaa7;
-}
-
-.badge-disponivel {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.botao-comprar.desabilitado {
-  background: #ccc !important;
-  cursor: not-allowed !important;
-  opacity: 0.6;
-}
-
-/* Mobile: filtros colapsáveis */
-@media (max-width: 768px) {
-  .filtros-container {
-    padding: 10px;
-  }
-  
-  .btn-toggle-filtros {
-    display: block;
-  }
-  
-  .filtros-box {
-    display: none;
-    grid-template-columns: 1fr;
-    margin-top: 10px;
-    animation: slideDown 0.3s ease-out;
-  }
-  
-  .filtros-box.show {
-    display: grid;
-  }
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-</style>
-
-<script src="/static/js/produtos.js"></script>
+<script src="{{ url_for('static', filename='js/produtos.js') }}?v=4.0" defer></script>
 {% endblock %}

@@ -1,42 +1,70 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="produto-detalhe" data-product-id="{{ product_id }}">
+<main class="product-page" data-product-id="{{ product_id }}">
+  <nav class="product-breadcrumb" aria-label="Navegação estrutural">
+    <a href="/">Início</a><span>›</span><a href="/produtos">Produtos</a><span>›</span><span id="breadcrumb-produto">Detalhes</span>
+  </nav>
 
-  <div class="produto-imagem">
-    <img id="imagem-produto" src="" alt="Produto">
-  </div>
-
-  <div class="produto-conteudo">
-    <h1 id="titulo-produto"></h1>
-    <div class="produto-preco" id="preco-produto"></div>
-    <p class="produto-vendas">+10 vendidos</p>
-
-    <!-- Botões de ação -->
-    <div class="botoes-produto">
-      <button id="btn-add-cart" class="btn-carrinho">
-        🛒 Adicionar ao Carrinho
-      </button>
-      <button id="btn-finalizar" class="btn-comprar">
-        Comprar agora
-      </button>
+  <section class="product-showcase">
+    <div class="product-gallery">
+      <div class="product-main-image"><img id="imagem-produto" src="/static/imagens/1760708557479.jpg" alt="Produto"></div>
+      <div class="product-gallery-note"><span>🔍</span> Imagem ilustrativa. Confira as informações do produto.</div>
     </div>
 
-    <hr>
+    <div class="product-summary">
+      <div class="product-summary__topline">
+        <span id="categoria-produto" class="detail-category">Produto apícola</span>
+        <span id="estoque-produto" class="detail-stock"></span>
+      </div>
+      <h1 id="titulo-produto">Carregando produto...</h1>
+      <button type="button" class="detail-rating btn-ver-avaliacoes" id="resumo-avaliacoes">Novo produto</button>
+      <p id="origem-produto" class="detail-origin" hidden></p>
 
-    <h3>Descrição</h3>
-    <p id="descricao-produto"></p>
+      <div class="detail-price-block">
+        <small>Preço</small>
+        <strong id="preco-produto">—</strong>
+        <span>Pagamento seguro no fechamento do pedido</span>
+      </div>
 
-    <div class="btn-ver-avaliacoes">
-      ⭐ Ver avaliações
+      <div id="tags-produto" class="detail-tags"></div>
+
+      <div class="detail-delivery">
+        <span>📦</span><p><strong>Consulte prazo e entrega</strong><small>O valor é calculado de acordo com o seu endereço.</small></p>
+      </div>
+
+      <div class="botoes-produto">
+        <button id="btn-finalizar" class="detail-buy-now" type="button">Comprar agora</button>
+        <button id="btn-add-cart" class="detail-add-cart" type="button">🛒 Adicionar ao carrinho</button>
+      </div>
+
+      <div class="detail-security"><span>🔒 Ambiente seguro</span><span>💬 Suporte direto</span></div>
+    </div>
+  </section>
+
+  <section class="product-information">
+    <div class="product-description-panel">
+      <span class="eyebrow">Conheça o produto</span>
+      <h2>Descrição e características</h2>
+      <p id="descricao-produto">Carregando informações...</p>
+      <div class="health-information">
+        <strong>Uso responsável</strong>
+        <p>Este produto não substitui medicamentos nem orientação profissional. Mel contém açúcares naturalmente e não deve ser oferecido a crianças menores de 1 ano.</p>
+      </div>
     </div>
 
-    <div id="produto-reviews" class="reviews-area"></div>
+    <aside class="purchase-confidence">
+      <h3>Compre com confiança</h3>
+      <div><span>✓</span><p><strong>Informação clara</strong><small>Origem e características no anúncio</small></p></div>
+      <div><span>✓</span><p><strong>Atendimento humano</strong><small>Fale diretamente com a loja</small></p></div>
+      <div><span>✓</span><p><strong>Avaliações reais</strong><small>Opiniões de quem já comprou</small></p></div>
+    </aside>
+  </section>
 
-    <div id="avaliar-area"></div>
+  <section id="produto-reviews" class="product-reviews-section">
+    <div class="section-heading"><div><span class="eyebrow">Opiniões de clientes</span><h2>Avaliações</h2></div></div>
+    <div id="reviews-list"></div>
+  </section>
+</main>
 
-  </div>
-
-</section>
-
-<script src="/static/js/produto.js"></script>
+<script src="{{ url_for('static', filename='js/produto.js') }}?v=4.0" defer></script>
 {% endblock %}

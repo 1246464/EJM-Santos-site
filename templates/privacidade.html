@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="policy-hero">
+  <div><span class="eyebrow">Seus dados, seus direitos</span><h1>Política de privacidade</h1><p>Saiba quais informações utilizamos e como protegemos sua experiência.</p></div>
+</section>
+
+<article class="policy-page">
+  <nav class="policy-summary" aria-label="Nesta página">
+    <strong>Nesta página</strong>
+    <a href="#dados">Dados tratados</a><a href="#uso">Como usamos</a><a href="#compartilhamento">Compartilhamento</a><a href="#direitos">Seus direitos</a>
+  </nav>
+  <div class="policy-content">
+    <div class="policy-intro"><span>🔐</span><p>{{ store_info.business_name }} utiliza dados pessoais apenas para operar a loja, atender clientes, cumprir obrigações e proteger as transações.</p></div>
+
+    <section id="dados"><h2>Dados que podemos tratar</h2><ul><li>Nome, e-mail, telefone e credenciais protegidas de acesso.</li><li>Endereço e informações necessárias à entrega.</li><li>Itens do carrinho, pedidos, atendimento e histórico de compra.</li><li>Dados técnicos de segurança, como endereço IP e registros de acesso.</li><li>Identificadores de pagamento fornecidos pelo processador; a loja não deve armazenar o número completo ou o código de segurança do cartão.</li></ul></section>
+    <section id="uso"><h2>Por que utilizamos esses dados</h2><p>Para criar e proteger sua conta, processar pedidos, calcular entrega, prestar atendimento, prevenir fraudes, cumprir obrigações legais e melhorar o funcionamento da loja.</p></section>
+    <section id="compartilhamento"><h2>Compartilhamento necessário</h2><p>Os dados podem ser compartilhados, no limite necessário, com serviços de hospedagem, banco de dados, pagamento, e-mail e entrega. Esses fornecedores tratam informações para executar suas respectivas funções.</p><p>Não comercializamos dados pessoais.</p></section>
+    <section id="cookies"><h2>Cookies e sessão</h2><p>Utilizamos cookies necessários para manter login, carrinho, segurança e preferências essenciais. Eles não devem ser usados para publicidade comportamental sem informação e base legal apropriadas.</p></section>
+    <section id="seguranca"><h2>Segurança e conservação</h2><p>Aplicamos controles técnicos e organizacionais proporcionais ao serviço. Os dados são conservados pelo tempo necessário para as finalidades informadas, obrigações legais, prevenção a fraudes e exercício de direitos.</p></section>
+    <section id="direitos"><h2>Seus direitos</h2><p>Você pode solicitar confirmação do tratamento, acesso, correção e, quando aplicável, anonimização, bloqueio, eliminação ou portabilidade. Também pode pedir informações sobre compartilhamento e revisar consentimentos.</p><p>Faça a solicitação pelo e-mail público exibido no rodapé. Poderemos confirmar sua identidade antes de atender pedidos relacionados à conta.</p></section>
+
+    <div class="policy-reference"><strong>Referência:</strong> <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm" target="_blank" rel="noopener noreferrer">Lei Geral de Proteção de Dados Pessoais</a>.</div>
+  </div>
+</article>
+{% endblock %}

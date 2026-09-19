@@ -179,7 +179,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function updateQty(id, acao) {
   await fetch(`/carrinho/update/${id}/${acao}`, { method: "POST" });
   location.reload();

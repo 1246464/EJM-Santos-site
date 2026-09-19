@@ -334,7 +334,7 @@
 }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Atualiza quantidade do carrinho
 function atualizarCarrinho() {
   fetch('/api/carrinho')

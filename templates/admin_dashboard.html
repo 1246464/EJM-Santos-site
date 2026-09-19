@@ -1,229 +1,228 @@
 {% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin-dashboard.css') }}?v=1.0">
+{% endblock %}
+
 {% block content %}
-
-<section class="painel-admin">
-  <div class="painel-wrap">
-    <h2>📦 Painel Administrativo</h2>
-    <p>Bem-vindo, {{ session['user_name'] }}!</p>
-
-    <div class="top-bar">
-      <a href="/admin/novo" class="btn-add">➕ Novo Produto</a>
-      <a href="/logout" class="btn-logout">Sair</a>
+<div class="admin-dashboard">
+  <section class="admin-hero" aria-labelledby="admin-title">
+    <div>
+      <span class="admin-eyebrow">CENTRAL DE OPERAÇÕES</span>
+      <h1 id="admin-title">Visão geral da loja</h1>
+      <p>Olá, {{ session['user_name'] }}. Aqui está o resumo de {{ data_atual }}.</p>
     </div>
-
-    <!-- Busca Admin -->
-    <div class="busca-admin">
-      <input type="text" id="busca-admin" placeholder="🔍 Buscar produtos por título ou ID..." />
+    <div class="admin-hero-actions">
+      <a href="/" class="admin-btn admin-btn--ghost">Ver loja</a>
+      <a href="/admin/pedidos" class="admin-btn admin-btn--secondary">Gerenciar pedidos</a>
+      <a href="/admin/novo" class="admin-btn admin-btn--primary"><span aria-hidden="true">＋</span> Novo produto</a>
     </div>
+  </section>
 
-    <table class="tabela-admin" id="tabela-produtos">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Título</th>
-          <th>Preço</th>
-          <th>Estoque</th>
-          <th>Imagem</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody id="tbody-produtos">
-        {% for p in produtos %}
-        <tr data-id="{{ p.id }}" data-titulo="{{ p.titulo|lower }}">
-          <td>{{ p.id }}</td>
-          <td>{{ p.titulo }}</td>
-          <td>R$ {{ "%.2f"|format(p.preco) }}</td>
-          <td>
-            <span class="badge-estoque-admin {% if p.estoque <= 0 %}esgotado{% elif p.estoque < 10 %}baixo{% endif %}">
-              {{ p.estoque }} un
-            </span>
-          </td>
-          <td>
-            {% if p.imagem %}
-              <img src="/static/{{ p.imagem }}" alt="{{ p.titulo }}">
-            {% else %}-{% endif %}
-          </td>
-          <td class="acoes">
-            <a href="/admin/editar/{{ p.id }}" class="btn-editar">✏️</a>
-            <form method="post" action="/admin/remover/{{ p.id }}" style="display: inline"
-                  onsubmit="return confirm('Deseja remover este produto?')">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-              <button type="submit" class="btn-excluir" aria-label="Remover {{ p.titulo }}">🗑️</button>
-            </form>
-          </td>
-        </tr>
+  {% if produtos_baixo_estoque %}
+  <aside class="admin-alert" aria-label="Alerta de estoque">
+    <span class="admin-alert-icon" aria-hidden="true">!</span>
+    <div>
+      <strong>Atenção ao estoque</strong>
+      <p>{{ produtos_baixo_estoque|length }} produto(s) precisam de reposição{% if produtos_esgotados %}, sendo {{ produtos_esgotados }} esgotado(s){% endif %}.</p>
+    </div>
+    <a href="#estoque-critico">Ver produtos</a>
+  </aside>
+  {% endif %}
+
+  <section class="admin-kpis" aria-label="Indicadores principais">
+    <article class="admin-kpi admin-kpi--revenue">
+      <div class="admin-kpi-top"><span>Faturamento confirmado</span><span class="admin-kpi-icon" aria-hidden="true">R$</span></div>
+      <strong>R$ {{ "%.2f"|format(faturamento) }}</strong>
+      <small>Ticket médio de R$ {{ "%.2f"|format(ticket_medio) }}</small>
+    </article>
+    <article class="admin-kpi">
+      <div class="admin-kpi-top"><span>Pedidos</span><span class="admin-kpi-icon" aria-hidden="true">▣</span></div>
+      <strong>{{ total_pedidos }}</strong>
+      <small>{{ pedidos_pendentes }} aguardando ação</small>
+    </article>
+    <article class="admin-kpi">
+      <div class="admin-kpi-top"><span>Clientes ativos</span><span class="admin-kpi-icon" aria-hidden="true">◎</span></div>
+      <strong>{{ clientes_ativos }}</strong>
+      <small>Cadastros disponíveis para compra</small>
+    </article>
+    <article class="admin-kpi">
+      <div class="admin-kpi-top"><span>Produtos</span><span class="admin-kpi-icon" aria-hidden="true">⬡</span></div>
+      <strong>{{ produtos|length }}</strong>
+      <small>{{ estoque_total }} unidades em estoque</small>
+    </article>
+  </section>
+
+  <section class="admin-overview-grid">
+    <article class="admin-panel admin-chart-panel">
+      <header class="admin-panel-header">
+        <div>
+          <span class="admin-section-kicker">DESEMPENHO</span>
+          <h2>Faturamento nos últimos 6 meses</h2>
+        </div>
+        <span class="admin-panel-chip">R$ {{ "%.2f"|format(faturamento) }}</span>
+      </header>
+      <div class="admin-native-chart" role="img" aria-label="Gráfico de faturamento mensal">
+        {% for mes in meses_serie %}
+        <div class="admin-chart-column">
+          <div class="admin-chart-value">R$ {{ "%.0f"|format(mes.valor) }}</div>
+          <div class="admin-chart-track"><span style="height: {{ mes.altura }}%"></span></div>
+          <small>{{ mes.label }}</small>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    </article>
 
-  </div>
-</section> <!-- ✅ FECHAMENTO CORRETO AQUI -->
+    <article class="admin-panel admin-status-panel">
+      <header class="admin-panel-header">
+        <div><span class="admin-section-kicker">FLUXO DE PEDIDOS</span><h2>Status da operação</h2></div>
+      </header>
+      <div class="admin-status-list">
+        <div><span class="status-dot status-dot--paid"></span><span>Pagos</span><strong>{{ total_pago }}</strong></div>
+        <div><span class="status-dot status-dot--shipping"></span><span>Enviados</span><strong>{{ enviados }}</strong></div>
+        <div><span class="status-dot status-dot--done"></span><span>Entregues</span><strong>{{ entregues }}</strong></div>
+        <div><span class="status-dot status-dot--canceled"></span><span>Cancelados</span><strong>{{ cancelados }}</strong></div>
+      </div>
+      <div class="admin-completion">
+        <div><span>Taxa de conclusão</span><strong>{{ "%.0f"|format(taxa_conclusao) }}%</strong></div>
+        <div class="admin-progress"><span style="width: {{ [taxa_conclusao, 100]|min }}%"></span></div>
+      </div>
+    </article>
+  </section>
 
-<section class="dashboard-cards">
-  <div class="cardDM">📦 Pedidos <h3>{{ total_pedidos }}</h3></div>
-  <div class="cardDM">💳 Pagos <h3>{{ total_pago }}</h3></div>
-  <div class="cardDM">🚚 Enviados <h3>{{ enviados }}</h3></div>
-  <div class="cardDM">✅ Entregues <h3>{{ entregues }}</h3></div>
-  <div class="cardDM">❌ Cancelados <h3>{{ cancelados }}</h3></div>
-  <div class="cardDM">💰 Faturamento <h3>R$ {{ "%.2f"|format(faturamento) }}</h3></div>
-  <div class="cardDM">📊 Ticket Médio <h3>R$ {{ "%.2f"|format(ticket_medio) }}</h3></div>
-</section>
+  <section class="admin-secondary-grid">
+    <article class="admin-panel admin-orders-panel">
+      <header class="admin-panel-header">
+        <div><span class="admin-section-kicker">ATIVIDADE RECENTE</span><h2>Últimos pedidos</h2></div>
+        <a href="/admin/pedidos" class="admin-text-link">Ver todos →</a>
+      </header>
+      {% if pedidos_recentes %}
+      <div class="admin-order-list">
+        {% for pedido in pedidos_recentes %}
+        <a href="/admin/pedidos/{{ pedido.id }}" class="admin-order-row">
+          <span class="admin-order-id">#{{ pedido.id }}</span>
+          <span class="admin-order-customer">
+            <strong>{{ pedido.user.nome if pedido.user else 'Cliente não identificado' }}</strong>
+            <small>{{ pedido.created_at.strftime('%d/%m/%Y às %H:%M') if pedido.created_at else 'Data não informada' }}</small>
+          </span>
+          <span class="admin-order-status status-{{ (pedido.status or 'pendente')|lower|replace(' ', '-') }}">{{ pedido.status or 'Pendente' }}</span>
+          <strong class="admin-order-total">R$ {{ "%.2f"|format(pedido.total or 0) }}</strong>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="admin-empty-compact"><span aria-hidden="true">▣</span><p>Nenhum pedido recebido até agora.</p></div>
+      {% endif %}
+    </article>
 
-<section class="grafico-box">
-  <h3>📈 Faturamento dos últimos 6 meses</h3>
-  <canvas id="chartFaturamento"></canvas>
-</section>
+    <article class="admin-panel admin-stock-panel" id="estoque-critico">
+      <header class="admin-panel-header">
+        <div><span class="admin-section-kicker">INVENTÁRIO</span><h2>Estoque crítico</h2></div>
+      </header>
+      {% if produtos_baixo_estoque %}
+      <div class="admin-stock-list">
+        {% for produto in produtos_baixo_estoque %}
+        <a href="/admin/editar/{{ produto.id }}">
+          <span class="admin-stock-thumb">{% if produto.imagem %}<img src="/static/{{ produto.imagem }}" alt="">{% else %}🍯{% endif %}</span>
+          <span><strong>{{ produto.titulo }}</strong><small>{{ produto.categoria|capitalize }}</small></span>
+          <span class="admin-stock-count {% if produto.estoque <= 0 %}is-empty{% endif %}">{{ produto.estoque }} un</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="admin-empty-compact admin-empty-compact--success"><span aria-hidden="true">✓</span><p>Todos os produtos estão com estoque saudável.</p></div>
+      {% endif %}
+    </article>
+  </section>
 
-<style>
-  .painel-wrap {
-    padding: 25px;
-    background: #fff;
-    border-radius: 14px;
-    max-width: 1100px;
-    margin: 30px auto;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+  <section class="admin-panel admin-products-panel">
+    <header class="admin-products-header">
+      <div>
+        <span class="admin-section-kicker">CATÁLOGO</span>
+        <h2>Gerenciar produtos</h2>
+        <p><span id="admin-visible-count">{{ produtos|length }}</span> de {{ produtos|length }} produto(s)</p>
+      </div>
+      <a href="/admin/novo" class="admin-btn admin-btn--primary"><span aria-hidden="true">＋</span> Adicionar produto</a>
+    </header>
+
+    <div class="admin-product-tools">
+      <label class="admin-search">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" id="busca-admin" placeholder="Buscar por nome, categoria ou ID" autocomplete="off">
+      </label>
+      <label class="admin-filter">
+        <span>Estoque</span>
+        <select id="filtro-estoque-admin">
+          <option value="todos">Todos</option>
+          <option value="normal">Disponível</option>
+          <option value="baixo">Estoque baixo</option>
+          <option value="esgotado">Esgotado</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="admin-table-wrap">
+      <table class="admin-products-table" id="tabela-produtos">
+        <thead><tr><th>Produto</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Destaque</th><th><span class="sr-only">Ações</span></th></tr></thead>
+        <tbody id="tbody-produtos">
+          {% for produto in produtos %}
+          {% set stock_state = 'esgotado' if produto.estoque <= 0 else ('baixo' if produto.estoque <= 10 else 'normal') %}
+          <tr data-id="{{ produto.id }}" data-search="{{ produto.titulo|lower }} {{ produto.categoria|lower }} {{ produto.id }}" data-stock="{{ stock_state }}">
+            <td><div class="admin-product-cell">
+              <span class="admin-product-image">{% if produto.imagem %}<img src="/static/{{ produto.imagem }}" alt="">{% else %}<span aria-hidden="true">🍯</span>{% endif %}</span>
+              <span><strong>{{ produto.titulo }}</strong><small>ID #{{ produto.id }}{% if produto.origem %} · {{ produto.origem }}{% endif %}</small></span>
+            </div></td>
+            <td><span class="admin-category">{{ produto.categoria|capitalize }}</span></td>
+            <td><strong>R$ {{ "%.2f"|format(produto.preco) }}</strong></td>
+            <td><span class="admin-stock-badge admin-stock-badge--{{ stock_state }}">{{ produto.estoque }} un</span></td>
+            <td>{% if produto.destaque %}<span class="admin-featured">★ Sim</span>{% else %}<span class="admin-muted">Não</span>{% endif %}</td>
+            <td><div class="admin-row-actions">
+              <a href="/admin/editar/{{ produto.id }}" aria-label="Editar {{ produto.titulo }}">Editar</a>
+              <form method="post" action="/admin/remover/{{ produto.id }}" class="js-delete-product" data-product="{{ produto.titulo }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" aria-label="Remover {{ produto.titulo }}">Remover</button>
+              </form>
+            </div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="admin-table-empty" id="admin-table-empty" hidden>
+        <span aria-hidden="true">⌕</span><strong>Nenhum produto encontrado</strong><p>Tente mudar a busca ou o filtro de estoque.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const searchInput = document.getElementById('busca-admin');
+  const stockFilter = document.getElementById('filtro-estoque-admin');
+  const rows = Array.from(document.querySelectorAll('#tbody-produtos tr'));
+  const visibleCount = document.getElementById('admin-visible-count');
+  const emptyState = document.getElementById('admin-table-empty');
+  const normalize = value => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+  function filterProducts() {
+    const query = normalize(searchInput.value);
+    const stock = stockFilter.value;
+    let count = 0;
+    rows.forEach(row => {
+      const visible = normalize(row.dataset.search).includes(query) && (stock === 'todos' || row.dataset.stock === stock);
+      row.hidden = !visible;
+      if (visible) count += 1;
+    });
+    visibleCount.textContent = count;
+    emptyState.hidden = count !== 0;
   }
 
-  .top-bar { display: flex; justify-content: space-between; margin: 12px 0; }
-  .btn-add { background: #f6b800; padding: 10px 18px; border-radius: 8px; font-weight: 600; }
-  .btn-logout { background: #e53935; color:#fff; padding:10px 18px; border-radius:8px; font-weight:600; }
-
-  .busca-admin { margin: 20px 0; }
-  .busca-admin input {
-    width: 100%;
-    padding: 12px 20px;
-    border: 2px solid #ddd;
-    border-radius: 25px;
-    font-size: 1em;
-    transition: all 0.3s;
-  }
-  .busca-admin input:focus {
-    outline: none;
-    border-color: #f6b800;
-    box-shadow: 0 0 10px rgba(246,184,0,0.2);
-  }
-
-  .tabela-admin { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 15px; }
-  .tabela-admin th {
-    padding: 10px;
-    background: #222;
-    color: #f6b800;
-    font-weight: 600;
-    text-align: left;
-  }
-  .tabela-admin td {
-    padding: 12px 10px;
-    border-bottom: 1px solid #ddd;
-  }
-  .tabela-admin img { width: 60px; border-radius: 8px; }
-
-  .acoes a { font-size: 18px; margin-right: 8px; text-decoration: none; }
-  .btn-excluir {
-    appearance: none;
-    background: none;
-    border: 0;
-    cursor: pointer;
-    font: inherit;
-    font-size: 18px;
-    padding: 0;
-  }
-
-  .badge-estoque-admin {
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.85em;
-    font-weight: 600;
-    background: #d4edda;
-    color: #155724;
-  }
-  .badge-estoque-admin.baixo {
-    background: #fff3cd;
-    color: #856404;
-  }
-  .badge-estoque-admin.esgotado {
-    background: #fee;
-    color: #c00;
-  }
-
-  .dashboard-cards {
-    max-width: 1100px;
-    margin: 20px auto;
-    display: grid;
-    gap: 18px;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  }
-  .cardDM {
-    background: #fff;
-    border-radius: 12px;
-    text-align: center;
-    padding: 20px 10px;
-    font-weight: 700;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-    color: #222;
-  }
-  .cardDM h3 { margin-top: 8px; font-size: 22px; color: #f6b800; }
-
-  .grafico-box {
-    max-width: 1100px;
-    margin: 35px auto;
-    background: #fff;
-    padding: 20px;
-    border-radius: 14px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-  }
-  .grafico-box h3 {
-    margin-bottom: 15px;
-    font-weight: 700;
-    color: #222;
-  }
-
-  /* Hover nice */
-  .cardDM:hover, .tabela-admin tr:hover { transform: scale(1.01); transition: 0.2s; }
-</style>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Busca em tempo real no admin
-document.getElementById('busca-admin').addEventListener('input', function() {
-  const busca = this.value.toLowerCase();
-  const linhas = document.querySelectorAll('#tbody-produtos tr');
-  
-  linhas.forEach(linha => {
-    const id = linha.getAttribute('data-id');
-    const titulo = linha.getAttribute('data-titulo');
-    
-    if (id.includes(busca) || titulo.includes(busca)) {
-      linha.style.display = '';
-    } else {
-      linha.style.display = 'none';
-    }
+  searchInput.addEventListener('input', filterProducts);
+  stockFilter.addEventListener('change', filterProducts);
+  document.querySelectorAll('.js-delete-product').forEach(form => {
+    form.addEventListener('submit', event => {
+      if (!window.confirm(`Deseja realmente remover “${form.dataset.product}”?`)) event.preventDefault();
+    });
   });
-});
-
-const ctx = document.getElementById('chartFaturamento').getContext('2d');
-
-new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels: {{ meses_labels|tojson }},
-    datasets: [{
-      label: 'R$ Faturado no mês',
-      data: {{ meses_valores|tojson }},
-      backgroundColor: '#f6b800',
-      borderRadius: 8,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false }},
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: { callback: value => 'R$ ' + value.toFixed(2) }
-      }
-    }
-  }
-});
+})();
 </script>
-
 {% endblock %}

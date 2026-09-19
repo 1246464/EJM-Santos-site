@@ -1,0 +1,225 @@
+/* Dashboard do cliente — camada visual isolada da área de perfil. */
+.profile-dashboard.perfil-page {
+  width: min(1240px, 100%);
+  max-width: none;
+  padding: 38px 24px 72px;
+}
+
+.profile-dashboard .perfil-header-novo {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin: 0;
+  padding: 38px 40px 64px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 85% 8%, rgba(255, 201, 40, .28), transparent 25%),
+    linear-gradient(125deg, #3e230e 0%, #6f3d0c 52%, #a45d08 100%);
+  box-shadow: 0 22px 55px rgba(83, 45, 8, .2);
+}
+
+.profile-dashboard .perfil-header-novo::before,
+.profile-dashboard .perfil-header-novo::after {
+  position: absolute;
+  z-index: -1;
+  width: 170px;
+  height: 170px;
+  border: 1px solid rgba(255, 226, 151, .13);
+  border-radius: 44px;
+  content: "";
+  transform: rotate(30deg);
+}
+
+.profile-dashboard .perfil-header-novo::before { right: 13%; top: -100px; }
+.profile-dashboard .perfil-header-novo::after { right: -74px; bottom: -108px; }
+.profile-dashboard .perfil-header-content { position: relative; z-index: 1; gap: 30px; }
+.profile-dashboard .perfil-avatar { gap: 18px; }
+
+.profile-dashboard .avatar-circle {
+  width: 76px;
+  height: 76px;
+  border: 3px solid rgba(255, 255, 255, .52);
+  background: linear-gradient(145deg, #fffdf5, #ffdc75);
+  color: #693b09;
+  box-shadow: 0 10px 28px rgba(30, 17, 4, .24);
+}
+
+.profile-dashboard .perfil-eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: #ffd66b;
+  font-size: .68rem;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+
+.profile-dashboard .perfil-info-header h1 {
+  color: #fff;
+  font-size: clamp(1.65rem, 3vw, 2.15rem);
+  letter-spacing: -.035em;
+}
+
+.profile-dashboard .perfil-info-header p { color: #f4dfc6; }
+.profile-dashboard .perfil-member {
+  display: inline-flex;
+  margin-top: 9px;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 999px;
+  color: #fff5e4;
+  background: rgba(255, 255, 255, .09);
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+.profile-dashboard .perfil-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.profile-dashboard .btn-carrinho-novo,
+.profile-dashboard .btn-admin-novo,
+.profile-dashboard .btn-logout-novo {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 11px;
+  box-shadow: none;
+}
+
+.profile-dashboard .btn-carrinho-novo {
+  color: #432600;
+  background: #ffc928;
+}
+.profile-dashboard .btn-carrinho-novo:hover { background: #ffd75c; }
+.profile-dashboard .btn-admin-novo,
+.profile-dashboard .btn-logout-novo {
+  color: #fff;
+  background: rgba(255, 255, 255, .11);
+  backdrop-filter: blur(8px);
+}
+.profile-dashboard .btn-admin-novo:hover,
+.profile-dashboard .btn-logout-novo:hover { color: #fff; background: rgba(255, 255, 255, .2); }
+
+.profile-dashboard .perfil-resumo {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 13px;
+  margin: -32px 24px 26px;
+}
+
+.profile-dashboard .resumo-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #ece4d8;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 12px 32px rgba(69, 42, 13, .09);
+}
+
+.profile-dashboard .resumo-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #fff1c1;
+  color: #92500a;
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+.profile-dashboard .resumo-card--andamento .resumo-icon { color: #27618c; background: #e6f3ff; }
+.profile-dashboard .resumo-card--entregues .resumo-icon { color: #21724b; background: #e5f6ed; }
+.profile-dashboard .resumo-card--enderecos .resumo-icon { color: #7852a1; background: #f1eaf8; }
+.profile-dashboard .resumo-copy { display: flex; min-width: 0; flex-direction: column; }
+.profile-dashboard .resumo-copy small { overflow: hidden; color: #7e756a; font-size: .72rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.profile-dashboard .resumo-copy strong { color: #33271c; font-size: 1.45rem; line-height: 1.15; }
+
+.profile-dashboard .perfil-tabs {
+  gap: 5px;
+  margin-bottom: 16px;
+  padding: 6px;
+  border: 1px solid #ebe4da;
+  border-radius: 14px;
+  box-shadow: 0 5px 18px rgba(55, 35, 13, .05);
+}
+.profile-dashboard .tab-btn { flex: 1 1 auto; justify-content: center; min-height: 46px; border-radius: 10px; color: #6f665d; }
+.profile-dashboard .tab-btn:hover { color: #5f3807; background: #fff8e7; }
+.profile-dashboard .tab-btn.active { color: #fff; background: #74410c; box-shadow: 0 5px 12px rgba(102, 56, 7, .2); }
+
+.profile-dashboard .perfil-content {
+  min-height: 460px;
+  padding: 30px;
+  border: 1px solid #eae3d9;
+  border-radius: 18px;
+  box-shadow: 0 12px 35px rgba(57, 36, 13, .06);
+}
+.profile-dashboard .content-header { margin-bottom: 22px; padding-bottom: 18px; border-bottom-color: #eee8df; }
+.profile-dashboard .content-header h2 { color: #34291f; font-size: 1.4rem; letter-spacing: -.025em; }
+.profile-dashboard .stat-mini { padding: 6px 11px; border-radius: 999px; background: #fff6db; }
+
+.profile-dashboard .pedido-card-novo,
+.profile-dashboard .endereco-card {
+  border-color: #e9e2d8;
+  border-radius: 15px;
+  background: #fff;
+}
+.profile-dashboard .pedido-card-novo:hover,
+.profile-dashboard .endereco-card:hover { border-color: #d6a340; box-shadow: 0 10px 26px rgba(72, 44, 13, .09); }
+.profile-dashboard .pedido-items { background: #faf8f4; }
+.profile-dashboard .btn-ver-pedido,
+.profile-dashboard .btn-adicionar,
+.profile-dashboard .btn-comprar-agora,
+.profile-dashboard .btn-alterar { color: #fff; background: #72400c; box-shadow: none; }
+.profile-dashboard .btn-ver-pedido:hover,
+.profile-dashboard .btn-adicionar:hover,
+.profile-dashboard .btn-comprar-agora:hover,
+.profile-dashboard .btn-alterar:hover { color: #332000; background: #ffc928; }
+.profile-dashboard .endereco-tipo { color: #633700; background: #fff0b4; }
+.profile-dashboard .empty-state { min-height: 310px; padding: 55px 20px; border: 1px dashed #ded4c5; border-radius: 15px; background: #fcfbf8; }
+.profile-dashboard .payment-coming-soon { padding: 6px 10px; border-radius: 999px; color: #77510f; background: #fff3cc; font-size: .72rem; font-weight: 750; }
+.profile-dashboard .dados-form { max-width: 720px; }
+.profile-dashboard .form-group input { border-color: #e4ddd3; background: #faf8f5; }
+
+@media (max-width: 900px) {
+  .profile-dashboard .perfil-resumo { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .profile-dashboard.perfil-page { padding: 16px 12px 48px; }
+  .profile-dashboard .perfil-header-novo { padding: 27px 18px 54px; border-radius: 19px; }
+  .profile-dashboard .perfil-header-content { gap: 22px; }
+  .profile-dashboard .perfil-avatar { flex-direction: row; text-align: left; }
+  .profile-dashboard .avatar-circle { width: 62px; height: 62px; }
+  .profile-dashboard .perfil-header-actions,
+  .profile-dashboard .perfil-header-novo > div > div:last-child { width: 100%; flex-direction: row; justify-content: stretch; }
+  .profile-dashboard .btn-carrinho-novo,
+  .profile-dashboard .btn-admin-novo,
+  .profile-dashboard .btn-logout-novo { width: auto; flex: 1 1 120px; padding: 10px 12px; }
+  .profile-dashboard .perfil-resumo { gap: 9px; margin: -29px 10px 20px; }
+  .profile-dashboard .resumo-card { padding: 13px; }
+  .profile-dashboard .resumo-icon { flex-basis: 36px; height: 36px; border-radius: 11px; }
+  .profile-dashboard .resumo-copy strong { font-size: 1.25rem; }
+  .profile-dashboard .perfil-tabs { justify-content: flex-start; }
+  .profile-dashboard .tab-btn { flex: 0 0 auto; padding: 11px 15px; }
+  .profile-dashboard .perfil-content { padding: 18px; border-radius: 14px; }
+}
+
+@media (max-width: 470px) {
+  .profile-dashboard .perfil-avatar { align-items: flex-start; }
+  .profile-dashboard .perfil-info-header h1 { font-size: 1.45rem; }
+  .profile-dashboard .perfil-info-header p { max-width: 210px; overflow-wrap: anywhere; }
+  .profile-dashboard .perfil-resumo { grid-template-columns: 1fr 1fr; margin-inline: 5px; }
+  .profile-dashboard .resumo-card { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .profile-dashboard .resumo-copy small { white-space: normal; }
+  .profile-dashboard .content-header { align-items: stretch; }
+}

@@ -17,6 +17,11 @@ def create_product_model(db):
         preco = db.Column(db.Float, nullable=False)
         imagem = db.Column(db.String(256))
         estoque = db.Column(db.Integer, default=0, nullable=False)
+        categoria = db.Column(db.String(40), default="mel", nullable=False)
+        origem = db.Column(db.String(80))
+        beneficios = db.Column(db.String(255))
+        sem_adicao_acucar = db.Column(db.Boolean, default=False, nullable=False)
+        destaque = db.Column(db.Boolean, default=False, nullable=False)
         created_at = db.Column(db.DateTime, default=datetime.utcnow)
         
         # Relacionamentos
@@ -36,6 +41,11 @@ def create_product_model(db):
                 'preco': self.preco,
                 'imagem': self.imagem,
                 'estoque': self.estoque,
+                'categoria': self.categoria,
+                'origem': self.origem,
+                'beneficios': self.beneficios,
+                'sem_adicao_acucar': self.sem_adicao_acucar,
+                'destaque': self.destaque,
                 'created_at': self.created_at.isoformat() if self.created_at else None
             }
             

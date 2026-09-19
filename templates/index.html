@@ -1,29 +1,69 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero">
-  <div class="hero-left">
-    <h1>Mel puro, direto da colmeia</h1>
-    <p>Produzido com cuidado, sem conservantes — perfeito para seu dia a dia.</p>
-    <a class="botao-topo" href="/produtos">Ver Produtos</a>
+<section class="home-hero">
+  <div class="home-hero__content">
+    <span class="eyebrow">Da natureza para a sua rotina</span>
+    <h1>Produtos da colmeia com origem, cuidado e informação</h1>
+    <p>Encontre méis, própolis e outros produtos apícolas selecionados para diferentes momentos do seu dia.</p>
+    <div class="home-hero__actions">
+      <a class="primary-cta" href="/produtos">Explorar produtos <span>→</span></a>
+      <a class="secondary-cta" href="/sobre">Conhecer a EJM Santos</a>
+    </div>
+    <div class="home-hero__proof">
+      <span>✓ Compra segura</span><span>✓ Atendimento direto</span><span>✓ Origem informada</span>
+    </div>
   </div>
-  <div class="hero-right">
-    <img src="{{ url_for('static', filename='imagens/1760708557479.jpg') }}" alt="colmeia">
+  <div class="home-hero__visual">
+    <img src="{{ url_for('static', filename='imagens/1760708557479.jpg') }}" alt="Produtos de mel e origem apícola">
+    <div class="floating-card"><span>🐝</span><p><strong>Seleção apícola</strong><small>qualidade em cada detalhe</small></p></div>
   </div>
 </section>
 
-<section class="intro">
-  <h2>Por que nosso mel é especial?</h2>
-  <div class="qualidades">
-    <div><span>🍃</span> Natural</div>
-    <div><span>🍯</span> Puro</div>
-    <div><span>🚫</span> Sem conservantes</div>
+<section class="home-categories">
+  <div class="section-heading">
+    <div><span class="eyebrow">Compre do seu jeito</span><h2>Encontre mais rápido</h2></div>
+    <a href="/produtos">Ver todos →</a>
+  </div>
+  <div class="home-category-grid">
+    <a href="/produtos?categoria=mel"><span>🍯</span><strong>Méis</strong><small>Floradas e tamanhos variados</small></a>
+    <a href="/produtos?categoria=propolis"><span>🌿</span><strong>Própolis</strong><small>Para a rotina de bem-estar</small></a>
+    <a href="/produtos?finalidade=extrato"><span>💛</span><strong>Extratos e sprays</strong><small>Compare formatos e ingredientes</small></a>
+    <a href="/produtos?sem_adicao_acucar=1"><span>🌱</span><strong>Sem adição</strong><small>Sem açúcares adicionados*</small></a>
   </div>
 </section>
 
-<section id="produtos" class="produtos-preview">
-  <h2>Nossos Produtos</h2>
-  <div id="produtos-destaque"></div>
+<section id="produtos" class="home-products">
+  <div class="section-heading">
+    <div><span class="eyebrow">Escolhas da loja</span><h2>Produtos em destaque</h2></div>
+    <a href="/produtos">Ver catálogo completo →</a>
+  </div>
+  <div id="produtos-destaque" class="home-product-grid" aria-live="polite"></div>
 </section>
 
-<script src="/static/js/index.js"></script>
+<section class="guide-section">
+  <div class="guide-card guide-card--main">
+    <span class="eyebrow">Guia de compra</span>
+    <h2>Qual produto combina com o que você procura?</h2>
+    <p>Use os filtros de finalidade, origem e categoria para comparar as opções sem depender de promessas milagrosas.</p>
+    <a href="/produtos">Usar o guia de filtros →</a>
+  </div>
+  <div class="guide-card">
+    <span class="guide-icon">🌿</span>
+    <h3>Própolis</h3>
+    <p>Veja concentração, modo de uso e ingredientes antes de escolher.</p>
+  </div>
+  <div class="guide-card">
+    <span class="guide-icon">🍯</span>
+    <h3>Mel</h3>
+    <p>Compare florada, origem, sabor, peso e presença de ingredientes adicionados.</p>
+  </div>
+</section>
+
+<section class="responsible-info">
+  <div><span>🩺</span><p><strong>Saúde vem primeiro</strong><small>Mel contém açúcares naturalmente. Pessoas com diabetes devem consultar um profissional de saúde.</small></p></div>
+  <div><span>👶</span><p><strong>Atenção às crianças</strong><small>Mel não deve ser oferecido a menores de 1 ano.</small></p></div>
+  <div><span>📋</span><p><strong>Leia o rótulo</strong><small>Confira ingredientes, alergênicos e instruções de uso do fabricante.</small></p></div>
+</section>
+
+<script src="{{ url_for('static', filename='js/index.js') }}?v=4.0" defer></script>
 {% endblock %}

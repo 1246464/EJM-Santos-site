@@ -4,10 +4,12 @@
 # ============================================
 
 import os
+import secrets
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 import stripe
-from flask import Flask, request, render_template
+from flask import Flask, g, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
@@ -32,9 +34,32 @@ config_class = get_config(env)
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config.from_object(config_class)
 
+
+@app.before_request
+def create_content_security_nonce():
+    """Autoriza somente os scripts inline pertencentes à resposta atual."""
+    g.csp_nonce = secrets.token_urlsafe(18)
+
+
+@app.context_processor
+def inject_public_store_data():
+    """Disponibiliza contatos públicos sem gravá-los nos templates."""
+    whatsapp_number = ''.join(
+        char for char in app.config.get('WHATSAPP_NUMBER', '') if char.isdigit()
+    )
+    return {
+        'store_info': {
+            'business_name': app.config.get('BUSINESS_NAME', 'EJM Santos'),
+            'contact_email': app.config.get('CONTACT_EMAIL', '').strip(),
+            'whatsapp_number': whatsapp_number,
+            'whatsapp_display': app.config.get('WHATSAPP_DISPLAY', '').strip(),
+        },
+        'current_year': datetime.now().year,
+        'csp_nonce': getattr(g, 'csp_nonce', ''),
+    }
+
 # Garantir que SECRET_KEY está configurada
 if not app.config.get('SECRET_KEY'):
-    import secrets
     if env == 'production':
         print("⚠️  SECRET_KEY não configurada em produção!")
         print("⚠️  Gerando SECRET_KEY temporária - CONFIGURE EJM_SECRET para persistir sessões!")
@@ -243,6 +268,31 @@ with app.app_context():
     except Exception as e:
         logger.warning(f"⚠️ Migração de sessão móvel: {str(e)[:100]}")
 
+    # Metadados de catálogo usados pelos filtros da vitrine.
+    try:
+        if 'product' in existing_tables:
+            product_columns = [col['name'] for col in inspector.get_columns('product')]
+            product_required_columns = {
+                'categoria': "VARCHAR(40) DEFAULT 'mel' NOT NULL",
+                'origem': 'VARCHAR(80)',
+                'beneficios': 'VARCHAR(255)',
+                'sem_adicao_acucar': 'BOOLEAN DEFAULT FALSE NOT NULL',
+                'destaque': 'BOOLEAN DEFAULT FALSE NOT NULL',
+            }
+            missing_product_columns = [
+                name for name in product_required_columns if name not in product_columns
+            ]
+            if missing_product_columns:
+                with db.engine.begin() as conn:
+                    for name in missing_product_columns:
+                        conn.execute(db.text(
+                            f'ALTER TABLE "product" ADD COLUMN "{name}" '
+                            f'{product_required_columns[name]}'
+                        ))
+                logger.info("✅ Colunas de catálogo adicionadas aos produtos")
+    except Exception as e:
+        logger.warning(f"⚠️ Migração do catálogo: {str(e)[:100]}")
+
     # Só consulte o modelo User depois que todas as suas colunas existirem.
     # Isso é essencial em bancos criados por versões anteriores do aplicativo.
     try:
@@ -394,7 +444,7 @@ from app.utils.security import apply_security_headers
 @app.after_request
 def security_headers(response):
     """Adiciona headers de segurança otimizados"""
-    return apply_security_headers(response, app.config)
+    return apply_security_headers(response, app.config, getattr(g, 'csp_nonce', None))
 
 # ============================================
 # EXECUÇÃO

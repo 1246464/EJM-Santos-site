@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/perfil-dashboard.css') }}?v=1.0">
+{% endblock %}
 {% block content %}
 <style>
 /* Perfil Novo - CSS Inline */
@@ -217,21 +220,23 @@
   .empty-state svg { width: 60px; height: 60px; }
 }
 </style>
-<div class="perfil-page">
+<div class="perfil-page profile-dashboard">
   
   <!-- Header do Perfil -->
-  <div class="perfil-header-novo">
+  <section class="perfil-header-novo" aria-labelledby="perfil-title">
     <div class="perfil-header-content">
       <div class="perfil-avatar">
         <div class="avatar-circle">
           {{ session['user_name'][0].upper() }}
         </div>
         <div class="perfil-info-header">
-          <h1>{{ session['user_name'] }}</h1>
+          <span class="perfil-eyebrow">MINHA CONTA</span>
+          <h1 id="perfil-title">Olá, {{ session['user_name'].split()[0] }}!</h1>
           <p>{{ user.email if user else 'N/A' }}</p>
+          {% if user and user.created_at %}<span class="perfil-member">Cliente desde {{ user.created_at.strftime('%Y') }}</span>{% endif %}
         </div>
       </div>
-      <div style="display: flex; gap: 12px; align-items: center;">
+      <div class="perfil-header-actions">
         <a href="/carrinho" class="btn-carrinho-novo">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
             <path d="M0 0v2h2l3.6 7.6L4.2 12c-.1.3-.2.6-.2 1 0 1.1.9 2 2 2h12v-2H6.4c-.1 0-.2-.1-.2-.2l.1-.2 1-1.8h7.5c.7 0 1.4-.4 1.7-1l3.6-6.6c.1-.1.1-.3.1-.4 0-.6-.4-1-1-1H4.2L3.3 0H0zm16 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM6 16c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
@@ -253,29 +258,48 @@
         Sair
       </a>
     </div>
-  </div>
+  </section>
+
+  <section class="perfil-resumo" aria-label="Resumo da conta">
+    <div class="resumo-card resumo-card--pedidos">
+      <span class="resumo-icon" aria-hidden="true">▣</span>
+      <span class="resumo-copy"><small>Todos os pedidos</small><strong>{{ resumo_perfil.pedidos }}</strong></span>
+    </div>
+    <div class="resumo-card resumo-card--andamento">
+      <span class="resumo-icon" aria-hidden="true">↻</span>
+      <span class="resumo-copy"><small>Em andamento</small><strong>{{ resumo_perfil.em_andamento }}</strong></span>
+    </div>
+    <div class="resumo-card resumo-card--entregues">
+      <span class="resumo-icon" aria-hidden="true">✓</span>
+      <span class="resumo-copy"><small>Entregues</small><strong>{{ resumo_perfil.entregues }}</strong></span>
+    </div>
+    <div class="resumo-card resumo-card--enderecos">
+      <span class="resumo-icon" aria-hidden="true">⌖</span>
+      <span class="resumo-copy"><small>Endereços salvos</small><strong>{{ resumo_perfil.enderecos }}</strong></span>
+    </div>
+  </section>
 
   <!-- Navegação por Abas -->
-  <div class="perfil-tabs">
-    <button class="tab-btn active" data-tab="pedidos">
+  <div class="perfil-tabs" role="tablist" aria-label="Seções da conta">
+    <button class="tab-btn active" data-tab="pedidos" role="tab" aria-selected="true" aria-controls="tab-pedidos">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
         <path d="M3 1h14a2 2 0 012 2v14a2 2 0 01-2 2H3a2 2 0 01-2-2V3a2 2 0 012-2z"/>
       </svg>
       Meus Pedidos
     </button>
-    <button class="tab-btn" data-tab="enderecos">
+    <button class="tab-btn" data-tab="enderecos" role="tab" aria-selected="false" aria-controls="tab-enderecos">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
         <path d="M10 0C6.5 0 3.5 3 3.5 6.5c0 5.25 6.5 13.5 6.5 13.5s6.5-8.25 6.5-13.5C16.5 3 13.5 0 10 0zm0 9a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
       </svg>
       Endereços
     </button>
-    <button class="tab-btn" data-tab="pagamento">
+    <button class="tab-btn" data-tab="pagamento" role="tab" aria-selected="false" aria-controls="tab-pagamento">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
         <path d="M18 4H2a2 2 0 00-2 2v8a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zM2 8h16v2H2V8z"/>
       </svg>
       Formas de Pagamento
     </button>
-    <button class="tab-btn" data-tab="dados">
+    <button class="tab-btn" data-tab="dados" role="tab" aria-selected="false" aria-controls="tab-dados">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
         <path d="M10 0a10 10 0 100 20 10 10 0 000-20zm0 5a3 3 0 110 6 3 3 0 010-6zm0 13c-2.5 0-4.7-1.3-6-3.3.3-2 4-3.1 6-3.1s5.7 1.1 6 3.1c-1.3 2-3.5 3.3-6 3.3z"/>
       </svg>
@@ -287,7 +311,7 @@
   <div class="perfil-content">
     
     <!-- Aba: Meus Pedidos -->
-    <div id="tab-pedidos" class="tab-content active">
+    <div id="tab-pedidos" class="tab-content active" role="tabpanel">
       <div class="content-header">
         <h2>Histórico de Pedidos</h2>
         <div class="stats-mini">
@@ -371,7 +395,7 @@
     </div>
 
     <!-- Aba: Endereços -->
-    <div id="tab-enderecos" class="tab-content">
+    <div id="tab-enderecos" class="tab-content" role="tabpanel">
       <div class="content-header">
         <h2>Meus Endereços</h2>
         <button class="btn-adicionar" data-action="endereco">
@@ -425,15 +449,10 @@
     </div>
 
     <!-- Aba: Formas de Pagamento -->
-    <div id="tab-pagamento" class="tab-content">
+    <div id="tab-pagamento" class="tab-content" role="tabpanel">
       <div class="content-header">
         <h2>Formas de Pagamento</h2>
-        <button class="btn-adicionar" data-action="cartao">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M8 0v16M0 8h16" stroke="currentColor" stroke-width="2"/>
-          </svg>
-          Adicionar Cartão
-        </button>
+        <span class="payment-coming-soon">Cartões salvos serão ativados com o Stripe</span>
       </div>
 
       <div class="cartoes-grid">
@@ -480,7 +499,7 @@
     </div>
 
     <!-- Aba: Meus Dados -->
-    <div id="tab-dados" class="tab-content">
+    <div id="tab-dados" class="tab-content" role="tabpanel">
       <div class="content-header">
         <h2>Informações Pessoais</h2>
       </div>
@@ -597,7 +616,8 @@
   </div>
 </div>
 
-<!-- Modal de Cartão -->
+{% if false %}
+<!-- Modal legado desativado: cartões devem ser coletados pelo Stripe Elements. -->
 <div id="modal-cartao" class="modal-overlay" style="display: none;">
   <div class="modal-content">
     <div class="modal-header">
@@ -644,6 +664,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 
 <style>
 /* Modais */

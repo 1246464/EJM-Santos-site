@@ -60,6 +60,14 @@ USER_COLUMNS = {
     "password_reset_attempts": "INTEGER DEFAULT 0 NOT NULL",
 }
 
+PRODUCT_COLUMNS = {
+    "categoria": "VARCHAR(40) DEFAULT 'mel' NOT NULL",
+    "origem": "VARCHAR(80)",
+    "beneficios": "VARCHAR(255)",
+    "sem_adicao_acucar": "BOOLEAN DEFAULT FALSE NOT NULL",
+    "destaque": "BOOLEAN DEFAULT FALSE NOT NULL",
+}
+
 
 def ensure_columns(table_name, required_columns):
     """Adiciona uma coluna por transação para permitir reexecução após falhas."""
@@ -114,6 +122,8 @@ with app.app_context():
         ensure_columns("order", ORDER_COLUMNS)
     if "user" in tables:
         ensure_columns("user", USER_COLUMNS)
+    if "product" in tables:
+        ensure_columns("product", PRODUCT_COLUMNS)
 
     with db.engine.begin() as connection:
         connection.execute(text(

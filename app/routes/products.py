@@ -57,6 +57,30 @@ def sobre_page():
     return render_template("sobre.html")
 
 
+@products_bp.route("/entrega")
+def delivery_policy_page():
+    """Política de entrega e acompanhamento."""
+    return render_template("entrega.html")
+
+
+@products_bp.route("/trocas-e-devolucoes")
+def returns_policy_page():
+    """Política de trocas, devoluções e arrependimento."""
+    return render_template("trocas.html")
+
+
+@products_bp.route("/privacidade")
+def privacy_policy_page():
+    """Política de privacidade e direitos do titular."""
+    return render_template("privacidade.html")
+
+
+@products_bp.route("/termos")
+def terms_page():
+    """Termos de uso e condições de compra."""
+    return render_template("termos.html")
+
+
 @products_bp.route("/perfil")
 def perfil_page():
     """Página de perfil do usuário"""
@@ -85,9 +109,32 @@ def perfil_page():
         PaymentMethod.is_default.desc(),
         PaymentMethod.created_at.desc()
     ).all()
+
+    status_finalizados = {"entregue", "cancelado", "cancelada"}
+    pedidos_em_andamento = sum(
+        1 for pedido in pedidos
+        if (pedido.status or "").strip().lower() not in status_finalizados
+    )
+    pedidos_entregues = sum(
+        1 for pedido in pedidos
+        if (pedido.status or "").strip().lower() == "entregue"
+    )
+    resumo_perfil = {
+        "pedidos": len(pedidos),
+        "em_andamento": pedidos_em_andamento,
+        "entregues": pedidos_entregues,
+        "enderecos": len(enderecos),
+    }
     
     logger.info(f"Perfil acessado - User ID: {user_id}")
-    return render_template("perfil_novo.html", pedidos=pedidos, user=user, enderecos=enderecos, cartoes=cartoes)
+    return render_template(
+        "perfil_novo.html",
+        pedidos=pedidos,
+        user=user,
+        enderecos=enderecos,
+        cartoes=cartoes,
+        resumo_perfil=resumo_perfil,
+    )
 
 
 # ============================================
@@ -116,6 +163,11 @@ def api_products():
                 "preco": p.preco,
                 "imagem": imagem,
                 "estoque": p.estoque,
+                "categoria": p.categoria or "mel",
+                "origem": p.origem or "",
+                "beneficios": [item.strip() for item in (p.beneficios or "").split(",") if item.strip()],
+                "sem_adicao_acucar": bool(p.sem_adicao_acucar),
+                "destaque": bool(p.destaque),
                 "media": round(float(avg), 2),
                 "n_reviews": count
             })
@@ -158,6 +210,11 @@ def api_product_detail(product_id):
             "preco": p.preco,
             "imagem": p.imagem,
             "estoque": p.estoque,
+            "categoria": p.categoria or "mel",
+            "origem": p.origem or "",
+            "beneficios": [item.strip() for item in (p.beneficios or "").split(",") if item.strip()],
+            "sem_adicao_acucar": bool(p.sem_adicao_acucar),
+            "destaque": bool(p.destaque),
             "reviews": revs
         })
         
@@ -173,6 +230,11 @@ def api_products_search():
         query = request.args.get('q', '').strip()
         preco_min = request.args.get('preco_min', type=float)
         preco_max = request.args.get('preco_max', type=float)
+        categoria = request.args.get('categoria', '').strip().lower()
+        finalidade = request.args.get('finalidade', '').strip().lower()
+        sem_adicao_acucar = request.args.get('sem_adicao_acucar', '').lower() in ('1', 'true', 'on')
+        somente_disponiveis = request.args.get('disponiveis', '').lower() in ('1', 'true', 'on')
+        somente_destaques = request.args.get('destaque', '').lower() in ('1', 'true', 'on')
         ordenar = request.args.get('ordenar', 'nome')  # nome, preco_asc, preco_desc, estoque
         
         # Query base
@@ -183,9 +245,22 @@ def api_products_search():
             produtos = produtos.filter(
                 db.or_(
                     Product.titulo.ilike(f'%{query}%'),
-                    Product.descricao.ilike(f'%{query}%')
+                    Product.descricao.ilike(f'%{query}%'),
+                    Product.origem.ilike(f'%{query}%'),
+                    Product.beneficios.ilike(f'%{query}%')
                 )
             )
+
+        if categoria:
+            produtos = produtos.filter(db.func.lower(Product.categoria) == categoria)
+        if finalidade:
+            produtos = produtos.filter(Product.beneficios.ilike(f'%{finalidade}%'))
+        if sem_adicao_acucar:
+            produtos = produtos.filter(Product.sem_adicao_acucar.is_(True))
+        if somente_disponiveis:
+            produtos = produtos.filter(Product.estoque > 0)
+        if somente_destaques:
+            produtos = produtos.filter(Product.destaque.is_(True))
         
         # Filtros de preço
         if preco_min is not None:
@@ -218,6 +293,11 @@ def api_products_search():
                 "preco": p.preco,
                 "imagem": imagem,
                 "estoque": p.estoque,
+                "categoria": p.categoria or "mel",
+                "origem": p.origem or "",
+                "beneficios": [item.strip() for item in (p.beneficios or "").split(",") if item.strip()],
+                "sem_adicao_acucar": bool(p.sem_adicao_acucar),
+                "destaque": bool(p.destaque),
                 "media": round(float(avg), 2),
                 "n_reviews": count
             })

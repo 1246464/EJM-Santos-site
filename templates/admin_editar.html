@@ -11,11 +11,32 @@
       <label>Descrição:</label>
       <textarea name="descricao" rows="4">{{ produto.descricao }}</textarea>
 
+      <label>Categoria:</label>
+      <select name="categoria" required>
+        <option value="mel" {% if produto.categoria == 'mel' %}selected{% endif %}>Mel</option>
+        <option value="propolis" {% if produto.categoria == 'propolis' %}selected{% endif %}>Própolis</option>
+        <option value="geleia-real" {% if produto.categoria == 'geleia-real' %}selected{% endif %}>Geleia real</option>
+        <option value="polen" {% if produto.categoria == 'polen' %}selected{% endif %}>Pólen</option>
+        <option value="combos" {% if produto.categoria == 'combos' %}selected{% endif %}>Kits e combos</option>
+        <option value="outros" {% if produto.categoria == 'outros' %}selected{% endif %}>Outros</option>
+      </select>
+
+      <label>Origem / florada:</label>
+      <input type="text" name="origem" maxlength="80" value="{{ produto.origem or '' }}" placeholder="Ex.: Própolis verde de Minas Gerais">
+
+      <label>Marcadores de uso para os filtros:</label>
+      <input type="text" name="beneficios" maxlength="255" value="{{ produto.beneficios or '' }}" placeholder="Ex.: uso-diario, bebidas, culinaria, extrato, presente">
+      <small>Separe por vírgulas. Não utilize doenças, sintomas ou promessas de saúde.</small>
+
       <label>Preço:</label>
       <input type="number" name="preco" step="0.01" value="{{ produto.preco }}" required>
 
       <label>Estoque:</label>
       <input type="number" name="estoque" min="0" value="{{ produto.estoque }}" required>
+
+      <label class="admin-check"><input type="checkbox" name="sem_adicao_acucar" {% if produto.sem_adicao_acucar %}checked{% endif %}> Sem adição de açúcares</label>
+      <small>O mel contém açúcares naturalmente. Não classifique como “produto para diabéticos”.</small>
+      <label class="admin-check"><input type="checkbox" name="destaque" {% if produto.destaque %}checked{% endif %}> Exibir como destaque</label>
 
       <label>Imagem:</label>
       {% if produto.imagem %}
@@ -52,7 +73,7 @@
   }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Preview da imagem ao selecionar
 document.getElementById('input-imagem').addEventListener('change', function(e) {
   const file = e.target.files[0];

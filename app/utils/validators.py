@@ -144,6 +144,38 @@ class Validator:
         descricao = data.get('descricao', '')
         if descricao and len(descricao) > 5000:
             errors.append("Descrição muito longa (máximo 5000 caracteres)")
+
+        categorias_validas = {"mel", "propolis", "geleia-real", "polen", "combos", "outros"}
+        if data.get('categoria', 'mel') not in categorias_validas:
+            errors.append("Categoria inválida")
+
+        if len(data.get('origem', '')) > 80:
+            errors.append("Origem muito longa (máximo 80 caracteres)")
+
+        if len(data.get('beneficios', '')) > 255:
+            errors.append("Finalidades muito longas (máximo 255 caracteres)")
+        termos_medicos = {
+            "cura", "curar", "tratamento", "tratar", "terapeutico", "terapêutico",
+            "diabetes", "diabetico", "diabético", "imunidade", "gripe", "resfriado",
+            "antibacteriano", "anti-inflamatorio", "anti-inflamatório", "ansiedade",
+        }
+        marcadores = {
+            item.strip().lower() for item in data.get('beneficios', '').split(',') if item.strip()
+        }
+        proibidos = sorted(marcadores.intersection(termos_medicos))
+        if proibidos:
+            errors.append(
+                "Use marcadores de forma de uso, sem alegações médicas: " + ", ".join(proibidos)
+            )
+        texto_comercial = f"{titulo} {descricao}".lower()
+        alegacoes_encontradas = sorted(
+            termo for termo in termos_medicos if termo in texto_comercial
+        )
+        if alegacoes_encontradas:
+            errors.append(
+                "Título e descrição não podem prometer tratamento ou benefício médico: "
+                + ", ".join(alegacoes_encontradas)
+            )
         
         # Validar preço
         is_valid, msg = Validator.validate_price(data.get('preco'))

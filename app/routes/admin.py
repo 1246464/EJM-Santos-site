@@ -4,7 +4,7 @@
 
 from flask import Blueprint, request, render_template, session, redirect, url_for
 from werkzeug.utils import secure_filename
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy import extract
 import os
 
@@ -67,25 +67,55 @@ def admin_dashboard():
         enviados = sum(1 for p in pedidos if p.status == "Enviado")
         entregues = sum(1 for p in pedidos if p.status == "Entregue")
         cancelados = sum(1 for p in pedidos if p.status == "Cancelado")
-        faturamento = sum(p.total for p in pedidos if p.status in ["Pago", "Enviado", "Entregue"])
-        ticket_medio = (faturamento / total_pago) if total_pago > 0 else 0
+        status_com_receita = {"Pago", "Agendado", "Enviado", "Saiu para Entrega", "Entregue"}
+        pedidos_com_receita = [p for p in pedidos if p.status in status_com_receita]
+        faturamento = sum((p.total or 0) for p in pedidos_com_receita)
+        ticket_medio = (faturamento / len(pedidos_com_receita)) if pedidos_com_receita else 0
+        pedidos_pendentes = sum(1 for p in pedidos if p.status in {"Pendente", "Pago"})
+        pedidos_validos = max(total_pedidos - cancelados, 0)
+        taxa_conclusao = (entregues / pedidos_validos * 100) if pedidos_validos else 0
 
         # Gráfico de faturamento dos últimos 6 meses
         hoje = datetime.utcnow()
         meses_labels, meses_valores = [], []
-        for i in range(5, -1, -1):
-            mes_ref = hoje - timedelta(days=30 * i)
-            ano, mes = mes_ref.year, mes_ref.month
+        nomes_meses = ("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
+        for meses_atras in range(5, -1, -1):
+            indice_mes = hoje.year * 12 + (hoje.month - 1) - meses_atras
+            ano, mes_zero = divmod(indice_mes, 12)
+            mes = mes_zero + 1
             pedidos_mes = Order.query.filter(
                 extract('year', Order.created_at) == ano,
                 extract('month', Order.created_at) == mes,
-                Order.status.in_(["Pago", "Enviado", "Entregue"])
+                Order.status.in_(status_com_receita)
             ).all()
-            total_mes = sum(p.total for p in pedidos_mes)
-            meses_labels.append(mes_ref.strftime("%b/%Y"))
+            total_mes = sum((p.total or 0) for p in pedidos_mes)
+            meses_labels.append(f"{nomes_meses[mes - 1]}/{str(ano)[-2:]}")
             meses_valores.append(total_mes)
 
-        produtos = Product.query.all()
+        maior_valor_mes = max(meses_valores, default=0)
+        meses_serie = [
+            {
+                "label": label,
+                "valor": valor,
+                "altura": max(round(valor / maior_valor_mes * 100), 4) if maior_valor_mes else 4,
+            }
+            for label, valor in zip(meses_labels, meses_valores)
+        ]
+
+        produtos = Product.query.order_by(Product.created_at.desc(), Product.id.desc()).all()
+        produtos_baixo_estoque = sorted(
+            (produto for produto in produtos if (produto.estoque or 0) <= 10),
+            key=lambda produto: (produto.estoque or 0, produto.titulo.lower()),
+        )
+        produtos_esgotados = sum(1 for produto in produtos if (produto.estoque or 0) <= 0)
+        estoque_total = sum((produto.estoque or 0) for produto in produtos)
+        clientes_ativos = User.query.filter_by(is_admin=False, is_active=True).count()
+        pedidos_recentes = sorted(
+            pedidos,
+            key=lambda pedido: pedido.created_at or datetime.min,
+            reverse=True,
+        )[:5]
+        data_atual = f"{hoje.day:02d} de {nomes_meses[hoje.month - 1].lower()} de {hoje.year}"
         
         logger.info(f"Admin dashboard acessado - User ID: {session.get('user_id')}")
         
@@ -99,8 +129,17 @@ def admin_dashboard():
             cancelados=cancelados,
             faturamento=faturamento,
             ticket_medio=ticket_medio,
+            pedidos_pendentes=pedidos_pendentes,
+            taxa_conclusao=taxa_conclusao,
+            clientes_ativos=clientes_ativos,
+            estoque_total=estoque_total,
+            produtos_esgotados=produtos_esgotados,
+            produtos_baixo_estoque=produtos_baixo_estoque[:5],
+            pedidos_recentes=pedidos_recentes,
+            data_atual=data_atual,
             meses_labels=meses_labels,
-            meses_valores=meses_valores
+            meses_valores=meses_valores,
+            meses_serie=meses_serie,
         )
     except Exception as e:
         logger.error(f"Erro no dashboard admin: {str(e)}", exc_info=True)
@@ -124,7 +163,12 @@ def admin_novo_produto():
                 'titulo': request.form.get("titulo", "").strip(),
                 'descricao': request.form.get("descricao", "").strip(),
                 'preco': request.form.get("preco"),
-                'estoque': request.form.get("estoque", 0)
+                'estoque': request.form.get("estoque", 0),
+                'categoria': request.form.get("categoria", "mel").strip(),
+                'origem': request.form.get("origem", "").strip(),
+                'beneficios': request.form.get("beneficios", "").strip(),
+                'sem_adicao_acucar': request.form.get("sem_adicao_acucar") == "on",
+                'destaque': request.form.get("destaque") == "on",
             }
             
             # Validar dados
@@ -146,7 +190,12 @@ def admin_novo_produto():
                 descricao=data['descricao'],
                 preco=float(data['preco']),
                 estoque=int(data['estoque']),
-                imagem=f"imagens/{nome_arquivo}" if nome_arquivo else ""
+                imagem=f"imagens/{nome_arquivo}" if nome_arquivo else "",
+                categoria=data['categoria'],
+                origem=data['origem'],
+                beneficios=data['beneficios'],
+                sem_adicao_acucar=data['sem_adicao_acucar'],
+                destaque=data['destaque'],
             )
             db.session.add(p)
             db.session.commit()
@@ -177,7 +226,12 @@ def admin_editar_produto(pid):
                 'titulo': request.form.get("titulo", "").strip(),
                 'descricao': request.form.get("descricao", "").strip(),
                 'preco': request.form.get("preco"),
-                'estoque': request.form.get("estoque", 0)
+                'estoque': request.form.get("estoque", 0),
+                'categoria': request.form.get("categoria", "mel").strip(),
+                'origem': request.form.get("origem", "").strip(),
+                'beneficios': request.form.get("beneficios", "").strip(),
+                'sem_adicao_acucar': request.form.get("sem_adicao_acucar") == "on",
+                'destaque': request.form.get("destaque") == "on",
             }
             
             # Validar
@@ -191,6 +245,11 @@ def admin_editar_produto(pid):
             p.descricao = data['descricao']
             p.preco = float(data['preco'])
             p.estoque = int(data['estoque'])
+            p.categoria = data['categoria']
+            p.origem = data['origem']
+            p.beneficios = data['beneficios']
+            p.sem_adicao_acucar = data['sem_adicao_acucar']
+            p.destaque = data['destaque']
             
             # Processar nova imagem se enviada
             imagem_file = request.files.get("imagem")

@@ -42,8 +42,12 @@ class ProductRender(BaseRender):
 def migrar_produtos():
     """Migra produtos do SQLite local para PostgreSQL do Render"""
     
-    # URL do PostgreSQL no Render
-    render_db_url = "postgresql://ejm_santos_user:aFUqgdVAxIE7jlEMmCLJZuB13v3dgulD@dpg-d64isi6r433s73eaj0bg-a.oregon-postgres.render.com/ejm_santos"
+    # URL do PostgreSQL no Render (nunca grave credenciais no código)
+    render_db_url = os.getenv("DATABASE_URL")
+    if not render_db_url:
+        raise RuntimeError("Defina DATABASE_URL antes de executar a migração")
+    if render_db_url.startswith("postgres://"):
+        render_db_url = render_db_url.replace("postgres://", "postgresql://", 1)
     
     # URL do SQLite local
     local_db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'instance', 'ejm_dev.db')

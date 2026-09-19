@@ -6,7 +6,8 @@
   <meta name="csrf-token" content="{{ csrf_token() }}" />
   <title>EJM Santos - Mel Natural</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍯</text></svg>">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.0">
+  {% block extra_head %}{% endblock %}
 
   <style>
     /* ======== MENU MOBILE ======== */
@@ -80,7 +81,12 @@
 </head>
 <body>
   <header class="topo">
-    <a class="logo" href="/">EJM SANTOS</a>
+    <a class="logo" href="/" aria-label="EJM Santos - página inicial"><span class="logo-mark">🐝</span><span>EJM SANTOS<small>Produtos da colmeia</small></span></a>
+
+    <form class="header-search" action="/produtos" method="get" role="search">
+      <input type="search" name="q" placeholder="O que você está procurando?" aria-label="Buscar produtos">
+      <button type="submit" aria-label="Buscar">⌕</button>
+    </form>
 
     <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false">
       <span></span><span></span><span></span>
@@ -98,42 +104,89 @@
       {% endif %}
     </nav>
 
-    <a href="#produtos" class="botao-topo">PEÇA AGORA</a>
+    <div class="header-actions">
+      <a href="/carrinho" class="header-cart" aria-label="Abrir carrinho"><span>🛒</span><span>Carrinho</span></a>
+      <a href="/produtos" class="botao-topo">COMPRAR</a>
+    </div>
   </header>
 
   <main id="main-content">
     {% block content %}{% endblock %}
   </main>
 
-  <a href="https://wa.me/55XXXXXXXXXXX" class="whats-flutuante" target="_blank" title="Fale conosco no WhatsApp">
-    💬
-  </a>
+  {% if store_info.whatsapp_number %}
+    <a href="https://wa.me/{{ store_info.whatsapp_number }}" class="whats-flutuante" target="_blank" rel="noopener noreferrer" title="Fale conosco no WhatsApp">💬</a>
+  {% endif %}
 
   <footer class="footer-moderno">
-    <div class="footer-conteudo">
-      <div class="footer-secao">
-        <h3>EJM Santos</h3>
-        <p>Mel puro e natural, direto da colmeia para sua mesa.</p>
-      </div>
-      
-      <div class="footer-secao">
-        <h4>Links Rápidos</h4>
-        <ul>
-          <li><a href="/">Início</a></li>
-          <li><a href="/produtos">Produtos</a></li>
-          <li><a href="/sobre">Sobre Nós</a></li>
-        </ul>
-      </div>
-      
-      <div class="footer-secao">
-        <h4>Contato</h4>
-        <p>📧 contato@ejmsantos.com</p>
-        <p>📱 WhatsApp: (XX) XXXXX-XXXX</p>
+    <div class="footer-beneficios" aria-label="Diferenciais da loja">
+      <div class="footer-beneficios-grid">
+        <div class="footer-beneficio">
+          <span class="footer-beneficio-icone" aria-hidden="true">🍯</span>
+          <span><strong>Produtos selecionados</strong><small>Qualidade da colmeia à sua casa</small></span>
+        </div>
+        <div class="footer-beneficio">
+          <span class="footer-beneficio-icone" aria-hidden="true">📦</span>
+          <span><strong>Pedido acompanhado</strong><small>Veja cada etapa pelo seu perfil</small></span>
+        </div>
+        <div class="footer-beneficio">
+          <span class="footer-beneficio-icone" aria-hidden="true">💬</span>
+          <span><strong>Atendimento próximo</strong><small>Conte com nossos canais oficiais</small></span>
+        </div>
       </div>
     </div>
-    
+
+    <div class="footer-conteudo">
+      <section class="footer-marca" aria-labelledby="footer-brand-title">
+        <a class="footer-logo" href="/" id="footer-brand-title">
+          <span class="footer-logo-mark" aria-hidden="true">🐝</span>
+          <span>{{ store_info.business_name }}<small>Produtos da colmeia</small></span>
+        </a>
+        <p>Sabores da natureza escolhidos com cuidado para fazer parte da sua rotina.</p>
+        <a class="footer-cta" href="/produtos">Explorar produtos <span aria-hidden="true">→</span></a>
+      </section>
+
+      <nav class="footer-secao" aria-label="Navegação da loja">
+        <h4>Loja</h4>
+        <ul>
+          <li><a href="/">Início</a></li>
+          <li><a href="/produtos">Todos os produtos</a></li>
+          <li><a href="/sobre">Nossa história</a></li>
+          {% if session.get('user_id') %}<li><a href="/perfil">Minha conta</a></li>{% endif %}
+        </ul>
+      </nav>
+
+      <nav class="footer-secao" aria-label="Ajuda e informações">
+        <h4>Ajuda</h4>
+        <ul>
+          <li><a href="/entrega">Entrega e prazos</a></li>
+          <li><a href="/trocas-e-devolucoes">Trocas e devoluções</a></li>
+          <li><a href="/privacidade">Privacidade</a></li>
+          <li><a href="/termos">Termos de uso</a></li>
+        </ul>
+      </nav>
+
+      <section class="footer-secao footer-contato">
+        <span class="footer-kicker">FALE COM A GENTE</span>
+        <h4>Precisa de ajuda?</h4>
+        {% if store_info.whatsapp_number %}
+          <a class="footer-contact-card" href="https://wa.me/{{ store_info.whatsapp_number }}" target="_blank" rel="noopener noreferrer">
+            <span aria-hidden="true">💬</span>
+            <span><small>WhatsApp</small><strong>{{ store_info.whatsapp_display or store_info.whatsapp_number }}</strong></span>
+          </a>
+        {% endif %}
+        {% if store_info.contact_email %}
+          <a class="footer-email" href="mailto:{{ store_info.contact_email }}">{{ store_info.contact_email }}</a>
+        {% endif %}
+        {% if not store_info.contact_email and not store_info.whatsapp_number %}
+          <p>Atendimento pelos canais oficiais da loja.</p>
+        {% endif %}
+      </section>
+    </div>
+
     <div class="footer-bottom">
-      <p>© 2025 EJM Santos. Todos os direitos reservados.</p>
+      <p>© {{ current_year }} {{ store_info.business_name }}. Todos os direitos reservados.</p>
+      <span class="footer-bottom-note"><span aria-hidden="true">♻</span> Respeito à origem, às pessoas e à natureza.</span>
     </div>
   </footer>
 

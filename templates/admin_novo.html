@@ -11,11 +11,32 @@
       <label>Descrição:</label>
       <textarea name="descricao" rows="4"></textarea>
 
+      <label>Categoria:</label>
+      <select name="categoria" required>
+        <option value="mel">Mel</option>
+        <option value="propolis">Própolis</option>
+        <option value="geleia-real">Geleia real</option>
+        <option value="polen">Pólen</option>
+        <option value="combos">Kits e combos</option>
+        <option value="outros">Outros</option>
+      </select>
+
+      <label>Origem / florada:</label>
+      <input type="text" name="origem" maxlength="80" placeholder="Ex.: Própolis verde de Minas Gerais">
+
+      <label>Marcadores de uso para os filtros:</label>
+      <input type="text" name="beneficios" maxlength="255" placeholder="Ex.: uso-diario, bebidas, culinaria, extrato, presente">
+      <small>Separe por vírgulas. Não utilize doenças, sintomas ou promessas de saúde.</small>
+
       <label>Preço:</label>
       <input type="number" name="preco" step="0.01" required>
 
       <label>Estoque:</label>
       <input type="number" name="estoque" min="0" value="0" required>
+
+      <label class="admin-check"><input type="checkbox" name="sem_adicao_acucar"> Sem adição de açúcares</label>
+      <small>O mel contém açúcares naturalmente. Não classifique como “produto para diabéticos”.</small>
+      <label class="admin-check"><input type="checkbox" name="destaque"> Exibir como destaque</label>
 
       <label>Imagem:</label>
       <input type="file" name="imagem" accept="image/*" capture="environment" id="input-imagem">
@@ -49,7 +70,7 @@
   }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Preview da imagem ao selecionar
 document.getElementById('input-imagem').addEventListener('change', function(e) {
   const file = e.target.files[0];
