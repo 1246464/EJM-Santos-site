@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin-logistics.css') }}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<main class="logistics-page">
+  <header class="logistics-hero">
+    <div>
+      <span class="logistics-kicker">OPERAÇÃO DE ENTREGA</span>
+      <h1>Logística e parceiros</h1>
+      <p>Defina de onde cada produto sai e até onde sua entrega própria é viável.</p>
+    </div>
+    <div class="logistics-actions">
+      <a href="/admin">Voltar ao painel</a>
+      <a href="#novo-fornecedor" class="is-primary">Cadastrar parceiro</a>
+    </div>
+  </header>
+
+  {% if success %}<div class="logistics-message is-success">✓ {{ success }}</div>{% endif %}
+  {% if error %}<div class="logistics-message is-error">! {{ error }}</div>{% endif %}
+
+  <section class="readiness-grid" aria-label="Situação da configuração">
+    <article class="readiness-card {{ 'is-ready' if readiness.settings else '' }}">
+      <span>1</span><div><strong>Regras da moto</strong><small>{{ 'Configuradas' if readiness.settings else 'Aguardando configuração' }}</small></div>
+    </article>
+    <article class="readiness-card {{ 'is-ready' if readiness.base else '' }}">
+      <span>2</span><div><strong>Sua base</strong><small>{{ 'Origem selecionada' if readiness.base else 'Selecione a origem principal' }}</small></div>
+    </article>
+    <article class="readiness-card {{ 'is-ready' if readiness.origins else '' }}">
+      <span>3</span><div><strong>Origens</strong><small>{{ origins|length }} local(is) cadastrado(s)</small></div>
+    </article>
+    <article class="readiness-card {{ 'is-ready' if readiness.products and readiness.products == readiness.products_total else '' }}">
+      <span>4</span><div><strong>Produtos vinculados</strong><small>{{ readiness.products }} de {{ readiness.products_total }}</small></div>
+    </article>
+  </section>
+
+  <section class="logistics-layout">
+    <article class="logistics-panel logistics-panel--wide">
+      <header><div><span class="logistics-kicker">ENTREGA PRÓPRIA</span><h2>Capacidade da sua moto</h2></div><span class="panel-chip">Percurso completo</span></header>
+      <p class="panel-intro">O limite inclui saída, coleta quando houver, entrega e retorno à base.</p>
+      <form method="post" action="{{ url_for('admin.admin_logistica_configuracao') }}" class="logistics-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid form-grid--3">
+          <label><span>Veículo</span><input name="vehicle_name" value="{{ settings.vehicle_name if settings else 'Suzuki 125' }}" required></label>
+          <label><span>Máximo por viagem (km)</span><input type="number" name="max_roundtrip_km" min="1" step="0.1" value="{{ settings.max_roundtrip_km if settings else 40 }}" required></label>
+          <label><span>Peso máximo do pacote (kg)</span><input type="number" name="max_package_weight_kg" min="0" step="0.1" value="{{ settings.max_package_weight_kg if settings and settings.max_package_weight_kg is not none else '' }}" placeholder="Defina após testar"></label>
+          <label><span>Consumo médio (km/l)</span><input type="number" name="fuel_efficiency_km_l" min="0.1" step="0.1" value="{{ settings.fuel_efficiency_km_l if settings and settings.fuel_efficiency_km_l is not none else '' }}" placeholder="Ex.: 35"></label>
+          <label><span>Gasolina por litro (R$)</span><input type="number" name="fuel_price_per_liter" min="0" step="0.01" value="{{ settings.fuel_price_per_liter if settings and settings.fuel_price_per_liter is not none else '' }}"></label>
+          <label><span>Manutenção por km (R$)</span><input type="number" name="maintenance_cost_per_km" min="0" step="0.01" value="{{ settings.maintenance_cost_per_km if settings else 0 }}"></label>
+          <label><span>Valor da sua hora (R$)</span><input type="number" name="hourly_rate" min="0" step="0.01" value="{{ settings.hourly_rate if settings else 0 }}"></label>
+          <label><span>Taxa mínima (R$)</span><input type="number" name="minimum_fee" min="0" step="0.01" value="{{ settings.minimum_fee if settings else 0 }}"></label>
+          <label><span>Margem no prazo (%)</span><input type="number" name="route_buffer_percent" min="0" step="1" value="{{ settings.route_buffer_percent if settings else 20 }}"></label>
+          <label><span>Limite para entrega no dia</span><input type="time" name="same_day_cutoff" value="{{ settings.same_day_cutoff if settings else '14:00' }}"></label>
+          <label class="form-grid-span-2"><span>Base de saída e retorno</span><select name="base_origin_id"><option value="">Selecione depois de cadastrar sua base</option>{% for origin in origins %}<option value="{{ origin.id }}" {% if settings and settings.base_origin_id == origin.id %}selected{% endif %}>{{ origin.name }} — {{ origin.city or 'cidade não informada' }}</option>{% endfor %}</select></label>
+        </div>
+        <div class="check-row">
+          <label><input type="checkbox" name="motorcycle_enabled" {% if not settings or settings.motorcycle_enabled %}checked{% endif %}> Oferecer entrega própria</label>
+          <label><input type="checkbox" name="scheduled_delivery_enabled" {% if not settings or settings.scheduled_delivery_enabled %}checked{% endif %}> Oferecer entrega programada</label>
+        </div>
+        <button class="logistics-submit" type="submit">Salvar capacidade</button>
+      </form>
+    </article>
+
+    <article class="logistics-panel" id="novo-fornecedor">
+      <header><div><span class="logistics-kicker">PARCERIA</span><h2>Novo fornecedor</h2></div></header>
+      <form method="post" action="{{ url_for('admin.admin_logistica_fornecedor') }}" class="logistics-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label><span>Nome comercial</span><input name="trade_name" required></label>
+        <label><span>Razão social</span><input name="legal_name"></label>
+        <label><span>CPF/CNPJ</span><input name="document" inputmode="numeric"></label>
+        <div class="form-grid">
+          <label><span>Telefone</span><input name="phone"></label>
+          <label><span>E-mail</span><input type="email" name="email"></label>
+        </div>
+        <label><span>Prazo para preparar (dias úteis)</span><input type="number" name="preparation_days" min="0" value="1"></label>
+        <label><span>Observações internas</span><textarea name="notes" rows="2"></textarea></label>
+        <label class="check-line"><input type="checkbox" name="direct_shipping"> Pode despachar diretamente ao cliente</label>
+        <button class="logistics-submit" type="submit">Cadastrar fornecedor</button>
+      </form>
+    </article>
+
+    <article class="logistics-panel">
+      <header><div><span class="logistics-kicker">CATÁLOGO</span><h2>Nova marca</h2></div></header>
+      <form method="post" action="{{ url_for('admin.admin_logistica_marca') }}" class="logistics-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label><span>Nome da marca</span><input name="name" required></label>
+        <label><span>Fornecedor responsável</span><select name="supplier_id"><option value="">Marca própria / definir depois</option>{% for supplier in suppliers if supplier.active %}<option value="{{ supplier.id }}">{{ supplier.trade_name }}</option>{% endfor %}</select></label>
+        <button class="logistics-submit" type="submit">Cadastrar marca</button>
+      </form>
+      {% if brands %}<div class="compact-list">{% for brand in brands %}<div><strong>{{ brand.name }}</strong><small>{{ brand.supplier.trade_name if brand.supplier else 'Sem fornecedor definido' }}</small></div>{% endfor %}</div>{% endif %}
+    </article>
+
+    <article class="logistics-panel logistics-panel--wide">
+      <header><div><span class="logistics-kicker">PONTO DE PARTIDA</span><h2>Nova origem de estoque</h2></div></header>
+      <p class="panel-intro">Cadastre sua base e o endereço de cada parceiro. O endereço completo ficará restrito ao administrativo.</p>
+      <form method="post" action="{{ url_for('admin.admin_logistica_origem') }}" class="logistics-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-grid form-grid--3">
+          <label><span>Nome do local</span><input name="name" placeholder="Ex.: Minha base" required></label>
+          <label><span>Tipo</span><select name="origin_type"><option value="store">Minha base</option><option value="supplier">Fornecedor</option></select></label>
+          <label><span>Fornecedor</span><select name="supplier_id"><option value="">Não se aplica</option>{% for supplier in suppliers if supplier.active %}<option value="{{ supplier.id }}">{{ supplier.trade_name }}</option>{% endfor %}</select></label>
+          <label><span>CEP</span><input name="postal_code" inputmode="numeric"></label>
+          <label class="form-grid-span-2"><span>Rua</span><input name="street"></label>
+          <label><span>Número</span><input name="number"></label>
+          <label><span>Complemento</span><input name="complement"></label>
+          <label><span>Bairro</span><input name="district"></label>
+          <label><span>Cidade</span><input name="city" required></label>
+          <label><span>UF</span><input name="state" maxlength="2"></label>
+          <label><span>Preparo (dias úteis)</span><input type="number" name="preparation_days" min="0" value="1"></label>
+          <label><span>Latitude (opcional)</span><input type="number" name="latitude" step="any"></label>
+          <label><span>Longitude (opcional)</span><input type="number" name="longitude" step="any"></label>
+        </div>
+        <div class="check-row">
+          <label><input type="checkbox" name="direct_dispatch"> Despacha ao cliente</label>
+          <label><input type="checkbox" name="carrier_pickup" checked> Aceita coleta da transportadora</label>
+        </div>
+        <button class="logistics-submit" type="submit">Cadastrar origem</button>
+      </form>
+    </article>
+
+    <article class="logistics-panel logistics-panel--wide">
+      <header><div><span class="logistics-kicker">DISTRIBUIÇÃO</span><h2>Estoque por origem</h2></div><a href="/admin/novo" class="panel-link">Novo produto →</a></header>
+      <form method="post" action="{{ url_for('admin.admin_logistica_estoque') }}" class="inventory-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="product_id" required><option value="">Escolha o produto</option>{% for product in products %}<option value="{{ product.id }}">{{ product.titulo }}</option>{% endfor %}</select>
+        <select name="origin_id" required><option value="">Escolha a origem</option>{% for origin in origins if origin.active %}<option value="{{ origin.id }}">{{ origin.name }}</option>{% endfor %}</select>
+        <input type="number" name="quantity" min="0" value="0" required aria-label="Quantidade">
+        <button type="submit">Salvar estoque</button>
+      </form>
+      {% if inventories %}
+      <div class="inventory-table"><div class="inventory-head"><span>Produto</span><span>Origem</span><span>Disponível</span></div>{% for inventory in inventories %}<div><span><strong>{{ inventory.product.titulo }}</strong></span><span>{{ inventory.origin.name }}</span><span>{{ inventory.available_quantity }} un</span></div>{% endfor %}</div>
+      {% else %}<div class="empty-logistics">Nenhum produto foi distribuído entre as origens ainda.</div>{% endif %}
+    </article>
+  </section>
+
+  {% if suppliers or origins %}
+  <section class="logistics-directory">
+    <article class="logistics-panel">
+      <header><div><span class="logistics-kicker">FORNECEDORES</span><h2>Parceiros cadastrados</h2></div></header>
+      <div class="directory-list">{% for supplier in suppliers %}<div><span class="directory-icon">{{ supplier.trade_name[:1]|upper }}</span><span><strong>{{ supplier.trade_name }}</strong><small>{{ 'Expedição direta' if supplier.direct_shipping else 'Entrega via sua operação' }} · prepara em {{ supplier.preparation_days }} dia(s)</small></span><em class="{{ 'is-active' if supplier.active else '' }}">{{ 'Ativo' if supplier.active else 'Inativo' }}</em></div>{% endfor %}</div>
+    </article>
+    <article class="logistics-panel">
+      <header><div><span class="logistics-kicker">ORIGENS</span><h2>Locais cadastrados</h2></div></header>
+      <div class="directory-list">{% for origin in origins %}<div><span class="directory-icon">⌖</span><span><strong>{{ origin.name }}</strong><small>{{ origin.city }}{% if origin.state %}/{{ origin.state }}{% endif %} · {{ 'despacho direto' if origin.direct_dispatch else 'coleta necessária' }}</small></span><em class="{{ 'is-active' if origin.active else '' }}">{{ 'Ativa' if origin.active else 'Inativa' }}</em></div>{% endfor %}</div>
+    </article>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

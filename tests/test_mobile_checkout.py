@@ -7,7 +7,7 @@ from unittest.mock import patch
 os.environ["FLASK_ENV"] = "testing"
 os.environ.setdefault("EJM_SECRET", "test_secret_key_with_at_least_32_characters")
 
-from application import Order, Product, app, db
+from application import FulfillmentOrigin, Order, Product, Supplier, app, db
 
 
 class MobileCheckoutTests(unittest.TestCase):
@@ -75,6 +75,71 @@ class MobileCheckoutTests(unittest.TestCase):
         self.assertEqual(quote["subtotal"], 25.0)
         self.assertEqual(quote["delivery_fee"], 7.5)
         self.assertEqual(quote["total"], 32.5)
+        self.assertEqual(quote["package_count"], 1)
+        self.assertEqual(len(quote["shipping_groups"]), 1)
+        self.assertEqual(
+            quote["shipping_groups"][0]["dispatch_type"], "store"
+        )
+        self.assertIn("única origem", quote["delivery_notice"])
+
+    @patch("app.utils.distance.calculate_delivery_fee", return_value=(5.0, 7.5))
+    def test_quote_splits_packages_by_fulfillment_origin(self, _calculate):
+        with app.app_context():
+            supplier = Supplier(
+                trade_name="Apiário Parceiro",
+                direct_shipping=True,
+                preparation_days=2,
+            )
+            db.session.add(supplier)
+            db.session.flush()
+            partner_origin = FulfillmentOrigin(
+                name="Estoque do parceiro",
+                supplier_id=supplier.id,
+                city="São Paulo",
+                direct_dispatch=True,
+                preparation_days=2,
+            )
+            store_origin = FulfillmentOrigin(
+                name="Minha base",
+                origin_type="store",
+                city="São Paulo",
+                preparation_days=0,
+            )
+            db.session.add_all([partner_origin, store_origin])
+            db.session.flush()
+            first_product = db.session.get(Product, self.product_id)
+            first_product.fulfillment_origin_id = store_origin.id
+            second_product = Product(
+                titulo="Própolis verde",
+                preco=20,
+                estoque=3,
+                supplier_id=supplier.id,
+                fulfillment_origin_id=partner_origin.id,
+            )
+            db.session.add(second_product)
+            db.session.commit()
+            second_product_id = second_product.id
+
+        response = self.client.post(
+            "/api/mobile/checkout/quote",
+            headers=self.headers,
+            json={
+                "address_id": self.address_id,
+                "items": [
+                    {"product_id": self.product_id, "quantity": 1},
+                    {"product_id": second_product_id, "quantity": 1},
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        quote = response.get_json()
+        self.assertEqual(quote["package_count"], 2)
+        self.assertIn("2 pacotes", quote["delivery_notice"])
+        self.assertEqual(
+            {group["dispatch_type"] for group in quote["shipping_groups"]},
+            {"store", "supplier_direct"},
+        )
 
     @patch("app.utils.distance.calculate_delivery_fee", return_value=(5.0, 7.5))
     def test_order_is_idempotent_and_reduces_stock_once(self, _calculate):
@@ -90,6 +155,7 @@ class MobileCheckoutTests(unittest.TestCase):
         self.assertEqual(first.status_code, 201)
         self.assertFalse(first.get_json()["duplicate"])
         self.assertEqual(first.get_json()["order"]["total"], 32.5)
+        self.assertEqual(len(first.get_json()["order"]["shipping_groups"]), 1)
         self.assertEqual(second.status_code, 200)
         self.assertTrue(second.get_json()["duplicate"])
         self.assertEqual(

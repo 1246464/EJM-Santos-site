@@ -59,6 +59,7 @@ public final class OrderPostSaleController {
         ((TextView) content.findViewById(R.id.trackingMessage)).setText(message);
         renderSteps(content.findViewById(R.id.trackingStepsContainer), tracking,
                 currentStep, state);
+        renderShippingPackages(content, order.optJSONArray("shipping_groups"));
         ((TextView) content.findViewById(R.id.trackingDeliveryAddress))
                 .setText(deliveryText(order.optJSONObject("endereco")));
 
@@ -67,6 +68,26 @@ public final class OrderPostSaleController {
                 .setView(content)
                 .setPositiveButton("Fechar", null)
                 .show();
+    }
+
+    private void renderShippingPackages(View content, JSONArray groups) {
+        if (groups == null || groups.length() == 0) return;
+        content.findViewById(R.id.trackingPackagesTitle).setVisibility(View.VISIBLE);
+        LinearLayout container = content.findViewById(R.id.trackingPackagesContainer);
+        container.setVisibility(View.VISIBLE);
+        for (int index = 0; index < groups.length(); index++) {
+            JSONObject group = groups.optJSONObject(index);
+            if (group == null) continue;
+            TextView row = new TextView(activity);
+            String sender = group.optString("sender", "Loja");
+            String dispatch = "supplier_direct".equals(group.optString("dispatch_type"))
+                    ? "envio direto" : "envio pela loja";
+            row.setText("Pacote " + (index + 1) + " • " + sender + "\n" + dispatch);
+            row.setTextColor(ContextCompat.getColor(activity, R.color.text_primary));
+            row.setTextSize(14);
+            row.setPadding(0, dp(7), 0, dp(7));
+            container.addView(row);
+        }
     }
 
     private void renderSteps(LinearLayout container, JSONObject tracking,

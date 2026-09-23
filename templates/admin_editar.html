@@ -28,6 +28,38 @@
       <input type="text" name="beneficios" maxlength="255" value="{{ produto.beneficios or '' }}" placeholder="Ex.: uso-diario, bebidas, culinaria, extrato, presente">
       <small>Separe por vírgulas. Não utilize doenças, sintomas ou promessas de saúde.</small>
 
+      <fieldset class="admin-product-group">
+        <legend>Fornecedor e expedição</legend>
+        <label>Fornecedor:</label>
+        <select name="supplier_id">
+          <option value="">Sem fornecedor definido</option>
+          {% for supplier in supplier_options %}<option value="{{ supplier.id }}" {% if produto.supplier_id == supplier.id %}selected{% endif %}>{{ supplier.trade_name }}</option>{% endfor %}
+        </select>
+
+        <label>Marca:</label>
+        <select name="brand_id">
+          <option value="">Sem marca definida</option>
+          {% for brand in brand_options %}<option value="{{ brand.id }}" {% if produto.brand_id == brand.id %}selected{% endif %}>{{ brand.name }}{% if brand.supplier %} — {{ brand.supplier.trade_name }}{% endif %}</option>{% endfor %}
+        </select>
+
+        <label>Origem principal do estoque:</label>
+        <select name="fulfillment_origin_id">
+          <option value="">Definir depois</option>
+          {% for origin_option in origin_options %}<option value="{{ origin_option.id }}" {% if produto.fulfillment_origin_id == origin_option.id %}selected{% endif %}>{{ origin_option.name }} — {{ origin_option.city or 'cidade não informada' }}</option>{% endfor %}
+        </select>
+        <small><a href="/admin/logistica">Cadastrar fornecedores, marcas e origens</a></small>
+      </fieldset>
+
+      <fieldset class="admin-product-group">
+        <legend>Pacote para cálculo de frete</legend>
+        <div class="package-grid">
+          <label>Peso (kg)<input type="number" name="weight_kg" min="0" step="0.001" value="{{ produto.weight_kg if produto.weight_kg is not none else '' }}"></label>
+          <label>Largura (cm)<input type="number" name="width_cm" min="0" step="0.1" value="{{ produto.width_cm if produto.width_cm is not none else '' }}"></label>
+          <label>Altura (cm)<input type="number" name="height_cm" min="0" step="0.1" value="{{ produto.height_cm if produto.height_cm is not none else '' }}"></label>
+          <label>Comprimento (cm)<input type="number" name="length_cm" min="0" step="0.1" value="{{ produto.length_cm if produto.length_cm is not none else '' }}"></label>
+        </div>
+      </fieldset>
+
       <label>Preço:</label>
       <input type="number" name="preco" step="0.01" value="{{ produto.preco }}" required>
 
@@ -60,7 +92,11 @@
   .admin-form-box { background: #fff; padding: 30px; border-radius: 16px; max-width: 600px; margin: 40px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
   form { display: flex; flex-direction: column; }
   label { margin-top: 10px; font-weight: bold; }
-  input, textarea { padding: 10px; border-radius: 6px; border: 1px solid #ccc; margin-top: 4px; }
+  input, textarea, select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; margin-top: 4px; background: #fff; }
+  .admin-product-group { display: flex; flex-direction: column; margin: 18px 0 4px; padding: 16px; border: 1px solid #eadfce; border-radius: 12px; }
+  .admin-product-group legend { padding: 0 8px; color: #8a5208; font-weight: 800; }
+  .package-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .package-grid label { display: flex; flex-direction: column; font-size: .86rem; }
   button { margin-top: 20px; }
   
   @media (max-width: 768px) {
@@ -70,6 +106,7 @@
       font-size: 14px;
       cursor: pointer;
     }
+    .package-grid { grid-template-columns: 1fr; }
   }
 </style>
 

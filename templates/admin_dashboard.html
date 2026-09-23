@@ -14,6 +14,7 @@
     </div>
     <div class="admin-hero-actions">
       <a href="/" class="admin-btn admin-btn--ghost">Ver loja</a>
+      <a href="/admin/logistica" class="admin-btn admin-btn--secondary">Logística e parceiros</a>
       <a href="/admin/pedidos" class="admin-btn admin-btn--secondary">Gerenciar pedidos</a>
       <a href="/admin/novo" class="admin-btn admin-btn--primary"><span aria-hidden="true">＋</span> Novo produto</a>
     </div>
@@ -170,7 +171,7 @@
           <tr data-id="{{ produto.id }}" data-search="{{ produto.titulo|lower }} {{ produto.categoria|lower }} {{ produto.id }}" data-stock="{{ stock_state }}">
             <td><div class="admin-product-cell">
               <span class="admin-product-image">{% if produto.imagem %}<img src="/static/{{ produto.imagem }}" alt="">{% else %}<span aria-hidden="true">🍯</span>{% endif %}</span>
-              <span><strong>{{ produto.titulo }}</strong><small>ID #{{ produto.id }}{% if produto.origem %} · {{ produto.origem }}{% endif %}</small></span>
+              <span><strong>{{ produto.titulo }}</strong><small>ID #{{ produto.id }}{% if produto.brand %} · {{ produto.brand.name }}{% elif produto.origem %} · {{ produto.origem }}{% endif %}{% if produto.fulfillment_origin %} · sai de {{ produto.fulfillment_origin.name }}{% endif %}</small></span>
             </div></td>
             <td><span class="admin-category">{{ produto.categoria|capitalize }}</span></td>
             <td><strong>R$ {{ "%.2f"|format(produto.preco) }}</strong></td>

@@ -177,6 +177,11 @@ def _order_payload(order):
             "imagem": item.product.imagem if item.product else "",
         }
     data["tracking"] = _tracking_payload(order.status)
+    data["shipping_groups"] = _shipping_groups([
+        (item.product, item.quantidade)
+        for item in order.items
+        if item.product is not None
+    ])
     return data
 
 
@@ -228,6 +233,14 @@ def _current_product_payload(product):
         Review.product_id == product.id
     ).scalar() or 0
     review_count = Review.query.filter_by(product_id=product.id).count()
+    origin = product.fulfillment_origin
+    supplier = product.supplier
+    brand = product.brand
+    preparation_days = 0
+    if origin:
+        preparation_days = origin.preparation_days or 0
+    elif supplier:
+        preparation_days = supplier.preparation_days or 0
     return {
         "id": product.id,
         "titulo": product.titulo,
@@ -237,7 +250,56 @@ def _current_product_payload(product):
         "estoque": product.estoque,
         "media": round(float(average), 2),
         "n_reviews": review_count,
+        "supplier_name": supplier.trade_name if supplier else "",
+        "brand_name": brand.name if brand else "",
+        "fulfillment_origin_name": origin.name if origin else "",
+        "direct_shipping": bool(origin and origin.direct_dispatch),
+        "preparation_days": preparation_days,
     }
+
+
+def _shipping_groups(entries):
+    """Agrupa itens pela origem real sem expor o endereço privado do parceiro."""
+    grouped = {}
+    for product, quantity in entries:
+        origin = product.fulfillment_origin
+        supplier = product.supplier or (origin.supplier if origin else None)
+        brand = product.brand
+        key = f"origin:{origin.id}" if origin else "legacy:store"
+        if key not in grouped:
+            sender = (
+                brand.name if brand else (
+                    supplier.trade_name if supplier else app_config.get(
+                        "BUSINESS_NAME", "Loja"
+                    )
+                )
+            )
+            preparation_days = (
+                (origin.preparation_days or 0) if origin else (
+                    (supplier.preparation_days or 0) if supplier else 0
+                )
+            )
+            direct_dispatch = bool(origin and origin.direct_dispatch)
+            grouped[key] = {
+                "origin_id": origin.id if origin else None,
+                "origin_name": origin.name if origin else "Estoque principal",
+                "sender": sender,
+                "supplier_name": supplier.trade_name if supplier else "",
+                "dispatch_type": (
+                    "supplier_direct" if direct_dispatch else (
+                        "store" if not origin or origin.origin_type == "store"
+                        else "pickup_required"
+                    )
+                ),
+                "preparation_days": preparation_days,
+                "items": [],
+            }
+        grouped[key]["items"].append({
+            "product_id": product.id,
+            "title": product.titulo,
+            "quantity": quantity,
+        })
+    return list(grouped.values())
 
 
 def _create_reserved_order(user, address, lines, subtotal, distance_km,
@@ -721,6 +783,10 @@ def checkout_quote(user):
         logger.exception("Falha ao calcular checkout móvel")
         return jsonify({"message": "Não foi possível calcular a entrega"}), 503
 
+    shipping_groups = _shipping_groups([
+        (line["product"], line["quantity"]) for line in lines
+    ])
+    package_count = len(shipping_groups)
     return jsonify({
         "address": address.to_dict(),
         "items": [{
@@ -734,6 +800,15 @@ def checkout_quote(user):
         "delivery_distance_km": distance_km,
         "delivery_fee": float(delivery_fee),
         "total": float(subtotal + delivery_fee),
+        "shipping_groups": shipping_groups,
+        "package_count": package_count,
+        "delivery_label": "Entrega estimada",
+        "delivery_notice": (
+            f"Este pedido poderá chegar em {package_count} pacotes, "
+            "de acordo com a origem de cada produto."
+            if package_count > 1
+            else "O pedido será preparado em uma única origem de estoque."
+        ),
         "payment_methods": (
             ["cash_on_delivery", "stripe"] if _stripe_enabled()
             else ["cash_on_delivery"]

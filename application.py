@@ -137,6 +137,13 @@ except Exception as e:
 from app.models import init_models
 
 User, Product, Order, OrderItem, Review, CartItem, Address, PaymentMethod = init_models(db)
+from app import models as model_registry
+
+Supplier = model_registry.Supplier
+Brand = model_registry.Brand
+FulfillmentOrigin = model_registry.FulfillmentOrigin
+ProductInventory = model_registry.ProductInventory
+DeliverySettings = model_registry.DeliverySettings
 
 # ============================================
 # CRIAR TABELAS AUTOMATICAMENTE
@@ -145,6 +152,7 @@ User, Product, Order, OrderItem, Review, CartItem, Address, PaymentMethod = init
 # Criar tabelas no banco de dados (funciona com SQLite e PostgreSQL)
 # IMPORTANTE: Isso deve executar sempre, mesmo quando importado pelo gunicorn
 with app.app_context():
+    existing_tables = []
     try:
         # Verificar se tabela user existe
         from sqlalchemy import inspect
@@ -153,10 +161,13 @@ with app.app_context():
         
         if 'user' not in existing_tables:
             logger.info("🏗️ Criando tabelas no banco de dados...")
-            db.create_all()
-            logger.info("✅ Tabelas criadas com sucesso")
         else:
             logger.info("ℹ️ Tabelas já existem no banco de dados")
+
+        # create_all também cria somente as tabelas novas em bancos existentes.
+        db.create_all()
+        existing_tables = inspect(db.engine).get_table_names()
+        logger.info("✅ Estrutura de tabelas verificada")
 
     except Exception as e:
         logger.error(f"❌ Erro ao verificar/criar tabelas: {e}")
@@ -278,6 +289,13 @@ with app.app_context():
                 'beneficios': 'VARCHAR(255)',
                 'sem_adicao_acucar': 'BOOLEAN DEFAULT FALSE NOT NULL',
                 'destaque': 'BOOLEAN DEFAULT FALSE NOT NULL',
+                'supplier_id': 'INTEGER',
+                'brand_id': 'INTEGER',
+                'fulfillment_origin_id': 'INTEGER',
+                'weight_kg': 'FLOAT',
+                'width_cm': 'FLOAT',
+                'height_cm': 'FLOAT',
+                'length_cm': 'FLOAT',
             }
             missing_product_columns = [
                 name for name in product_required_columns if name not in product_columns
@@ -371,7 +389,12 @@ models_dict = {
     'Review': Review,
     'CartItem': CartItem,
     'Address': Address,
-    'PaymentMethod': PaymentMethod
+    'PaymentMethod': PaymentMethod,
+    'Supplier': Supplier,
+    'Brand': Brand,
+    'FulfillmentOrigin': FulfillmentOrigin,
+    'ProductInventory': ProductInventory,
+    'DeliverySettings': DeliverySettings,
 }
 
 # Auth Blueprint

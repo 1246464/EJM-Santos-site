@@ -66,6 +66,13 @@ PRODUCT_COLUMNS = {
     "beneficios": "VARCHAR(255)",
     "sem_adicao_acucar": "BOOLEAN DEFAULT FALSE NOT NULL",
     "destaque": "BOOLEAN DEFAULT FALSE NOT NULL",
+    "supplier_id": "INTEGER",
+    "brand_id": "INTEGER",
+    "fulfillment_origin_id": "INTEGER",
+    "weight_kg": "FLOAT",
+    "width_cm": "FLOAT",
+    "height_cm": "FLOAT",
+    "length_cm": "FLOAT",
 }
 
 

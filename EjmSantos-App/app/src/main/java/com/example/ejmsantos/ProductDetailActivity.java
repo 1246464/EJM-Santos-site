@@ -45,6 +45,10 @@ public class ProductDetailActivity extends AppCompatActivity {
 
         ImageView image = findViewById(R.id.detailImage);
         ((TextView) findViewById(R.id.detailTitle)).setText(product.getTitle());
+        TextView brand = findViewById(R.id.detailBrand);
+        brand.setText(product.getSellerLabel());
+        brand.setVisibility(product.getSellerLabel().isBlank()
+                ? android.view.View.GONE : android.view.View.VISIBLE);
         ((TextView) findViewById(R.id.detailDescription)).setText(
                 product.getDescription().isBlank() ? "Mel artesanal selecionado pela EJM Santos." : product.getDescription());
         ((TextView) findViewById(R.id.detailPrice)).setText(
@@ -53,6 +57,11 @@ public class ProductDetailActivity extends AppCompatActivity {
                 ? "Produto novo" : String.format(Locale.getDefault(), "★ %.1f  •  %d avaliações", product.getRating(), product.getReviewCount()));
         ((TextView) findViewById(R.id.detailStock)).setText(
                 product.getStock() > 0 ? product.getStock() + " unidades disponíveis" : "Produto esgotado");
+        ((TextView) findViewById(R.id.detailSeller)).setText(
+                product.getSupplierName().isBlank()
+                        ? "Vendido e atendido pela loja"
+                        : "Produto do parceiro " + product.getSupplierName());
+        ((TextView) findViewById(R.id.detailShipping)).setText(product.getShippingSummary());
         ImageLoader.load(product.getImageUrl(), image);
 
         MaterialButton addButton = findViewById(R.id.detailAddButton);

@@ -159,7 +159,9 @@ public class MainActivity extends AppCompatActivity {
         }
         List<Product> filtered = new ArrayList<>();
         for (Product product : products) {
-            String haystack = (product.getTitle() + " " + product.getDescription()).toLowerCase(Locale.ROOT);
+            String haystack = (product.getTitle() + " " + product.getDescription() + " "
+                    + product.getBrandName() + " " + product.getSupplierName())
+                    .toLowerCase(Locale.ROOT);
             if (haystack.contains(normalized)) filtered.add(product);
         }
         renderProducts(filtered, screen);
@@ -190,17 +192,23 @@ public class MainActivity extends AppCompatActivity {
 
             ImageView image = card.findViewById(R.id.productImage);
             TextView title = card.findViewById(R.id.productTitle);
+            TextView brand = card.findViewById(R.id.productBrand);
             TextView price = card.findViewById(R.id.productPrice);
             TextView rating = card.findViewById(R.id.productRating);
             TextView stock = card.findViewById(R.id.productStock);
+            TextView shipping = card.findViewById(R.id.productShipping);
             MaterialButton add = card.findViewById(R.id.addButton);
             MaterialButton favorite = card.findViewById(R.id.favoriteButton);
 
             title.setText(product.getTitle());
+            String sellerLabel = product.getSellerLabel();
+            brand.setText(sellerLabel);
+            brand.setVisibility(sellerLabel.isBlank() ? View.GONE : View.VISIBLE);
             price.setText(currency.format(product.getPrice()));
             rating.setText(product.getReviewCount() == 0
                     ? "Novo na loja" : String.format(Locale.getDefault(), "★ %.1f  (%d)", product.getRating(), product.getReviewCount()));
             stock.setText(product.getStock() > 0 ? "Em estoque" : "Produto esgotado");
+            shipping.setText(product.getShippingSummary());
             add.setEnabled(product.getStock() > 0);
             favorite.setText(favoriteRepository.contains(product.getId()) ? "♥" : "♡");
             ImageLoader.load(product.getImageUrl(), image);
@@ -253,6 +261,10 @@ public class MainActivity extends AppCompatActivity {
             View row = LayoutInflater.from(this).inflate(R.layout.item_cart, container, false);
             ImageLoader.load(entry.product.getImageUrl(), row.findViewById(R.id.cartItemImage));
             ((TextView) row.findViewById(R.id.cartItemTitle)).setText(entry.product.getTitle());
+            TextView cartBrand = row.findViewById(R.id.cartItemBrand);
+            cartBrand.setText(entry.product.getSellerLabel());
+            cartBrand.setVisibility(
+                    entry.product.getSellerLabel().isBlank() ? View.GONE : View.VISIBLE);
             ((TextView) row.findViewById(R.id.cartItemPrice)).setText(currency.format(entry.subtotal()));
             ((TextView) row.findViewById(R.id.cartItemQuantity)).setText(String.valueOf(entry.quantity));
             row.findViewById(R.id.decreaseButton).setOnClickListener(v -> {

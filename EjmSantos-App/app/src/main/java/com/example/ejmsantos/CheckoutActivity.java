@@ -3,6 +3,7 @@ package com.example.ejmsantos;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.Spinner;
@@ -44,6 +45,8 @@ public class CheckoutActivity extends AppCompatActivity {
     private TextView subtotalText;
     private TextView deliveryText;
     private TextView totalText;
+    private LinearLayout shippingGroupsContainer;
+    private TextView shippingNotice;
     private ProgressBar progress;
     private MaterialButton placeOrderButton;
     private RadioButton cashPayment;
@@ -72,6 +75,8 @@ public class CheckoutActivity extends AppCompatActivity {
         subtotalText = findViewById(R.id.checkoutSubtotal);
         deliveryText = findViewById(R.id.checkoutDelivery);
         totalText = findViewById(R.id.checkoutTotal);
+        shippingGroupsContainer = findViewById(R.id.checkoutShippingGroups);
+        shippingNotice = findViewById(R.id.checkoutShippingNotice);
         progress = findViewById(R.id.checkoutProgress);
         placeOrderButton = findViewById(R.id.placeOrderButton);
         cashPayment = findViewById(R.id.cashPayment);
@@ -180,6 +185,7 @@ public class CheckoutActivity extends AppCompatActivity {
                                 currency.format(quote.optDouble("delivery_fee")),
                                 quote.optDouble("delivery_distance_km")));
                         totalText.setText(currency.format(quote.optDouble("total")));
+                        renderShippingGroups(quote);
                         JSONArray methods = quote.optJSONArray("payment_methods");
                         boolean stripeEnabled = false;
                         if (methods != null) {
@@ -203,6 +209,59 @@ public class CheckoutActivity extends AppCompatActivity {
                         Snackbar.make(findViewById(R.id.checkoutRoot), message, Snackbar.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    private void renderShippingGroups(JSONObject quote) {
+        shippingGroupsContainer.removeAllViews();
+        JSONArray groups = quote.optJSONArray("shipping_groups");
+        if (groups == null || groups.length() == 0) {
+            findViewById(R.id.checkoutShippingCard).setVisibility(View.GONE);
+            return;
+        }
+
+        findViewById(R.id.checkoutShippingCard).setVisibility(View.VISIBLE);
+        for (int groupIndex = 0; groupIndex < groups.length(); groupIndex++) {
+            JSONObject group = groups.optJSONObject(groupIndex);
+            if (group == null) continue;
+            View row = getLayoutInflater().inflate(
+                    R.layout.item_shipping_group, shippingGroupsContainer, false);
+            ((TextView) row.findViewById(R.id.shippingGroupSender)).setText(
+                    "Pacote " + (groupIndex + 1) + " • " + group.optString("sender", "Loja"));
+
+            String dispatchType = group.optString("dispatch_type");
+            String dispatchLabel;
+            if ("supplier_direct".equals(dispatchType)) {
+                dispatchLabel = "Envio direto pelo parceiro";
+            } else if ("pickup_required".equals(dispatchType)) {
+                dispatchLabel = "Coleta necessária no fornecedor";
+            } else {
+                dispatchLabel = "Envio pelo estoque da loja";
+            }
+            ((TextView) row.findViewById(R.id.shippingGroupOrigin)).setText(dispatchLabel);
+
+            JSONArray items = group.optJSONArray("items");
+            StringBuilder itemNames = new StringBuilder();
+            if (items != null) {
+                for (int itemIndex = 0; itemIndex < items.length(); itemIndex++) {
+                    JSONObject item = items.optJSONObject(itemIndex);
+                    if (item == null) continue;
+                    if (itemNames.length() > 0) itemNames.append(", ");
+                    itemNames.append(item.optInt("quantity", 1))
+                            .append("× ")
+                            .append(item.optString("title", "Produto"));
+                }
+            }
+            ((TextView) row.findViewById(R.id.shippingGroupItems)).setText(itemNames);
+
+            int preparationDays = group.optInt("preparation_days", 0);
+            ((TextView) row.findViewById(R.id.shippingGroupPreparation)).setText(
+                    preparationDays == 0
+                            ? "Pronto para envio"
+                            : "Preparação: até " + preparationDays + " dia(s) útil(eis)");
+            shippingGroupsContainer.addView(row);
+        }
+        shippingNotice.setText(quote.optString(
+                "delivery_notice", "A entrega será confirmada para o endereço selecionado."));
     }
 
     private void placeOrder() {

@@ -7,7 +7,17 @@ from pathlib import Path
 os.environ["FLASK_ENV"] = "testing"
 os.environ.setdefault("EJM_SECRET", "test_secret_key_with_at_least_32_characters")
 
-from application import PaymentMethod, Product, User, app, db
+from application import (
+    DeliverySettings,
+    FulfillmentOrigin,
+    PaymentMethod,
+    Product,
+    ProductInventory,
+    Supplier,
+    User,
+    app,
+    db,
+)
 
 
 class SecurityRegressionTests(unittest.TestCase):
@@ -64,6 +74,70 @@ class SecurityRegressionTests(unittest.TestCase):
 
         with app.app_context():
             self.assertIsNone(db.session.get(Product, product_id))
+
+    def test_admin_can_configure_logistics_foundation(self):
+        admin_id = self.create_user(is_admin=True)
+        self.login_as(admin_id)
+
+        self.assertEqual(self.client.get("/admin/logistica").status_code, 200)
+        supplier_response = self.client.post("/admin/logistica/fornecedores", data={
+            "trade_name": "Apiário Parceiro",
+            "preparation_days": "1",
+            "direct_shipping": "on",
+        })
+        self.assertEqual(supplier_response.status_code, 302)
+
+        with app.app_context():
+            supplier_id = Supplier.query.one().id
+            product = Product(titulo="Mel local", preco=25, estoque=0)
+            db.session.add(product)
+            db.session.commit()
+            product_id = product.id
+
+        origin_response = self.client.post("/admin/logistica/origens", data={
+            "name": "Estoque do parceiro",
+            "origin_type": "supplier",
+            "supplier_id": str(supplier_id),
+            "city": "São Paulo",
+            "state": "SP",
+            "latitude": "-23.55",
+            "longitude": "-46.63",
+            "preparation_days": "1",
+            "direct_dispatch": "on",
+            "carrier_pickup": "on",
+        })
+        self.assertEqual(origin_response.status_code, 302)
+
+        with app.app_context():
+            origin_id = FulfillmentOrigin.query.one().id
+
+        settings_response = self.client.post("/admin/logistica/configuracao", data={
+            "base_origin_id": str(origin_id),
+            "vehicle_name": "Suzuki 125",
+            "max_roundtrip_km": "40",
+            "fuel_efficiency_km_l": "35",
+            "fuel_price_per_liter": "6.20",
+            "maintenance_cost_per_km": "0.20",
+            "hourly_rate": "18",
+            "minimum_fee": "10",
+            "route_buffer_percent": "20",
+            "same_day_cutoff": "14:00",
+            "motorcycle_enabled": "on",
+            "scheduled_delivery_enabled": "on",
+        })
+        self.assertEqual(settings_response.status_code, 302)
+
+        inventory_response = self.client.post("/admin/logistica/estoque", data={
+            "product_id": str(product_id),
+            "origin_id": str(origin_id),
+            "quantity": "7",
+        })
+        self.assertEqual(inventory_response.status_code, 302)
+
+        with app.app_context():
+            self.assertEqual(DeliverySettings.current().max_roundtrip_km, 40)
+            self.assertEqual(ProductInventory.query.one().quantity, 7)
+            self.assertEqual(db.session.get(Product, product_id).estoque, 7)
 
     def test_raw_card_data_is_rejected(self):
         user_id = self.create_user(is_admin=False)

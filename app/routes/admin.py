@@ -16,6 +16,11 @@ User = None
 Product = None
 Order = None
 OrderItem = None
+Supplier = None
+Brand = None
+FulfillmentOrigin = None
+ProductInventory = None
+DeliverySettings = None
 logger = None
 email_service = None
 UPLOAD_FOLDER = None
@@ -23,14 +28,104 @@ UPLOAD_FOLDER = None
 def init_admin(database, models_dict, log, email_svc, upload_folder):
     """Inicializa o blueprint com dependências"""
     global db, User, Product, Order, OrderItem, logger, email_service, UPLOAD_FOLDER
+    global Supplier, Brand, FulfillmentOrigin, ProductInventory, DeliverySettings
     db = database
     User = models_dict['User']
     Product = models_dict['Product']
     Order = models_dict['Order']
     OrderItem = models_dict['OrderItem']
+    Supplier = models_dict['Supplier']
+    Brand = models_dict['Brand']
+    FulfillmentOrigin = models_dict['FulfillmentOrigin']
+    ProductInventory = models_dict['ProductInventory']
+    DeliverySettings = models_dict['DeliverySettings']
     logger = log
     email_service = email_svc
     UPLOAD_FOLDER = upload_folder
+
+
+def _optional_int(value):
+    try:
+        return int(value) if str(value or "").strip() else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_float(value, field_name, allow_negative=False):
+    raw = str(value or "").strip().replace(",", ".")
+    if not raw:
+        return None
+    try:
+        parsed = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{field_name} deve ser um número") from exc
+    if parsed < 0 and not allow_negative:
+        raise ValueError(f"{field_name} não pode ser negativo")
+    return parsed
+
+
+def _coordinate(value, field_name, minimum, maximum):
+    parsed = _optional_float(value, field_name, allow_negative=True)
+    if parsed is not None and not minimum <= parsed <= maximum:
+        raise ValueError(f"{field_name} deve ficar entre {minimum} e {maximum}")
+    return parsed
+
+
+def _existing_id(model, value, field_name):
+    identifier = _optional_int(value)
+    if identifier is not None and db.session.get(model, identifier) is None:
+        raise ValueError(f"{field_name} selecionado não existe")
+    return identifier
+
+
+def _safe_form_error(error, fallback):
+    return str(error) if isinstance(error, ValueError) else fallback
+
+
+def _product_form_context(**extra):
+    context = {
+        "supplier_options": Supplier.query.filter_by(active=True).order_by(
+            Supplier.trade_name
+        ).all(),
+        "brand_options": Brand.query.filter_by(active=True).order_by(Brand.name).all(),
+        "origin_options": FulfillmentOrigin.query.filter_by(active=True).order_by(
+            FulfillmentOrigin.name
+        ).all(),
+    }
+    context.update(extra)
+    return context
+
+
+def _sync_primary_inventory(product):
+    if not product.fulfillment_origin_id:
+        return
+    inventories = ProductInventory.query.filter_by(
+        product_id=product.id, active=True
+    ).all()
+    inventory = next(
+        (
+            row
+            for row in inventories
+            if row.origin_id == product.fulfillment_origin_id
+        ),
+        None,
+    )
+    if len(inventories) <= 1:
+        if inventory is None and inventories:
+            inventory = inventories[0]
+            inventory.origin_id = product.fulfillment_origin_id
+        elif inventory is None:
+            inventory = ProductInventory(
+                product_id=product.id,
+                origin_id=product.fulfillment_origin_id,
+            )
+            db.session.add(inventory)
+        inventory.quantity = product.estoque or 0
+        inventory.active = True
+        return
+
+    # Com várias origens, o estoque total é administrado na tela de logística.
+    product.estoque = sum(row.quantity or 0 for row in inventories)
 
 
 def admin_required(f):
@@ -110,6 +205,8 @@ def admin_dashboard():
         produtos_esgotados = sum(1 for produto in produtos if (produto.estoque or 0) <= 0)
         estoque_total = sum((produto.estoque or 0) for produto in produtos)
         clientes_ativos = User.query.filter_by(is_admin=False, is_active=True).count()
+        fornecedores_ativos = Supplier.query.filter_by(active=True).count()
+        origens_ativas = FulfillmentOrigin.query.filter_by(active=True).count()
         pedidos_recentes = sorted(
             pedidos,
             key=lambda pedido: pedido.created_at or datetime.min,
@@ -140,10 +237,244 @@ def admin_dashboard():
             meses_labels=meses_labels,
             meses_valores=meses_valores,
             meses_serie=meses_serie,
+            fornecedores_ativos=fornecedores_ativos,
+            origens_ativas=origens_ativas,
         )
     except Exception as e:
         logger.error(f"Erro no dashboard admin: {str(e)}", exc_info=True)
         return render_template("erro.html", mensagem="Erro ao carregar dashboard"), 500
+
+
+# ============================================
+# LOGÍSTICA E PARCEIROS
+# ============================================
+
+@admin_bp.route("/logistica")
+@admin_required
+def admin_logistica():
+    settings = DeliverySettings.current()
+    suppliers = Supplier.query.order_by(Supplier.active.desc(), Supplier.trade_name).all()
+    brands = Brand.query.order_by(Brand.active.desc(), Brand.name).all()
+    origins = FulfillmentOrigin.query.order_by(
+        FulfillmentOrigin.active.desc(), FulfillmentOrigin.name
+    ).all()
+    inventories = ProductInventory.query.order_by(ProductInventory.updated_at.desc()).all()
+    products = Product.query.order_by(Product.titulo).all()
+    linked_products = sum(1 for product in products if product.fulfillment_origin_id)
+    readiness = {
+        "settings": bool(settings),
+        "base": bool(settings and settings.base_origin_id),
+        "costs": bool(
+            settings
+            and settings.fuel_efficiency_km_l
+            and settings.fuel_price_per_liter
+            and settings.hourly_rate is not None
+        ),
+        "origins": bool(origins),
+        "products": linked_products,
+        "products_total": len(products),
+    }
+    return render_template(
+        "admin_logistica.html",
+        settings=settings,
+        suppliers=suppliers,
+        brands=brands,
+        origins=origins,
+        inventories=inventories,
+        products=products,
+        readiness=readiness,
+        success=request.args.get("success", ""),
+        error=request.args.get("error", ""),
+    )
+
+
+@admin_bp.route("/logistica/configuracao", methods=["POST"])
+@admin_required
+def admin_logistica_configuracao():
+    try:
+        settings = DeliverySettings.current() or DeliverySettings()
+        settings.base_origin_id = _existing_id(
+            FulfillmentOrigin, request.form.get("base_origin_id"), "Local de saída"
+        )
+        settings.motorcycle_enabled = request.form.get("motorcycle_enabled") == "on"
+        settings.vehicle_name = request.form.get("vehicle_name", "Suzuki 125").strip()
+        settings.max_roundtrip_km = _optional_float(
+            request.form.get("max_roundtrip_km"), "Limite de percurso"
+        ) or 40.0
+        settings.max_package_weight_kg = _optional_float(
+            request.form.get("max_package_weight_kg"), "Peso máximo"
+        )
+        settings.fuel_efficiency_km_l = _optional_float(
+            request.form.get("fuel_efficiency_km_l"), "Consumo da moto"
+        )
+        settings.fuel_price_per_liter = _optional_float(
+            request.form.get("fuel_price_per_liter"), "Preço do combustível"
+        )
+        settings.maintenance_cost_per_km = _optional_float(
+            request.form.get("maintenance_cost_per_km"), "Reserva de manutenção"
+        ) or 0.0
+        settings.hourly_rate = _optional_float(
+            request.form.get("hourly_rate"), "Valor da hora"
+        ) or 0.0
+        settings.minimum_fee = _optional_float(
+            request.form.get("minimum_fee"), "Taxa mínima"
+        ) or 0.0
+        settings.route_buffer_percent = _optional_float(
+            request.form.get("route_buffer_percent"), "Margem de tempo"
+        ) or 0.0
+        settings.scheduled_delivery_enabled = (
+            request.form.get("scheduled_delivery_enabled") == "on"
+        )
+        cutoff = request.form.get("same_day_cutoff", "14:00")
+        datetime.strptime(cutoff, "%H:%M")
+        settings.same_day_cutoff = cutoff
+        db.session.add(settings)
+        db.session.commit()
+        return redirect(url_for("admin.admin_logistica", success="Configuração salva"))
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Erro ao salvar configuração logística", exc_info=True)
+        return redirect(url_for(
+            "admin.admin_logistica",
+            error=_safe_form_error(exc, "Não foi possível salvar a configuração"),
+        ))
+
+
+@admin_bp.route("/logistica/fornecedores", methods=["POST"])
+@admin_required
+def admin_logistica_fornecedor():
+    try:
+        trade_name = request.form.get("trade_name", "").strip()
+        if not trade_name:
+            raise ValueError("Informe o nome do fornecedor")
+        preparation_days = max(int(request.form.get("preparation_days", 1)), 0)
+        supplier = Supplier(
+            trade_name=trade_name,
+            legal_name=request.form.get("legal_name", "").strip() or None,
+            document=request.form.get("document", "").strip() or None,
+            email=request.form.get("email", "").strip().lower() or None,
+            phone=request.form.get("phone", "").strip() or None,
+            direct_shipping=request.form.get("direct_shipping") == "on",
+            preparation_days=preparation_days,
+            notes=request.form.get("notes", "").strip() or None,
+        )
+        db.session.add(supplier)
+        db.session.commit()
+        return redirect(url_for("admin.admin_logistica", success="Fornecedor cadastrado"))
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Erro ao cadastrar fornecedor", exc_info=True)
+        return redirect(url_for(
+            "admin.admin_logistica",
+            error=_safe_form_error(exc, "Não foi possível cadastrar o fornecedor"),
+        ))
+
+
+@admin_bp.route("/logistica/marcas", methods=["POST"])
+@admin_required
+def admin_logistica_marca():
+    try:
+        name = request.form.get("name", "").strip()
+        if not name:
+            raise ValueError("Informe o nome da marca")
+        db.session.add(Brand(
+            name=name,
+            supplier_id=_existing_id(
+                Supplier, request.form.get("supplier_id"), "Fornecedor"
+            ),
+        ))
+        db.session.commit()
+        return redirect(url_for("admin.admin_logistica", success="Marca cadastrada"))
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Erro ao cadastrar marca", exc_info=True)
+        return redirect(url_for(
+            "admin.admin_logistica",
+            error=_safe_form_error(exc, "Não foi possível cadastrar a marca"),
+        ))
+
+
+@admin_bp.route("/logistica/origens", methods=["POST"])
+@admin_required
+def admin_logistica_origem():
+    try:
+        name = request.form.get("name", "").strip()
+        city = request.form.get("city", "").strip()
+        if not name or not city:
+            raise ValueError("Informe o nome e a cidade da origem")
+        origin_type = request.form.get("origin_type", "supplier")
+        if origin_type not in {"store", "supplier"}:
+            raise ValueError("Tipo de origem inválido")
+        origin = FulfillmentOrigin(
+            name=name,
+            origin_type=origin_type,
+            supplier_id=_existing_id(
+                Supplier, request.form.get("supplier_id"), "Fornecedor"
+            ),
+            postal_code=request.form.get("postal_code", "").strip() or None,
+            street=request.form.get("street", "").strip() or None,
+            number=request.form.get("number", "").strip() or None,
+            complement=request.form.get("complement", "").strip() or None,
+            district=request.form.get("district", "").strip() or None,
+            city=city,
+            state=request.form.get("state", "").strip().upper()[:2] or None,
+            latitude=_coordinate(request.form.get("latitude"), "Latitude", -90, 90),
+            longitude=_coordinate(
+                request.form.get("longitude"), "Longitude", -180, 180
+            ),
+            direct_dispatch=request.form.get("direct_dispatch") == "on",
+            carrier_pickup=request.form.get("carrier_pickup") == "on",
+            preparation_days=max(int(request.form.get("preparation_days", 1)), 0),
+        )
+        db.session.add(origin)
+        db.session.commit()
+        return redirect(url_for("admin.admin_logistica", success="Origem cadastrada"))
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Erro ao cadastrar origem", exc_info=True)
+        return redirect(url_for(
+            "admin.admin_logistica",
+            error=_safe_form_error(exc, "Não foi possível cadastrar a origem"),
+        ))
+
+
+@admin_bp.route("/logistica/estoque", methods=["POST"])
+@admin_required
+def admin_logistica_estoque():
+    try:
+        product_id = _optional_int(request.form.get("product_id"))
+        origin_id = _optional_int(request.form.get("origin_id"))
+        quantity = int(request.form.get("quantity", 0))
+        product = db.session.get(Product, product_id)
+        origin = db.session.get(FulfillmentOrigin, origin_id)
+        if not product or not origin or quantity < 0:
+            raise ValueError("Produto, origem ou quantidade inválidos")
+        inventory = ProductInventory.query.filter_by(
+            product_id=product.id, origin_id=origin.id
+        ).first()
+        if not inventory:
+            inventory = ProductInventory(product_id=product.id, origin_id=origin.id)
+            db.session.add(inventory)
+        inventory.quantity = quantity
+        inventory.active = True
+        product.fulfillment_origin_id = origin.id
+        product.supplier_id = product.supplier_id or origin.supplier_id
+        db.session.flush()
+        product.estoque = sum(
+            row.quantity or 0
+            for row in ProductInventory.query.filter_by(
+                product_id=product.id, active=True
+            ).all()
+        )
+        db.session.commit()
+        return redirect(url_for("admin.admin_logistica", success="Estoque por origem salvo"))
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Erro ao salvar estoque por origem", exc_info=True)
+        return redirect(url_for(
+            "admin.admin_logistica",
+            error=_safe_form_error(exc, "Não foi possível salvar o estoque"),
+        ))
 
 
 # ============================================
@@ -169,13 +500,32 @@ def admin_novo_produto():
                 'beneficios': request.form.get("beneficios", "").strip(),
                 'sem_adicao_acucar': request.form.get("sem_adicao_acucar") == "on",
                 'destaque': request.form.get("destaque") == "on",
+                'supplier_id': _existing_id(
+                    Supplier, request.form.get("supplier_id"), "Fornecedor"
+                ),
+                'brand_id': _existing_id(
+                    Brand, request.form.get("brand_id"), "Marca"
+                ),
+                'fulfillment_origin_id': _existing_id(
+                    FulfillmentOrigin,
+                    request.form.get("fulfillment_origin_id"),
+                    "Origem",
+                ),
+            }
+            package = {
+                'weight_kg': _optional_float(request.form.get("weight_kg"), "Peso"),
+                'width_cm': _optional_float(request.form.get("width_cm"), "Largura"),
+                'height_cm': _optional_float(request.form.get("height_cm"), "Altura"),
+                'length_cm': _optional_float(request.form.get("length_cm"), "Comprimento"),
             }
             
             # Validar dados
             is_valid, errors = Validator.validate_product_data(data)
             if not is_valid:
                 logger.warning(f"Tentativa de criar produto com dados inválidos: {errors}")
-                return render_template("admin_novo.html", erro="; ".join(errors))
+                return render_template(
+                    "admin_novo.html", **_product_form_context(erro="; ".join(errors))
+                )
             
             # Processar upload de imagem
             imagem_file = request.files.get("imagem")
@@ -196,8 +546,14 @@ def admin_novo_produto():
                 beneficios=data['beneficios'],
                 sem_adicao_acucar=data['sem_adicao_acucar'],
                 destaque=data['destaque'],
+                supplier_id=data['supplier_id'],
+                brand_id=data['brand_id'],
+                fulfillment_origin_id=data['fulfillment_origin_id'],
+                **package,
             )
             db.session.add(p)
+            db.session.flush()
+            _sync_primary_inventory(p)
             db.session.commit()
             
             logger.info(f"Produto criado - ID: {p.id} ({p.titulo}) - Admin: {session.get('user_id')}")
@@ -206,9 +562,11 @@ def admin_novo_produto():
         except Exception as e:
             db.session.rollback()
             logger.error(f"Erro ao criar produto: {str(e)}", exc_info=True)
-            return render_template("admin_novo.html", erro="Erro ao criar produto")
+            return render_template(
+                "admin_novo.html", **_product_form_context(erro="Erro ao criar produto")
+            )
     
-    return render_template("admin_novo.html")
+    return render_template("admin_novo.html", **_product_form_context())
 
 
 @admin_bp.route("/editar/<int:pid>", methods=["GET", "POST"])
@@ -232,13 +590,33 @@ def admin_editar_produto(pid):
                 'beneficios': request.form.get("beneficios", "").strip(),
                 'sem_adicao_acucar': request.form.get("sem_adicao_acucar") == "on",
                 'destaque': request.form.get("destaque") == "on",
+                'supplier_id': _existing_id(
+                    Supplier, request.form.get("supplier_id"), "Fornecedor"
+                ),
+                'brand_id': _existing_id(
+                    Brand, request.form.get("brand_id"), "Marca"
+                ),
+                'fulfillment_origin_id': _existing_id(
+                    FulfillmentOrigin,
+                    request.form.get("fulfillment_origin_id"),
+                    "Origem",
+                ),
+            }
+            package = {
+                'weight_kg': _optional_float(request.form.get("weight_kg"), "Peso"),
+                'width_cm': _optional_float(request.form.get("width_cm"), "Largura"),
+                'height_cm': _optional_float(request.form.get("height_cm"), "Altura"),
+                'length_cm': _optional_float(request.form.get("length_cm"), "Comprimento"),
             }
             
             # Validar
             is_valid, errors = Validator.validate_product_data(data)
             if not is_valid:
                 logger.warning(f"Tentativa de editar produto {pid} com dados inválidos: {errors}")
-                return render_template("admin_editar.html", produto=p, erro="; ".join(errors))
+                return render_template(
+                    "admin_editar.html",
+                    **_product_form_context(produto=p, erro="; ".join(errors)),
+                )
             
             # Atualizar dados
             p.titulo = data['titulo']
@@ -250,6 +628,11 @@ def admin_editar_produto(pid):
             p.beneficios = data['beneficios']
             p.sem_adicao_acucar = data['sem_adicao_acucar']
             p.destaque = data['destaque']
+            p.supplier_id = data['supplier_id']
+            p.brand_id = data['brand_id']
+            p.fulfillment_origin_id = data['fulfillment_origin_id']
+            for field, value in package.items():
+                setattr(p, field, value)
             
             # Processar nova imagem se enviada
             imagem_file = request.files.get("imagem")
@@ -258,6 +641,7 @@ def admin_editar_produto(pid):
                 imagem_file.save(os.path.join(UPLOAD_FOLDER, nome_arquivo))
                 p.imagem = f"imagens/{nome_arquivo}"
             
+            _sync_primary_inventory(p)
             db.session.commit()
             
             logger.info(f"Produto editado - ID: {pid} ({p.titulo}) - Admin: {session.get('user_id')}")
@@ -266,9 +650,14 @@ def admin_editar_produto(pid):
         except Exception as e:
             db.session.rollback()
             logger.error(f"Erro ao editar produto {pid}: {str(e)}", exc_info=True)
-            return render_template("admin_editar.html", produto=p, erro="Erro ao editar produto")
+            return render_template(
+                "admin_editar.html",
+                **_product_form_context(produto=p, erro="Erro ao editar produto"),
+            )
     
-    return render_template("admin_editar.html", produto=p)
+    return render_template(
+        "admin_editar.html", **_product_form_context(produto=p)
+    )
 
 
 @admin_bp.route("/remover/<int:pid>", methods=["POST"])

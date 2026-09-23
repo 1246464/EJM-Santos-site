@@ -60,6 +60,11 @@ class RenderStartupTests(unittest.TestCase):
                 product_columns = {
                     row[1] for row in connection.execute('PRAGMA table_info("product")')
                 }
+                tables = {
+                    row[0] for row in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                }
             finally:
                 connection.close()
 
@@ -73,7 +78,13 @@ class RenderStartupTests(unittest.TestCase):
             }.issubset(order_columns))
             self.assertTrue({
                 "categoria", "origem", "beneficios", "sem_adicao_acucar", "destaque",
+                "supplier_id", "brand_id", "fulfillment_origin_id", "weight_kg",
+                "width_cm", "height_cm", "length_cm",
             }.issubset(product_columns))
+            self.assertTrue({
+                "supplier", "brand", "fulfillment_origin", "product_inventory",
+                "delivery_settings",
+            }.issubset(tables))
 
 
 if __name__ == "__main__":

@@ -21,10 +21,18 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingBottom="24dp">
             <ImageView android:id="@+id/detailImage" android:layout_width="match_parent" android:layout_height="310dp" android:background="@color/surface_variant" android:contentDescription="Imagem do produto" android:scaleType="centerCrop" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView android:id="@+id/detailBrand" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="5dp" android:textAllCaps="true" android:textColor="@color/honey_dark" android:textSize="12sp" android:textStyle="bold" />
                 <TextView android:id="@+id/detailTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" android:textSize="27sp" android:textStyle="bold" />
                 <TextView android:id="@+id/detailRating" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textColor="@color/honey_dark" android:textSize="15sp" />
                 <TextView android:id="@+id/detailPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textColor="@color/text_primary" android:textSize="30sp" android:textStyle="bold" />
                 <TextView android:id="@+id/detailStock" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/success" android:textStyle="bold" />
+                <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" app:cardBackgroundColor="@color/honey_light" app:cardCornerRadius="16dp" app:cardElevation="0dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="15dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Origem e entrega" android:textColor="@color/text_primary" android:textStyle="bold" />
+                        <TextView android:id="@+id/detailSeller" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:textColor="@color/text_primary" android:textSize="13sp" />
+                        <TextView android:id="@+id/detailShipping" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:textColor="@color/text_secondary" android:textSize="13sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="Sobre este produto" android:textColor="@color/text_primary" android:textSize="19sp" android:textStyle="bold" />
                 <TextView android:id="@+id/detailDescription" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:lineSpacingExtra="4dp" android:textColor="@color/text_secondary" android:textSize="16sp" />
             </LinearLayout>
